@@ -1,8 +1,10 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Analytics } from "@/components/analytics"
 import ClientLayout from "./client"
 import { Suspense } from "react"
+import NoScriptStyles from "@/components/noscript-styles"
+import './globals.css'
 
 export const metadata: Metadata = {
   title: "Nihal Maskey | Senior Software Engineer",
@@ -30,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://nihalmaskey.com",
+    url: "https://nihal.com.np",
     title: "Nihal Maskey | Senior Software Engineer",
     description:
       "Portfolio of Nihal Maskey, a Senior Software Engineer specializing in JavaScript, TypeScript, React.js, Node.js, Laravel, and AWS.",
@@ -55,8 +57,34 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   },
-    generator: 'v0.dev'
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  alternates: {
+    canonical: "https://nihal.com.np",
+  },
+  generator: 'v0.dev'
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#ffd580',
+  colorScheme: 'light dark',
 }
 
 export default function RootLayout({
@@ -65,14 +93,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <>
-      <Suspense>
-        <ClientLayout>{children}</ClientLayout>
-      </Suspense>
-      <Analytics />
-    </>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <NoScriptStyles />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.vercel-analytics.com" />
+      </head>
+      <body className="min-h-screen bg-background font-mono antialiased">
+        <Suspense>
+          <ClientLayout>{children}</ClientLayout>
+        </Suspense>
+        <Analytics />
+      </body>
+    </html>
   )
 }
-
-
-import './globals.css'

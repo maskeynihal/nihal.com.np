@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /*.json$
+
+Sitemap: https://nihal.com.np/sitemap.xml
+
+Crawl-delay: 1

@@ -1,0 +1,32 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Nihal Maskey",
+  "url": "https://nihal.com.np",
+  "image": "https://nihal.com.np/favicon.png",
+  "description": "Senior Software Engineer specializing in JavaScript, TypeScript, React.js, Node.js, Laravel, and AWS",
+  "jobTitle": "Senior Software Engineer",
+  "birthPlace": "Kathmandu, Nepal",
+  "sameAs": [
+    "https://github.com/maskeynihal",
+    "https://linkedin.com/in/maskeynihal",
+    "https://nihalmaskey.hashnode.dev"
+  ],
+  "email": "contact@nihal.com.np",
+  "worksFor": {
+    "@type": "Organization",
+    "name": "Leapfrog Technology / Trayt Health",
+    "url": "https://leapfrog.com"
+  },
+  "knowsAbout": [
+    "JavaScript",
+    "TypeScript",
+    "React.js",
+    "Node.js",
+    "PHP",
+    "Laravel",
+    "AWS",
+    "Full Stack Development",
+    "Web Development"
+  ]
+}
