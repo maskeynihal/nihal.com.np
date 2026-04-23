@@ -284,3 +284,18 @@ header.scrolled {
     scroll-behavior: auto !important;
   }
 }
+
+/* No-JavaScript fallback styles */
+.js-only {
+  display: none !important;
+}
+
+.no-js {
+  display: block !important;
+}
+
+/* Ensure elements are visible without JavaScript */
+[data-motion="hidden"] {
+  opacity: 1 !important;
+  transform: none !important;
+}

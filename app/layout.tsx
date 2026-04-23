@@ -3,7 +3,6 @@ import type { Metadata, Viewport } from "next"
 import { Analytics } from "@/components/analytics"
 import ClientLayout from "./client"
 import { Suspense } from "react"
-import NoScriptStyles from "@/components/noscript-styles"
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -95,7 +94,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <NoScriptStyles />
         <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
