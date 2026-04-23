@@ -17,6 +17,7 @@ const navItems = [
   { name: "About", href: "#about" },
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
+  { name: "Certificates", href: "https://certificates.nihal.com.np", external: true },
   { name: "Education", href: "#education" },
   { name: "Blog", href: "#blog" },
   { name: "Contact Me", href: "#contact" },
@@ -107,7 +108,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center space-x-6">
           <div className="relative flex space-x-4 items-center">
             {navItems.map((item, index) => {
-              const isActive = activeSection === item.href.substring(1)
+              const isActive = !("external" in item) && activeSection === item.href.substring(1)
 
               return (
                 <motion.div
@@ -126,7 +127,9 @@ export default function Header() {
                   )}
                   <Link
                     href={item.href}
-                    onClick={(e) => scrollToSection(e, item.href)}
+                    onClick={(e) => ("external" in item) ? undefined : scrollToSection(e, item.href)}
+                    target={("external" in item) ? "_blank" : undefined}
+                    rel={("external" in item) ? "noopener noreferrer" : undefined}
                     className={cn(
                       "text-sm font-medium transition-colors px-3 py-2 rounded-md relative",
                       isActive ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground",
@@ -183,13 +186,15 @@ export default function Header() {
         <div className="container py-4 bg-background/95 backdrop-blur-sm">
           <nav className="flex flex-col space-y-4">
             {navItems.map((item) => {
-              const isActive = activeSection === item.href.substring(1)
+              const isActive = !("external" in item) && activeSection === item.href.substring(1)
 
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  onClick={(e) => scrollToSection(e, item.href)}
+                  onClick={(e) => ("external" in item) ? undefined : scrollToSection(e, item.href)}
+                  target={("external" in item) ? "_blank" : undefined}
+                  rel={("external" in item) ? "noopener noreferrer" : undefined}
                   className={cn(
                     "text-sm font-medium transition-colors py-2 px-3 rounded-md",
                     isActive
