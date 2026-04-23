@@ -100,35 +100,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://cdn.vercel-analytics.com" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Person",
-              "name": "Nihal Maskey",
-              "url": "https://nihal.com.np",
-              "image": "https://nihal.com.np/favicon.png",
-              "description": "Senior Software Engineer specializing in JavaScript, TypeScript, React.js, Node.js, Laravel, and AWS",
-              "jobTitle": "Senior Software Engineer",
-              "sameAs": [
-                "https://github.com/maskeynihal",
-                "https://linkedin.com/in/maskeynihal",
-                "https://nihalmaskey.hashnode.dev"
-              ],
-              "email": "contact@nihal.com.np"
-            })
-          }}
-        />
-        <style jsx global>{`
-          :root {
-            --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-          }
-          
-          body {
-            font-family: var(--font-mono);
-          }
-        `}</style>
+        <link rel="alternate" type="application/ld+json" href="/schema.json" />
       </head>
       <body className="min-h-screen bg-background font-mono antialiased">
         <Suspense>
