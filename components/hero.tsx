@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowUpCircle, Download, Github, Linkedin, Mail } from "lucide-react"
+import { ArrowUpCircle, Download, Github, Linkedin, Mail } from 'lucide-react'
 import Link from "next/link"
 
 export default function Hero() {

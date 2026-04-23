@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Code2, Globe, Server, Users } from "lucide-react"
+import { Code2, Globe, Server, Users } from 'lucide-react'
 
 export default function About() {
   const features = [

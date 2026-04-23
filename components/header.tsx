@@ -5,13 +5,13 @@ import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { ModeToggle } from "./mode-toggle"
 import { Button } from "@/components/ui/button"
-import { Menu, X } from "lucide-react"
+import { Menu, X } from 'lucide-react'
 import { cn } from "@/lib/utils"
-import { usePathname } from "next/navigation"
+import { usePathname } from 'next/navigation'
 import { motion } from "framer-motion"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 
-// Updated nav items - removed Skills as it's now part of Experience
 const navItems = [
   { name: "Home", href: "#home" },
   { name: "About", href: "#about" },
@@ -62,8 +62,7 @@ export default function Header() {
       setActiveSection(determineActiveSection())
     }
 
-    window.addEventListener("scroll", handleScroll)
-    // Initial check
+    window.addEventListener("scroll", handleScroll, { passive: true })
     setActiveSection(determineActiveSection())
 
     return () => window.removeEventListener("scroll", handleScroll)

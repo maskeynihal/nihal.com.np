@@ -123,7 +123,6 @@ export default function Experience() {
             ))}
           </div>
 
-          {/* Skills Section */}
           <div className="mt-20" id="skills">
             <Skills />
           </div>
