@@ -24,16 +24,6 @@
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: var(--font-mono);
-}
-
 .dark {
   --background: 20 14.3% 4.1%;
   --foreground: 0 0% 95%;
@@ -283,19 +273,4 @@ header.scrolled {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* No-JavaScript fallback styles */
-.js-only {
-  display: none !important;
-}
-
-.no-js {
-  display: block !important;
-}
-
-/* Ensure elements are visible without JavaScript */
-[data-motion="hidden"] {
-  opacity: 1 !important;
-  transform: none !important;
 }
