@@ -106,8 +106,7 @@ export const copy = {
   },
   notFound: {
     title: 'nothing here · nihal maskey',
-    description:
-      'That page moved or never existed. The desk is one click away.',
+    description: 'That page moved or never existed.',
     heading: 'nothing here',
     sheet: 'sheet not found',
     body: 'That page moved or never existed.',
@@ -115,7 +114,7 @@ export const copy = {
   },
   sent: {
     title: 'sent · nihal maskey',
-    description: "Your message is sent. I'll reply from contact@nihal.com.np.",
+    description: "Sent. I'll reply from contact@nihal.com.np.",
     heading: 'sent',
     body: "I'll reply from contact@nihal.com.np.",
     back: 'back to the desk',

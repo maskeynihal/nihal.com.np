@@ -32,7 +32,11 @@ test.describe('tokens and fonts @A-02', () => {
     expect(html).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
   });
 
-  test('both font files are preloaded with crossorigin', async ({ page }) => {
+  test('both font files are preloaded (crossorigin except in WebKit) @A-13', async ({
+    page,
+    browserName,
+    javaScriptEnabled,
+  }) => {
     await page.goto('/');
     const links = await page
       .locator('link[rel="preload"][as="font"]')
@@ -49,7 +53,10 @@ test.describe('tokens and fonts @A-02', () => {
     );
     for (const l of links) {
       expect(l.type).toBe('font/woff2');
-      expect(l.cross).toBe(true);
+      // WebKit fetches same-origin @font-face files without CORS; see Base.astro.
+      expect(l.cross).toBe(
+        javaScriptEnabled && browserName === 'webkit' ? false : true,
+      );
     }
   });
 

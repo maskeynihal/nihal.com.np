@@ -28,6 +28,7 @@ const {
 const abs = (path: string) => new URL(path, site.url).href;
 const canonical = abs(Astro.url.pathname);
 const ogImage = abs(site.og.image);
+const fontUrls = [fonts.fraunces.url, fonts.jetbrainsMono.url];
 ---
 
 <!doctype html>
@@ -72,15 +73,40 @@ const ogImage = abs(site.og.image);
         set:html={serializeLd(buildPerson())}
       />
     )}
-    {[fonts.fraunces, fonts.jetbrainsMono].map((f) => (
-      <link
-        rel="preload"
-        as="font"
-        type="font/woff2"
-        href={f.url}
-        crossorigin
-      />
-    ))}
+    {/*
+      Font preloads. Chromium and Firefox fetch @font-face files in CORS mode, so the preload needs
+      `crossorigin`. WebKit fetches same-origin @font-face files WITHOUT CORS, so a `crossorigin`
+      preload is never matched there and every woff2 downloads twice (plus a console warning).
+      A static tag cannot serve both, so JS adds the tags with the right mode for the engine;
+      the noscript copy covers no-JS visitors (no WebKit special case there).
+    */}
+    <script is:inline define:vars={{ fontUrls }}>
+      (function () {
+        const ua = navigator.userAgent;
+        const webkit =
+          /AppleWebKit/.test(ua) && !/Chrome\/|Chromium\/|Edg\/|OPR\//.test(ua);
+        fontUrls.forEach(function (u) {
+          const l = document.createElement('link');
+          l.rel = 'preload';
+          l.as = 'font';
+          l.type = 'font/woff2';
+          l.href = u;
+          if (!webkit) l.crossOrigin = 'anonymous';
+          document.head.appendChild(l);
+        });
+      })();
+    </script>
+    <noscript>
+      {fontUrls.map((u) => (
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          href={u}
+          crossorigin="anonymous"
+        />
+      ))}
+    </noscript>
     <link rel="stylesheet" href={printCss} media="print" />
   </head>
   <body>

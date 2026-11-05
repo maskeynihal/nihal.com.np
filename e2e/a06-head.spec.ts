@@ -102,9 +102,8 @@ test('404 page content, noindex and working link @A-06', async ({ page }) => {
   await page.goto('/404.html');
   await expect(page.locator('h1')).toHaveText('nothing here');
   await expect(page).toHaveTitle('nothing here · nihal maskey');
-  expect((await meta(page, 'name', 'description'))?.length).toBeGreaterThan(20);
-  expect(await meta(page, 'name', 'description')).not.toBe(
-    'Lead engineer in Kathmandu.',
+  expect(await meta(page, 'name', 'description')).toBe(
+    'That page moved or never existed.',
   );
   await expect(page.getByText('sheet not found')).toBeVisible();
   await expect(
@@ -120,6 +119,9 @@ test('/sent/ is noindex @A-06', async ({ page }) => {
   await page.goto('/sent/');
   await expect(page.locator('h1')).toHaveText('sent');
   await expect(page).toHaveTitle('sent · nihal maskey');
+  expect(await meta(page, 'name', 'description')).toBe(
+    "Sent. I'll reply from contact@nihal.com.np.",
+  );
   await expect(
     page.getByText("I'll reply from contact@nihal.com.np."),
   ).toBeVisible();

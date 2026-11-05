@@ -1,4 +1,4 @@
-import { test, expect, expectNoAxeViolations } from './fixtures';
+import { test, expect, expectNoAxeViolations, isAllowlisted } from './fixtures';
 
 test.describe('axe @A-13', () => {
   for (const path of ['/', '/404.html', '/sent/'])
@@ -36,6 +36,14 @@ test.describe('axe @A-13', () => {
     await page.locator('[data-sound-toggle]').click();
     await expect(page.locator('html')).toHaveAttribute('data-sound', 'on');
     await expectNoAxeViolations(page, { label: '/ after sound toggle' });
+  });
+
+  test('allowlist selectors match the target string exactly @A-13', () => {
+    const entries = [{ id: 'image-alt', selector: 'img' }];
+    expect(isAllowlisted(entries, 'image-alt', ['img'])).toBe(true);
+    expect(isAllowlisted(entries, 'image-alt', ['#imgfoo'])).toBe(false);
+    expect(isAllowlisted(entries, 'image-alt', ['main > img'])).toBe(false);
+    expect(isAllowlisted(entries, 'color-contrast', ['img'])).toBe(false);
   });
 
   test('self-test: an image without alt is reported as image-alt @A-13', async ({

@@ -39,7 +39,8 @@ export const test = base.extend<{ consoleGuard: void }>({
  *
  * WCAG tags fail the test. `best-practice` findings never fail; they are attached as test
  * annotations (type `axe-best-practice`). Documented exceptions live in `axe-allowlist.json`
- * as `{ id, selector, reason, expires: 'YYYY-MM-DD' }`; an expired entry fails the test.
+ * as `{ id, selector, reason, expires: 'YYYY-MM-DD' }`, where `selector` must EXACTLY equal one
+ * node target string axe reports (for example `#main > img:nth-child(2)`; no substrings or globs); an expired entry fails the test.
  */
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -62,6 +63,15 @@ function loadAxeAllowlist(): AllowEntry[] {
         throw new Error(`axe-allowlist.json[${i}] needs a non-empty "${k}"`);
     return e as AllowEntry;
   });
+}
+
+/** Exact match: the entry selector must equal one reported target string. */
+export function isAllowlisted(
+  entries: Pick<AllowEntry, 'id' | 'selector'>[],
+  id: string,
+  targets: string[],
+): boolean {
+  return entries.some((e) => e.id === id && targets.includes(e.selector));
 }
 
 interface AxeOptions {
@@ -102,12 +112,17 @@ export async function expectNoAxeViolations(
       );
       const p2 = await ctx.newPage();
       // The serialized DOM keeps any state the test built (injected nodes included).
-      const html = (await page.content())
+      const base = `<base href="${page.url()}">`;
+      const headOpen = /<head\b[^>]*>/i;
+      const source = await page.content();
+      if (!headOpen.test(source))
+        throw new Error('no-js axe scan: no <head> tag to inject <base> into');
+      const html = source
         .replace(
           /<script\b(?![^>]*application\/ld\+json)[^>]*>[\s\S]*?<\/script>/gi,
           '',
         )
-        .replace('<head>', `<head><base href="${page.url()}">`);
+        .replace(headOpen, (m) => m + base);
       await p2.setContent(html, { waitUntil: 'load' });
       await p2.evaluate(() => {
         for (const n of document.querySelectorAll('noscript'))
@@ -132,9 +147,7 @@ export async function expectNoAxeViolations(
   const expired = entries.filter((e) => e.expires < today);
   const live = entries.filter((e) => e.expires >= today);
   const allowed = (id: string, targets: string[]) =>
-    live.some(
-      (e) => e.id === id && targets.some((t) => t.includes(e.selector)),
-    );
+    isAllowlisted(live, id, targets);
 
   const lines: string[] = [];
   for (const v of wcag.violations) {
