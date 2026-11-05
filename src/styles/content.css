@@ -200,6 +200,8 @@
 }
 
 .clock-reading {
+  display: flex;
+  gap: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -213,4 +215,101 @@
 
 .contact-panel .sheet-links {
   margin-block-end: 0;
+}
+
+/* --- Contact form (B-06b) ---------------------------------------------------------------- */
+.contact-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 36rem;
+}
+
+.contact-form[hidden] {
+  display: none;
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* 16 px so iOS does not zoom on focus. */
+.field input,
+.field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--blue-ink);
+  background: var(--white);
+  border: 1px solid var(--blue-ink);
+  border-radius: var(--radius);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+/* Never colour alone: the invalid field also gets a thicker border and the message below. */
+.field [aria-invalid='true'] {
+  border-width: 2px;
+  border-color: var(--error-ink);
+}
+
+.field-error {
+  color: var(--error-ink);
+  font-size: var(--text-small);
+}
+
+.field-error:empty {
+  display: none;
+}
+
+.field-error a {
+  color: inherit;
+}
+
+.contact-form-wrap {
+  --error-ink: #8f1414;
+}
+
+.form-submit {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0.5rem 1.5rem;
+  color: var(--paper);
+  background: var(--blue-ink);
+  border: 1px solid var(--blue-ink);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.form-submit:hover {
+  background: var(--blue-deep);
+}
+
+.contact-form[aria-busy='true'] .form-submit {
+  opacity: 0.7;
+}
+
+.form-status {
+  margin-block-start: 1rem;
+}
+
+.form-status:empty {
+  display: none;
+}
+
+.form-success {
+  font-size: var(--text-lead);
 }

@@ -7,3 +7,9 @@
 # reportError console.warn for a handled failure. Errors raised through __hooks.desk.fail()
 # are marked intentional and never reach the console, so they need no entry.
 ^\[nihal\] desk global Error scene loop crashed$
+
+# B-06b: the browser itself logs a console error for a fetch that returns 5xx or is aborted.
+# The two failure tests in b06b-form.spec.ts trigger these on purpose (mocked 500, aborted
+# request); the form handles both and shows the "Didn't send" copy. Nothing else produces them.
+^Failed to load resource: the server responded with a status of 500
+^Failed to load resource: net::ERR_FAILED$

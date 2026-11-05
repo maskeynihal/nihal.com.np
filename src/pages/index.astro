@@ -14,6 +14,7 @@ import RevisionTable from '../components/RevisionTable.astro';
 import WritingList from '../components/WritingList.astro';
 import CvTable from '../components/CvTable.astro';
 import CopyEmail from '../components/CopyEmail.astro';
+import ContactForm from '../components/ContactForm';
 import ClockFace from '../components/ClockFace.astro';
 import {
   getCopy,
@@ -23,9 +24,10 @@ import {
   getCv,
   getClocks,
 } from '../content';
+import { site } from '../content/site';
 import { rowLabel } from '../lib/sections';
 
-const { headings, writing, cv, contact, colophon } = getCopy();
+const { titleBlock, headings, writing, cv, contact, colophon } = getCopy();
 const work = getWork();
 const oss = getOss();
 const posts = getWriting();
@@ -77,7 +79,6 @@ const year = String(new Date().getFullYear());
       </PaperPanel>
     </Section>
 
-    <!-- B-06b adds the form under the first panel. -->
     <Section id="contact" heading={headings.contact} side="left">
       <PaperPanel class="contact-panel">
         <p>{contact.lead}</p>
@@ -101,6 +102,17 @@ const year = String(new Date().getFullYear());
             </li>
           ))}
         </ul>
+      </PaperPanel>
+      <PaperPanel class="contact-panel">
+        <ContactForm
+          client:visible
+          action={`https://formspree.io/f/${site.formspreeId}`}
+          next={`${site.url}/sent/`}
+          address={titleBlock.email}
+          labels={contact.form}
+          success={contact.success}
+          errors={contact.errors}
+        />
       </PaperPanel>
     </Section>
 
