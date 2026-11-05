@@ -305,9 +305,11 @@ describe('initPrefs OS follow (OS reduce is a floor)', () => {
         // OS switches to reduce: always reduce
         fireMq(Q, true);
         expect(prefs.getMotion()).toBe('reduce');
+        expect(document.documentElement.dataset['motionOs']).toBe('reduce');
         // OS switches back: follows stored (only 'reduce' counts)
         fireMq(Q, false);
         expect(prefs.getMotion()).toBe(reduces ? 'reduce' : 'full');
+        expect(document.documentElement.dataset['motionOs']).toBeUndefined();
         // and again
         fireMq(Q, true);
         expect(prefs.getMotion()).toBe('reduce');

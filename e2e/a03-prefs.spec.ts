@@ -34,6 +34,11 @@ test.describe('preferences @A-03', () => {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
+    expect(
+      info.attachments.some(
+        (a) => a.name === 'domcontentloaded' && (a.body?.length ?? 0) > 0,
+      ),
+    ).toBe(true);
     await page.waitForLoadState('load');
     const r = await page.evaluate(() => {
       const w = window as unknown as {
@@ -96,6 +101,12 @@ test.describe('preferences @A-03', () => {
     await expect(btn).toHaveAttribute('aria-pressed', 'false');
     await expect(btn).not.toHaveAttribute('aria-disabled', 'true');
     await expect(note).toBeHidden();
+    await expect(btn).not.toHaveAttribute('aria-describedby', /.*/);
+    await expect(btn).toHaveAccessibleDescription('');
+    await expect(page.locator('html')).not.toHaveAttribute(
+      'data-motion-os',
+      /.*/,
+    );
     await btn.click();
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
@@ -123,6 +134,8 @@ test.describe('preferences @A-03', () => {
     await expect(note).toBeVisible();
     await expect(note).toHaveText(/set by your system/);
     await expect(btn).toHaveAttribute('aria-describedby', 'motion-note');
+    await expect(btn).toHaveAccessibleDescription(/set by your system/i);
+    await expect(html).toHaveAttribute('data-motion-os', 'reduce');
     await btn.focus();
     await expect(btn).toBeFocused();
     await btn.click({ force: true });
@@ -153,10 +166,33 @@ test.describe('preferences @A-03', () => {
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
     await expect(btn).toHaveAttribute('aria-disabled', 'true');
     await expect(page.locator('#motion-note')).toBeVisible();
+    await expect(btn).toHaveAttribute('aria-describedby', 'motion-note');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect(html).toHaveAttribute('data-motion', 'full');
     await expect(btn).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('#motion-note')).toBeHidden();
+    await expect(btn).not.toHaveAttribute('aria-describedby', /.*/);
+    await expect(btn).toHaveAccessibleDescription('');
+  });
+
+  test('prefs row stays on one line at 375px', async ({
+    page,
+    javaScriptEnabled,
+  }, info) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    test.skip(info.project.name === 'reduced-motion', 'note adds width');
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto('/');
+    const [a, b] = await Promise.all([
+      motionBtn(page).boundingBox(),
+      soundBtn(page).boundingBox(),
+    ]);
+    expect(Math.abs(a!.y - b!.y)).toBeLessThanOrEqual(2);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
   });
 
   test('toggle labels have a visible gap (no "SOUNDOFF")', async ({

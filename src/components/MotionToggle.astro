@@ -8,11 +8,10 @@ import { copy } from '../content/copy';
     class="label pref-toggle"
     data-motion-toggle
     aria-pressed="false"
-    aria-describedby="motion-note"
   >
     {copy.prefs.motion}
   </button>
-  <span class="label pref-note" id="motion-note" data-motion-note data-off>
+  <span class="label pref-note" id="motion-note" data-motion-note>
     <span aria-hidden="true">· </span>
     {copy.prefs.system}
   </span>
@@ -37,7 +36,8 @@ import { copy } from '../content/copy';
         btn.setAttribute('aria-pressed', String(getMotion() === 'reduce'));
         if (os) btn.setAttribute('aria-disabled', 'true');
         else btn.removeAttribute('aria-disabled');
-        if (note) note.toggleAttribute('data-off', !os);
+        if (note && os) btn.setAttribute('aria-describedby', note.id);
+        else btn.removeAttribute('aria-describedby');
       };
       sync();
       subscribeMotion(sync);

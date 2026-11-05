@@ -197,10 +197,15 @@ a {
   white-space: nowrap;
 }
 
-/* visibility (not display): reserves the space so the note causes no layout
-   shift when it appears, and drops it from the accessibility tree. */
-.pref-note[data-off] {
-  visibility: hidden;
+/* The inline head script sets data-motion-os before first paint, so the note
+   either exists from the first frame or not at all (no CLS). display:none also
+   removes it from the accessibility tree. */
+.pref-note {
+  display: none;
+}
+
+html[data-motion-os='reduce'] .pref-note {
+  display: inline;
 }
 
 .pref-toggle {

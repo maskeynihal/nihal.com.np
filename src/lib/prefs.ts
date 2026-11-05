@@ -186,14 +186,20 @@ let stopOs: (() => void) | undefined;
 
 /**
  * Follows live OS reduced-motion changes: OS reduce forces the attribute to
- * reduce; when it clears, the attribute follows the stored choice. Idempotent;
+ * reduce (and data-motion-os tracks it); when it clears, the attribute follows
+ * the stored choice. Toggles re-sync on the resulting event. Idempotent;
  * returns a disposer. Called by the toggles.
  */
 export function initPrefs(): () => void {
   if (stopOs) return stopOs;
   if (!hasWindow() || typeof window.matchMedia !== 'function') return () => {};
   const mq = window.matchMedia(OS_REDUCE);
-  const onChange = () => applyMotion(effectiveMotion());
+  const onChange = () => {
+    const ds = document.documentElement.dataset;
+    if (osReduces()) ds['motionOs'] = 'reduce';
+    else delete ds['motionOs'];
+    applyMotion(effectiveMotion());
+  };
   mq.addEventListener('change', onChange);
   stopOs = () => {
     mq.removeEventListener('change', onChange);

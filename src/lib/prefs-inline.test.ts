@@ -19,6 +19,7 @@ function media(reduce: boolean) {
 beforeEach(() => {
   localStorage.clear();
   delete html.dataset['motion'];
+  delete html.dataset['motionOs'];
   delete html.dataset['sound'];
   media(false);
   history.replaceState(null, '', '/');
@@ -43,6 +44,22 @@ describe('inline prefs script', () => {
     media(os);
     run();
     expect(html.dataset['motion']).toBe(want);
+    if (os) expect(html.dataset['motionOs']).toBe('reduce');
+    else expect(html.dataset['motionOs']).toBeUndefined();
+  });
+  it('removes a stale data-motion-os when the OS does not reduce', () => {
+    html.dataset['motionOs'] = 'reduce';
+    media(false);
+    run();
+    expect(html.dataset['motionOs']).toBeUndefined();
+  });
+  it('sets data-motion-os with throwing storage', () => {
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    media(true);
+    run();
+    expect(html.dataset['motionOs']).toBe('reduce');
   });
   it.each([
     [null, 'off'],
