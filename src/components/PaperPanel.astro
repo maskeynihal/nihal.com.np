@@ -36,6 +36,14 @@ const { as: Tag = 'div', id, class: extra = '', still = false } = Astro.props;
       },
       { threshold: 0.05 },
     );
+    // Safety net: a full-page capture or a very fast jump never scrolls panels into view, so
+    // nothing stays hidden past a few seconds (blank bands read as broken gaps).
+    const revealAll = () => {
+      for (const p of panels) p.classList.remove('panel-pending');
+      io.disconnect();
+    };
+    window.setTimeout(revealAll, 6000);
+    window.addEventListener('beforeprint', revealAll, { once: true });
     const vh = window.innerHeight;
     for (const p of panels) {
       // Only panels that start below the fold are hidden, so there is no flash on first paint.

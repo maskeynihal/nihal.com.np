@@ -160,4 +160,30 @@ test.describe('sections and panels @B-02', () => {
     expect(bad).toHaveLength(1);
     expect(bad[0]).toContain('→');
   });
+
+  test('work heading clears the border at the first fold and nothing overlaps @B-02', async ({
+    page,
+  }) => {
+    for (const width of [1440, 1024, 768, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      const { h2Top, inset } = await page.evaluate(() => ({
+        h2Top: document.querySelector('#work-heading')!.getBoundingClientRect()
+          .top,
+        inset: parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            '--inset',
+          ),
+        ),
+      }));
+      // At the first fold the heading is below the fold, never under the border band.
+      expect(h2Top, `width ${width}`).toBeGreaterThan(900 - inset);
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow, `width ${width}`).toBeLessThanOrEqual(0);
+    }
+  });
 });
