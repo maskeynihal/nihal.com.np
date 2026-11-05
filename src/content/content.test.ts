@@ -148,7 +148,7 @@ describe('content files', () => {
     });
   });
 
-  it('holidays.json is an empty array for now', () => {
-    expect(holidays).toEqual([]);
+  it('holidays.json is the ported spatie data (generator test: lib/holidays.test.ts)', () => {
+    expect(holidays.length).toBeGreaterThan(0);
   });
 });

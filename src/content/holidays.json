@@ -1,1 +1,164 @@
-[]
+[
+  {
+    "bsDate": "2081-01-01",
+    "adDate": "2024-04-13",
+    "name": "Nepali New Year",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-01-19",
+    "adDate": "2024-05-01",
+    "name": "International Labor Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-02-15",
+    "adDate": "2024-05-28",
+    "name": "National Republic Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-03",
+    "adDate": "2024-09-19",
+    "name": "Constitution Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-17",
+    "adDate": "2024-10-03",
+    "name": "Ghatasthapana (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-25",
+    "adDate": "2024-10-11",
+    "name": "Fulpati (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-26",
+    "adDate": "2024-10-12",
+    "name": "Maha Asthami (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-26",
+    "adDate": "2024-10-12",
+    "name": "Maha Nawami (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-27",
+    "adDate": "2024-10-13",
+    "name": "Vijaya Dashami (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-06-28",
+    "adDate": "2024-10-14",
+    "name": "Ekadashi (Dashain)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-07-16",
+    "adDate": "2024-11-01",
+    "name": "Laxmi Puja (Tihar)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-07-17",
+    "adDate": "2024-11-02",
+    "name": "Govardhan Puja / Mha Puja (Tihar)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-07-18",
+    "adDate": "2024-11-03",
+    "name": "Bhai Tika (Tihar)",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-07-22",
+    "adDate": "2024-11-07",
+    "name": "Chhat Parva",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-08-30",
+    "adDate": "2024-12-15",
+    "name": "Udhauli Parva",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-09-10",
+    "adDate": "2024-12-25",
+    "name": "Christmas",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-09-15",
+    "adDate": "2024-12-30",
+    "name": "Tamu Loshar",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-09-27",
+    "adDate": "2025-01-11",
+    "name": "Prithivi Jayanti",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-10-01",
+    "adDate": "2025-01-14",
+    "name": "Makar Sankranti",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-10-16",
+    "adDate": "2025-01-29",
+    "name": "Martyrs' Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-10-17",
+    "adDate": "2025-01-30",
+    "name": "Sonam Losar",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-11-07",
+    "adDate": "2025-02-19",
+    "name": "Democracy Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-11-14",
+    "adDate": "2025-02-26",
+    "name": "Maha Shivaratri",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-11-16",
+    "adDate": "2025-02-28",
+    "name": "Gyalpo Loshar",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2081-11-29",
+    "adDate": "2025-03-13",
+    "name": "Holi / Fagu Purnima",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2082-01-18",
+    "adDate": "2025-05-01",
+    "name": "International Labor Day",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  },
+  {
+    "bsDate": "2082-09-10",
+    "adDate": "2025-12-25",
+    "name": "Christmas",
+    "source": "https://github.com/spatie/holidays/blob/608ed0df1d353a9783d70204145591b07ea7f3b9/src/Calendars/NepaliCalendar.php"
+  }
+]
