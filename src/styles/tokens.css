@@ -1,0 +1,13 @@
+:root {
+  --blue: #1f3fe0;
+  --blue-deep: #142fb8;
+  --blue-ink: #0a1c6b;
+  --paper: #f6f5f1;
+  --white: #ffffff;
+  --line-2: #ded9fa;
+  --mist: rgb(255 255 255 / 0.12);
+  --mist-strong: rgb(255 255 255 / 0.3);
+  --ok: #9bf6c4;
+  --warn: #ffd56b;
+  --bad: #ff8a8a;
+}
