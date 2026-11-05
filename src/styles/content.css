@@ -12,7 +12,7 @@
 .work-mark {
   width: 4rem;
   height: 4rem;
-  color: var(--blue-ink);
+  color: var(--panel-ink);
 }
 
 .work-mark svg {
@@ -42,7 +42,7 @@
 .drawing-frame {
   margin: 1rem 0 0;
   min-height: 9rem;
-  border: 1px solid var(--blue-ink);
+  border: 1px solid var(--panel-ink);
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
@@ -52,8 +52,8 @@
   display: grid;
   gap: 0.25rem;
   padding: 0.5rem 0.75rem;
-  border-inline-start: 1px solid var(--blue-ink);
-  border-block-start: 1px solid var(--blue-ink);
+  border-inline-start: 1px solid var(--panel-ink);
+  border-block-start: 1px solid var(--panel-ink);
   max-width: 24rem;
   font-size: var(--text-small);
 }
@@ -80,7 +80,7 @@
   text-align: start;
   vertical-align: top;
   padding: 0.5rem 0.75rem 0.5rem 0;
-  border-block-start: 1px solid var(--hairline);
+  border-block-start: 1px solid var(--panel-hair);
   overflow-wrap: anywhere;
   font-weight: 400;
 }
@@ -92,7 +92,7 @@
   text-transform: uppercase;
   font-weight: 500;
   border-block-start: 0;
-  border-block-end: 1px solid var(--blue-ink);
+  border-block-end: 1px solid var(--panel-ink);
 }
 
 /* Repo, dates and counts are data: mono, tabular. */
@@ -133,7 +133,7 @@
   display: grid;
   gap: 0.25rem;
   padding-block: 0.75rem;
-  border-block-start: 1px solid var(--hairline);
+  border-block-start: 1px solid var(--panel-hair);
 }
 
 .writing-list li:first-child {
@@ -185,7 +185,7 @@
   width: 5rem;
   height: 5rem;
   fill: none;
-  stroke: var(--blue-ink);
+  stroke: var(--panel-ink);
   stroke-width: 1.5;
   stroke-linecap: round;
 }
@@ -250,9 +250,9 @@
   padding: 0.5rem 0.75rem;
   font: inherit;
   font-size: 1rem;
-  color: var(--blue-ink);
-  background: var(--white);
-  border: 1px solid var(--blue-ink);
+  color: var(--panel-ink);
+  background: var(--field);
+  border: 1px solid var(--panel-ink);
   border-radius: var(--radius);
 }
 
@@ -287,15 +287,11 @@
   justify-self: start;
   min-height: 44px;
   padding: 0.5rem 1.5rem;
-  color: var(--paper);
-  background: var(--blue-ink);
-  border: 1px solid var(--blue-ink);
+  color: var(--panel);
+  background: var(--panel-ink);
+  border: 1px solid var(--panel-ink);
   border-radius: var(--radius);
   cursor: pointer;
-}
-
-.form-submit:hover {
-  background: var(--blue-deep);
 }
 
 .contact-form[aria-busy='true'] .form-submit {
@@ -328,7 +324,7 @@
   height: 1px;
   margin-inline-start: calc(var(--inset) - var(--pad-start));
   margin-inline-end: calc(var(--inset) - var(--pad-end));
-  background: var(--white);
+  background: var(--stroke);
 }
 
 /* From 1024 px the index column owns the left margin: the rule starts at the content. */
@@ -353,20 +349,16 @@
 .arcade-leave {
   min-height: 44px;
   padding: 0.5rem 1.5rem;
-  color: var(--paper);
-  background: var(--blue-ink);
-  border: 1px solid var(--blue-ink);
+  color: var(--panel);
+  background: var(--panel-ink);
+  border: 1px solid var(--panel-ink);
   border-radius: var(--radius);
   cursor: pointer;
 }
 
 .arcade-leave {
-  color: var(--blue-ink);
+  color: var(--panel-ink);
   background: transparent;
-}
-
-.arcade-play:hover {
-  background: var(--blue-deep);
 }
 
 .arcade-stage {
@@ -384,7 +376,7 @@
   width: 100%;
   height: min(70vh, 40rem);
   min-height: 20rem;
-  border: 1px solid var(--blue-ink);
+  border: 1px solid var(--panel-ink);
   background: var(--white);
 }
 
@@ -414,7 +406,7 @@
   inset-block-start: calc(0.5rem + 0.7em);
   width: 1.5rem;
   height: 1px;
-  background: var(--blue-ink);
+  background: var(--panel-ink);
   pointer-events: none;
   transform: scaleX(0);
   transform-origin: left;

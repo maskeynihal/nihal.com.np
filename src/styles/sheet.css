@@ -6,14 +6,14 @@
   inset: 0;
   z-index: 30;
   pointer-events: none;
-  border: var(--inset) solid var(--blue-deep);
+  border: var(--inset) solid var(--page-deep);
 }
 
 .sheet-border::after {
   content: '';
   position: absolute;
   inset: -1px;
-  border: 1px solid var(--white);
+  border: 1px solid var(--stroke);
 }
 
 /* --- Page frame --------------------------------------------------------------------------- */
@@ -63,7 +63,7 @@
 }
 
 .section:focus-visible {
-  outline: 2px solid var(--mist-strong);
+  outline: 2px solid var(--stroke);
   outline-offset: -2px;
 }
 
@@ -137,7 +137,7 @@
   font-variation-settings: normal;
   text-decoration: none;
   white-space: nowrap;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .sheet-index-link:hover {
@@ -146,8 +146,8 @@
 
 /* Current row is filled. */
 .sheet-index-link[aria-current] {
-  background: var(--white);
-  color: var(--blue);
+  background: var(--ink);
+  color: var(--page);
 }
 
 /* Bottom strip, below 1024. The rule becomes a thin line along its top edge. */
@@ -155,7 +155,7 @@
   inset-inline: var(--inset);
   inset-block-end: var(--inset);
   height: var(--strip-h);
-  background: var(--blue-deep);
+  background: var(--page-deep);
 }
 
 .sheet-index::before {
@@ -164,7 +164,7 @@
   inset-block-start: 0;
   inset-inline: 0;
   height: 1px;
-  background: var(--white);
+  background: var(--stroke);
   transform-origin: left;
   transform: scaleX(var(--progress, 0));
   /* Longhands on purpose: the CSS minifier folds the timeline into the `animation` shorthand,
@@ -237,11 +237,11 @@
 }
 
 .sheet-rule-base {
-  stroke: var(--mist-strong);
+  stroke: var(--hair-strong);
 }
 
 .sheet-rule-lit {
-  stroke: var(--white);
+  stroke: var(--stroke);
 }
 
 .sheet-rule-fill {

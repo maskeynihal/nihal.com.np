@@ -37,7 +37,6 @@ const ogImage = abs(site.og.image);
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <PrefsScript />
     <title>{title}</title>
     <meta name="description" content={description} />
     {jsonLd && <meta name="keywords" content={meta.keywords} />}
@@ -49,6 +48,7 @@ const ogImage = abs(site.og.image);
     {!noindex && <link rel="canonical" href={canonical} />}
     <meta name="theme-color" content={site.themeColor} />
     <meta name="color-scheme" content="light" />
+    <PrefsScript />
     <meta property="og:type" content={jsonLd ? 'profile' : 'website'} />
     {jsonLd && (
       <>

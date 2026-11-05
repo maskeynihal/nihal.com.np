@@ -27,7 +27,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('inline prefs script', () => {
-  it('stays under 1.2 KB', () => {
+  it('stays under 1.5 KB', () => {
     expect(new TextEncoder().encode(code).length).toBeLessThan(1200);
   });
   type Stored = null | 'reduce' | 'full' | 'bogus' | 'throw';

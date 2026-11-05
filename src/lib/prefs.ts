@@ -7,6 +7,13 @@ export const MOTION_KEY = 'nihal:motion';
 export const SOUND_KEY = 'nihal:sound';
 export const MOTION_EVENT = 'nihal:motion';
 export const SOUND_EVENT = 'nihal:sound';
+export const THEME_KEY = 'nihal:theme';
+export const THEME_EVENT = 'nihal:theme';
+export type Theme = 'blue' | 'paper';
+const THEME_COLOR: Record<Theme, string> = {
+  blue: '#1F3FE0',
+  paper: '#F6F5F1',
+};
 
 interface NavigatorExtras {
   deviceMemory?: number;
@@ -165,6 +172,46 @@ export function setSound(s: Sound): void {
   window.dispatchEvent(
     new CustomEvent<{ sound: Sound }>(SOUND_EVENT, { detail: { sound: s } }),
   );
+}
+
+export function getTheme(): Theme {
+  if (!hasWindow()) return 'blue';
+  return document.documentElement.dataset['theme'] === 'paper' ? 'paper' : 'blue';
+}
+
+function applyTheme(t: Theme): void {
+  document.documentElement.dataset['theme'] = t;
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  );
+  if (meta) meta.content = THEME_COLOR[t];
+  window.dispatchEvent(
+    new CustomEvent<{ theme: Theme }>(THEME_EVENT, { detail: { theme: t } }),
+  );
+}
+
+/** A visitor's choice is stored and wins over the OS from then on. */
+export function setTheme(t: Theme): void {
+  if (!hasWindow()) return;
+  writeStored(THEME_KEY, t);
+  applyTheme(t);
+}
+
+export function subscribeTheme(cb: (t: Theme) => void): () => void {
+  if (!hasWindow()) return () => {};
+  const h = (e: Event) => cb((e as CustomEvent<{ theme: Theme }>).detail.theme);
+  window.addEventListener(THEME_EVENT, h);
+  return () => window.removeEventListener(THEME_EVENT, h);
+}
+
+/** Until the visitor chooses, follow live OS colour-scheme changes. */
+export function followOsTheme(): void {
+  if (!hasWindow() || typeof window.matchMedia !== 'function') return;
+  const mq = window.matchMedia('(prefers-color-scheme: light)');
+  mq.addEventListener('change', () => {
+    if (readStored(THEME_KEY)) return;
+    applyTheme(mq.matches ? 'paper' : 'blue');
+  });
 }
 
 export function subscribeMotion(cb: (m: Motion) => void): () => void {

@@ -21,6 +21,7 @@ interface Props {
   item: WorkItem;
 }
 const { item } = Astro.props;
+// pathLength=1 lets the hover redraw animate stroke-dashoffset on any path.
 const mark = marks[`../assets/marks/${item.id}.svg`];
 if (!mark) throw new Error(`no mark for work item ${item.id}`);
 const headingId = `work-${item.id}-heading`;
@@ -32,7 +33,7 @@ const { date, rest } = splitDateLine(item.dateLine);
     class="work-mark"
     aria-hidden="true"
     data-mark={item.id}
-    set:html={mark}
+    set:html={mark.replaceAll('<path', '<path pathLength="1"')}
   />
   <h3 id={headingId}>{item.title}</h3>
   <p class="label work-date">

@@ -1,0 +1,39 @@
+---
+const labels = { blue: 'blue', paper: 'paper' };
+---
+
+<button
+  type="button"
+  class="label pref-toggle"
+  data-theme-toggle
+  aria-pressed="false"
+>
+  <span>theme</span>
+  <span aria-hidden="true" class="pref-sep">·</span>
+  <span data-theme-state aria-hidden="true">{labels.blue}</span>
+</button>
+
+<script>
+  import {
+    getTheme,
+    setTheme,
+    subscribeTheme,
+    followOsTheme,
+  } from '../lib/prefs';
+
+  followOsTheme();
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')
+    .forEach((btn) => {
+      const state = btn.querySelector<HTMLElement>('[data-theme-state]');
+      const sync = (t: 'blue' | 'paper') => {
+        btn.setAttribute('aria-pressed', String(t === 'paper'));
+        if (state) state.textContent = t;
+      };
+      sync(getTheme());
+      subscribeTheme(sync);
+      btn.addEventListener('click', () =>
+        setTheme(getTheme() === 'paper' ? 'blue' : 'paper'),
+      );
+    });
+</script>

@@ -33,8 +33,11 @@ const objects = JSON.stringify(
   })),
 );
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
+// The drawing follows the theme: strokes read the surface tokens, not fixed colours.
 const svg = posterSvg
   .trim()
+  .replaceAll('stroke="#ded9fa"', 'stroke="var(--ink-soft)"')
+  .replaceAll('stroke="#fff"', 'stroke="var(--stroke)"')
   .replace(
     '<svg ',
     `<svg class="poster" role="img" aria-label="${alt}" focusable="false" `,

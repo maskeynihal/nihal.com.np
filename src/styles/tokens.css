@@ -14,8 +14,6 @@
   --bad: #ff8a8a;
 
   --radius: 6px;
-  /* Paper panel hairline: --blue-ink at 14% */
-  --hairline: color-mix(in srgb, var(--blue-ink) 14%, transparent);
 
   --font-display:
     'Fraunces', 'Fraunces Fallback', Georgia, 'Times New Roman', serif;
@@ -23,6 +21,44 @@
     'Fraunces', 'Fraunces Fallback', Georgia, 'Times New Roman', serif;
   --font-mono:
     'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace, Menlo, monospace;
+}
+
+/* Surface tokens: what the page, its ink and its line art are right now. Blue mode is the
+   default; paper mode (lahin-kit) swaps them via data-theme, set before paint by
+   prefs-inline.js. Components only ever read these. */
+:root {
+  --page: var(--blue);
+  --page-deep: var(--blue-deep);
+  --ink: var(--white);
+  --ink-soft: rgb(255 255 255 / 0.85);
+  --stroke: rgb(255 255 255 / 0.85);
+  --hair: var(--mist);
+  --hair-strong: var(--mist-strong);
+  --panel: var(--paper);
+  --panel-ink: var(--blue-ink);
+  --panel-ink-soft: rgb(10 28 107 / 0.65);
+  --panel-hair: rgb(10 28 107 / 0.14);
+  --panel-accent: var(--blue);
+  --panel-accent-ink: var(--white);
+  --field: var(--white);
+  /* Kept for desk.css: the panel hairline. */
+  --hairline: var(--panel-hair);
+}
+:root[data-theme='paper'] {
+  --page: var(--paper);
+  --page-deep: #ecebe5;
+  --ink: var(--blue-ink);
+  --ink-soft: rgb(10 28 107 / 0.7);
+  --stroke: var(--blue);
+  --hair: rgb(31 63 224 / 0.1);
+  --hair-strong: rgb(31 63 224 / 0.3);
+  --panel: var(--white);
+  --panel-ink: var(--blue-ink);
+  --panel-ink-soft: rgb(10 28 107 / 0.65);
+  --panel-hair: rgb(10 28 107 / 0.14);
+  --panel-accent: var(--blue);
+  --panel-accent-ink: var(--white);
+  --field: var(--paper);
 }
 
 /* Sheet layout (design 2.4). Phones first; widths widen at 768 and 1024. */

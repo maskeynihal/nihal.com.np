@@ -44,8 +44,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--blue);
-  color: var(--white);
+  background: var(--page);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: var(--text-body);
   line-height: 1.55;
@@ -117,21 +117,21 @@ p {
 }
 
 .paper {
-  background: var(--paper);
-  color: var(--blue-ink);
-  border: 1px solid var(--hairline);
+  background: var(--panel);
+  color: var(--panel-ink);
+  border: 1px solid var(--panel-hair);
   border-radius: var(--radius);
   padding: 1.5rem;
 }
 
-/* Focus: 2px mist-strong on blue, 2px blue on paper. The outline is never removed. */
+/* Focus: 2px --stroke on the page, 2px --panel-accent on a panel. Never removed. */
 :focus-visible {
-  outline: 2px solid var(--mist-strong);
+  outline: 2px solid var(--stroke);
   outline-offset: 2px;
 }
 
 .paper :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--panel-accent);
 }
 
 a {
@@ -172,8 +172,8 @@ a {
   inset-inline-start: 16px;
   z-index: 10;
   padding: 0.5rem 0.75rem;
-  background: var(--paper);
-  color: var(--blue-ink);
+  background: var(--panel);
+  color: var(--panel-ink);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   transform: translateY(-200%);
