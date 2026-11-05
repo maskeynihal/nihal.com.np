@@ -23,6 +23,7 @@ import {
   getWriting,
   getCv,
   getClocks,
+  getEndMark,
 } from '../content';
 import { site } from '../content/site';
 import { rowLabel } from '../lib/sections';
@@ -33,6 +34,7 @@ const oss = getOss();
 const posts = getWriting();
 const cvRows = getCv();
 const clocks = getClocks();
+const endMark = getEndMark();
 const year = String(new Date().getFullYear());
 ---
 
@@ -120,10 +122,15 @@ const year = String(new Date().getFullYear());
     <Section id="colophon" heading={rowLabel('colophon')} side="right">
       <p class="small">{colophon.copyright.replace('{year}', year)}</p>
       <p class="small">
-        <a href={colophon.sourceHref} rel="noopener">
+        <a class="sheet-link" href={colophon.sourceHref} rel="noopener">
           {colophon.source}
         </a>
       </p>
+      {endMark && (
+        <p class="small end-mark" lang={endMark.lang}>
+          {endMark.text}
+        </p>
+      )}
     </Section>
 
     {testHooks && (
@@ -133,5 +140,8 @@ const year = String(new Date().getFullYear());
         style="transition: transform 2s; margin-top: 1rem"
       />
     )}
+
+    <!-- The sheet closes here: the drawing's bottom rule meets the border (B-07). -->
+    <div class="sheet-close" aria-hidden="true" data-print="hide"></div>
   </main>
 </Base>

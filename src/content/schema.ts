@@ -78,6 +78,12 @@ export const ClockDef = z.strictObject({
   confirmed: z.boolean(),
 });
 
+export const EndMark = z.strictObject({
+  text: text,
+  lang: z.string().regex(/^[a-z]{2,3}$/),
+  confirmed: z.boolean(),
+});
+
 export const BodyDef = z.strictObject({
   id: z.enum([
     'arduino',
@@ -227,6 +233,7 @@ export type PR = z.infer<typeof PR>;
 export type Post = z.infer<typeof Post>;
 export type CvRow = z.infer<typeof CvRow>;
 export type ClockDef = z.infer<typeof ClockDef>;
+export type EndMark = z.infer<typeof EndMark>;
 export type BodyDef = z.infer<typeof BodyDef>;
 export type Holiday = z.infer<typeof Holiday>;
 export type Copy = z.infer<typeof Copy>;

@@ -1,4 +1,5 @@
 import type {
+  EndMark,
   BodyDef,
   ClockDef,
   CvRow,
@@ -15,6 +16,7 @@ import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
 import { clocks } from './clocks';
+import { endMark } from './colophon';
 import holidays from './holidays.json';
 import github from './generated/github.json';
 
@@ -36,6 +38,8 @@ export const getWork = (): WorkItem[] => visible(work);
 export const getCv = (): CvRow[] => visible(cv);
 export const getObjects = (): BodyDef[] => visible(objects);
 export const getClocks = (): ClockDef[] => visible(clocks);
+/** The Nepali end mark, or undefined until the owner confirms it. */
+export const getEndMark = (): EndMark | undefined => visible([endMark])[0];
 export const getOss = (): PR[] => [...oss];
 export const getWriting = (): Post[] => [...writing];
 export const getHolidays = (): Holiday[] => [...(holidays as Holiday[])];

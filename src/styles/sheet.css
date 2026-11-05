@@ -18,18 +18,20 @@
 
 /* --- Page frame --------------------------------------------------------------------------- */
 .sheet {
+  /* Side padding as variables: the closing rule (B-07) reaches back out to the border. */
+  --pad-start: calc(var(--inset) + var(--gutter));
+  --pad-end: calc(var(--inset) + var(--gutter));
   padding-block-start: calc(var(--inset) + var(--gutter));
-  padding-block-end: calc(var(--inset) + var(--strip-h) + var(--gutter));
-  padding-inline: calc(var(--inset) + var(--gutter));
+  /* Ends on the border's inner edge (the strip's top edge below 1024 px). */
+  padding-block-end: calc(var(--inset) + var(--strip-h));
+  padding-inline: var(--pad-start) var(--pad-end);
 }
 
 @media (min-width: 1024px) {
   .sheet {
-    padding-block-end: calc(var(--inset) + var(--gutter));
+    padding-block-end: var(--inset);
     /* Border, index column, then a gutter either side of it. */
-    padding-inline-start: calc(
-      var(--inset) + var(--index-w) + var(--gutter) * 2
-    );
+    --pad-start: calc(var(--inset) + var(--index-w) + var(--gutter) * 2);
   }
 }
 

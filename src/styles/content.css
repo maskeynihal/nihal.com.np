@@ -313,3 +313,27 @@
 .form-success {
   font-size: var(--text-lead);
 }
+
+/* --- Colophon and sheet close (B-07) ------------------------------------------------------- */
+#colophon {
+  padding-block-end: var(--gutter);
+}
+
+/* The drawing's bottom rule: it spans the sheet and lands on the border's inner edge. */
+.sheet-close {
+  height: 1px;
+  margin-inline-start: calc(var(--inset) - var(--pad-start));
+  margin-inline-end: calc(var(--inset) - var(--pad-end));
+  background: var(--white);
+}
+
+/* From 1024 px the index column owns the left margin: the rule starts at the content. */
+@media (min-width: 1024px) {
+  .sheet-close {
+    margin-inline-start: 0;
+  }
+}
+
+.end-mark {
+  font-family: var(--font-body);
+}

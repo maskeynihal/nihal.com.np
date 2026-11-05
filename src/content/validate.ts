@@ -6,6 +6,7 @@ import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
 import { clocks } from './clocks';
+import { endMark } from './colophon';
 import { pending } from './pending';
 import holidays from './holidays.json';
 import github from './generated/github.json';
@@ -14,6 +15,7 @@ import {
   ClockList,
   Copy,
   CvList,
+  EndMark,
   GithubData,
   HolidayList,
   PostList,
@@ -82,6 +84,7 @@ export function validateAll() {
     writing: parse('writing.ts', PostList, writing),
     cv: parse('cv.ts', CvList, cv),
     objects: parse('objects.ts', BodyList, objects),
+    endMark: parse('colophon.ts', EndMark, endMark),
     clocks: parse('clocks.ts', ClockList, clocks),
     holidays: parse('holidays.json', HolidayList, holidays),
     github: parse('generated/github.json', GithubData, github),
