@@ -10,6 +10,13 @@ async function goLive(page: Page) {
     timeout: 45_000,
   });
 }
+/** A press on a drawn object (the only press the desk hears; the canvas takes no clicks). */
+async function pressObject(page: Page) {
+  const o = await page.evaluate(() =>
+    window.__hooks!.desk!.scene!.pick('arduino'),
+  );
+  await page.mouse.click(o!.x, o!.y);
+}
 const audio = (page: Page) =>
   page.evaluate(() => window.__hooks!.desk!.scene!.audio());
 /** Only the taps: a real minute change can add a tick while the test runs. */
@@ -46,9 +53,8 @@ test.describe('sound @E-08', () => {
     await goLive(page);
     expect(await audio(page)).toBeNull();
     // A press on the canvas with sound off does not create one either.
-    await figure(page)
-      .locator('canvas')
-      .click({ position: { x: 5, y: 5 } });
+    // The canvas is a click-through layer: a press on a drawn object is the press.
+    await pressObject(page);
     expect(await audio(page)).toBeNull();
     await soundBtn(page).click();
     await expect(soundBtn(page)).toHaveAttribute('aria-pressed', 'true');
@@ -65,9 +71,8 @@ test.describe('sound @E-08', () => {
     await page.addInitScript(() => localStorage.setItem('nihal:sound', 'on'));
     await goLive(page);
     expect(await audio(page)).toBeNull();
-    await figure(page)
-      .locator('canvas')
-      .click({ position: { x: 5, y: 5 } });
+    // The canvas is a click-through layer: a press on a drawn object is the press.
+    await pressObject(page);
     expect(await audio(page)).not.toBeNull();
   });
 
@@ -76,36 +81,37 @@ test.describe('sound @E-08', () => {
   }) => {
     await goLive(page);
     await soundBtn(page).click();
-    await drop(page, 'arduino', 0.08);
-    await expect
-      .poll(async () => (await taps(page)).length, {
-        timeout: 20_000,
-      })
-      .toBeGreaterThan(0);
-    const soft = (await taps(page))[0]!;
-    expect(soft.clip).toMatch(/^tap-[123]$/);
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            window
-              .__hooks!.desk!.scene!.physics()
-              .bodies.every((b) => b.asleep),
-          ),
-        { timeout: 30_000 },
-      )
-      .toBe(true);
+    const asleep = () =>
+      page.evaluate(() =>
+        window.__hooks!.desk!.scene!.physics().bodies.every((b) => b.asleep),
+      );
+    // Learn where the floor is: let it fall from high in the right margin and settle.
+    await drop(page, 'arduino', 1.2);
     await page.evaluate(() =>
-      window.__hooks!.desk!.scene!.teleport('arduino', 0, 0.9, 0),
+      window.__hooks!.desk!.scene!.teleport('arduino', 1.1, 1.2, 0),
     );
-    await expect
-      .poll(async () => (await taps(page)).length, {
-        timeout: 20_000,
-      })
-      .toBeGreaterThan(1);
-    const all = await taps(page);
-    const loudest = Math.max(...all.map((p) => p.gain));
-    expect(loudest).toBeGreaterThan(soft.gain);
+    await expect.poll(asleep, { timeout: 30_000 }).toBe(true);
+    const floor = await page.evaluate(
+      () =>
+        window
+          .__hooks!.desk!.scene!.physics()
+          .bodies.find((b) => b.id === 'arduino')!.p[1],
+    );
+    const seen = async () => (await taps(page)).length;
+    const hop = async (h: number) => {
+      const n = await seen();
+      await page.evaluate(
+        ([y]) => window.__hooks!.desk!.scene!.teleport('arduino', 1.1, y!, 0),
+        [floor + h],
+      );
+      await expect.poll(seen, { timeout: 20_000 }).toBeGreaterThan(n);
+      await expect.poll(asleep, { timeout: 30_000 }).toBe(true);
+      return (await taps(page))[n]!;
+    };
+    const soft = await hop(0.15);
+    expect(soft.clip).toMatch(/^tap-[123]$/);
+    const hard = await hop(1.2);
+    expect(hard.gain).toBeGreaterThan(soft.gain);
   });
 
   test('hidden tab suspends the context; visible resumes it @E-08', async ({

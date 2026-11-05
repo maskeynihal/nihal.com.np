@@ -31,7 +31,10 @@ export function readToken(name: TokenName): string {
   probe.style.color = '';
   probe.style.color = `var(${name})`;
   const resolved = getComputedStyle(probe).color;
-  return resolved === '' ? raw : resolved;
+  if (resolved === '') return raw;
+  // three.js warns about (and ignores) an alpha component: hand it plain `rgb()`.
+  const m = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(resolved);
+  return m ? `rgb(${m[1]}, ${m[2]}, ${m[3]})` : resolved;
 }
 
 /** Window event the theme toggle dispatches after changing `data-theme` (`detail.theme`). */

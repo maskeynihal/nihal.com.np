@@ -4,7 +4,7 @@
    data-motion-os=reduce is set before paint so the "set by your system" note has no CLS.
    Sound defaults to off.
    Theme: stored 'blue'/'paper', else the OS colour scheme (light -> paper); also sets theme-color.
-   Legacy fragments (#projects #about #blog #experience #education, plus #skills #home)
+   Legacy fragments (#projects #blog #experience #education, plus #skills #home)
    are rewritten with replaceState, then the hash is re-applied to scroll to the target. */
 (function () {
   try {
@@ -43,7 +43,6 @@
     d.dataset.sound = s === 'on' ? 'on' : 'off';
     var t = {
       '#projects': '#work',
-      '#about': '#desk',
       '#blog': '#writing',
       '#experience': '#cv',
       '#education': '#cv',

@@ -9,7 +9,7 @@ const SHOTS = process.env['E2E_SHOTS'] === '1';
 const SHOT_DIR = 'docs/reviews/E-02';
 
 const figure = (page: Page) => page.locator('[data-desk]');
-const canvas = (page: Page) => page.locator('[data-desk] canvas');
+const viewport = (page: Page) => raster(page);
 
 async function goLive(page: Page) {
   await page.goto('/');
@@ -28,8 +28,23 @@ interface Raster {
   at(x: number, y: number): [number, number, number];
 }
 
-async function raster(target: Locator): Promise<Raster> {
-  const png = await target.screenshot();
+/** The canvas is a transparent full-viewport layer, so its pixels are read from the page with all
+ *  other content hidden: only the page colour and the line art remain. */
+async function quiet(page: Page) {
+  await page.addStyleTag({
+    content: `.title-block, .object-list, .desk-controls, .sheet-border, .sheet-index,
+      main > section:not(#desk), header, footer { visibility: hidden !important; }`,
+  });
+}
+
+async function raster(
+  target: Locator | Page,
+  clip?: { x: number; y: number; width: number; height: number },
+): Promise<Raster> {
+  const png =
+    'screenshot' in target && 'goto' in target
+      ? await (target as Page).screenshot(clip ? { clip } : {})
+      : await (target as Locator).screenshot();
   const { data, info } = await sharp(png)
     .removeAlpha()
     .raw()
@@ -65,7 +80,7 @@ const canvasProject = (name: string) => name === 'desktop-chromium';
 test.describe('line-art rendering @E-02', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test('the canvas background is the --blue token within 2/255 @E-02', async ({
+  test('the canvas is transparent: the --blue page shows through within 2/255 @E-02', async ({
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
@@ -77,13 +92,14 @@ test.describe('line-art rendering @E-02', () => {
         .trim(),
     );
     expect(token.toLowerCase()).toBe('#1f3fe0');
-    const r = await raster(canvas(page));
+    await quiet(page);
+    const r = await viewport(page);
+    // The canvas is transparent: the page colour shows through between the lines.
     for (const [x, y] of [
-      [3, 3],
-      [r.width - 4, 3],
-      [3, r.height - 4],
-      [r.width - 4, r.height - 4],
-      [Math.round(r.width / 2), 3],
+      [40, 40],
+      [r.width - 40, 40],
+      [r.width - 40, r.height - 40],
+      [Math.round(r.width / 2), 40],
     ] as const) {
       const px = r.at(x, y);
       expect(near(px, BLUE, 2), `pixel ${x},${y} = ${px}`).toBe(true);
@@ -97,6 +113,7 @@ test.describe('line-art rendering @E-02', () => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
     await page.setViewportSize({ width: 1280, height: 900 });
     await goLive(page);
+    await quiet(page);
     const before = await page.evaluate(() =>
       window.__hooks!.desk!.scene!.frames(),
     );
@@ -108,7 +125,7 @@ test.describe('line-art rendering @E-02', () => {
       .poll(() => page.evaluate(() => window.__hooks!.desk!.scene!.frames()))
       .toBeGreaterThan(before);
     await page.waitForTimeout(300);
-    const r = await raster(canvas(page));
+    const r = await viewport(page);
     const { cx, cy, r: radius } = s!;
     // Inside: the occluder fill (no lights, no shading).
     expect(near(r.at(cx, cy), BLUE, 2)).toBe(true);
@@ -143,7 +160,8 @@ test.describe('line-art rendering @E-02', () => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
     await page.setViewportSize({ width: 1280, height: 900 });
     await goLive(page);
-    const r = await raster(canvas(page));
+    await quiet(page);
+    const r = await viewport(page);
     const mask = whiteMask(r);
     let white = 0;
     for (const v of mask) white += v;
@@ -161,16 +179,24 @@ test.describe('line-art rendering @E-02', () => {
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
-    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.setViewportSize({ width: 1280, height: 1100 });
     await goLive(page);
-    const live = await raster(canvas(page));
+    await quiet(page);
+    const box = (await page.locator('[data-poster]').boundingBox())!;
+    const clip = {
+      x: Math.round(box.x),
+      y: Math.round(box.y),
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+    };
+    const live = await raster(page, clip);
     // Show the poster again (the shell only sets this attribute) and capture it.
     await figure(page).evaluate((el) =>
       el.setAttribute('data-desk-state', 'poster'),
     );
     await expect(page.locator('.desk-live')).toHaveCSS('opacity', '0');
     await page.waitForTimeout(450);
-    const poster = await raster(page.locator('[data-poster]'));
+    const poster = await raster(page, clip);
     expect([poster.width, poster.height]).toEqual([live.width, live.height]);
     const a = whiteMask(poster);
     const b = whiteMask(live);
@@ -215,11 +241,12 @@ test.describe('line-art rendering @E-02', () => {
       // Viewport first, then load, so the phone camera is chosen from the start.
       await page.setViewportSize({ width: w, height: h });
       await goLive(page);
-      const shot = await figure(page).screenshot();
+      const shot = await page.screenshot();
       const meta = await sharp(shot).metadata();
       expect(meta.width).toBeGreaterThan(200);
-      const r = await raster(canvas(page));
-      expect(near(r.at(3, 3), BLUE, 2), `${name} background`).toBe(true);
+      await quiet(page);
+      const r = await viewport(page);
+      expect(near(r.at(40, 40), BLUE, 2), `${name} background`).toBe(true);
       let white = 0;
       for (const v of whiteMask(r)) white += v;
       expect(white, `${name} has line art`).toBeGreaterThan(300);
@@ -254,9 +281,10 @@ test.describe('line-art rendering @E-02', () => {
       .poll(() =>
         page.evaluate(() => window.__hooks!.desk!.scene!.size().width),
       )
-      .toBeLessThan(700);
+      .toBe(1000);
     await page.waitForTimeout(500);
-    const r = await raster(canvas(page));
+    await quiet(page);
+    const r = await viewport(page);
     let white = 0;
     for (const v of whiteMask(r)) white += v;
     expect(white).toBeGreaterThan(800);

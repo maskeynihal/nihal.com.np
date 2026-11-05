@@ -107,8 +107,13 @@ test.describe('callouts @E-06', () => {
   test('a held object keeps its label at full strength and the label follows it @E-06', async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 1000 });
     await goLive(page);
     const o = await where(page, 'ghost');
+    // The label is placed on the first drawn frame.
+    await expect
+      .poll(async () => (await tip(page, 'ghost').boundingBox())?.x ?? 0)
+      .toBeGreaterThan(50);
     const before = (await tip(page, 'ghost').boundingBox())!;
     await page.mouse.move(o.x, o.y);
     await page.mouse.down();

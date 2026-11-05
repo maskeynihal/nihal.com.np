@@ -87,7 +87,6 @@ describe('inline prefs script', () => {
   });
   it.each([
     ['#projects', '#work'],
-    ['#about', '#desk'],
     ['#blog', '#writing'],
     ['#experience', '#cv'],
     ['#education', '#cv'],

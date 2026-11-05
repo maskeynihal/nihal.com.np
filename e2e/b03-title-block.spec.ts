@@ -6,7 +6,8 @@ import { buildPosterAlt } from '../src/content/poster-alt';
 import { formatClock } from '../src/lib/time';
 
 // The default build shows confirmed objects only (content/index.ts getObjects).
-const shown = objects.filter((o) => o.confirmed);
+// Decorative objects (balls, letters) have no target and are not in the list.
+const shown = objects.filter((o) => o.confirmed && o.target);
 const list = (page: Page) => page.locator('[data-object-list] a');
 
 test.describe('title block and poster @B-03', () => {
@@ -64,7 +65,10 @@ test.describe('title block and poster @B-03', () => {
     const poster = page.locator('#desk svg.poster');
     await expect(poster).toHaveCount(1);
     await expect(poster).toHaveAttribute('role', 'img');
-    await expect(poster).toHaveAttribute('aria-label', buildPosterAlt(shown));
+    await expect(poster).toHaveAttribute(
+      'aria-label',
+      buildPosterAlt(objects.filter((o) => o.confirmed)),
+    );
     await expect(poster).toBeVisible();
     const box = await poster.boundingBox();
     expect(box!.width).toBeGreaterThan(200);
@@ -102,7 +106,9 @@ test.describe('title block and poster @B-03', () => {
     const tb = (await page.locator('.title-block').boundingBox())!;
     const dk = (await page.locator('[data-desk]').boundingBox())!;
     const ls = (await page.locator('[data-object-list]').boundingBox())!;
-    expect(tb.x + tb.width).toBeLessThanOrEqual(dk.x + 1);
+    // The table sits lower in the hero, under the title block, across the width.
+    expect(tb.y + tb.height).toBeLessThanOrEqual(dk.y + dk.height * 0.2);
+    expect(dk.y).toBeGreaterThan(tb.y + tb.height * 0.6);
     expect(ls.y).toBeGreaterThanOrEqual(dk.y + dk.height - 1);
   });
 

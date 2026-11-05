@@ -4,7 +4,9 @@ test('home loads @A-08', async ({ page, javaScriptEnabled }) => {
   await page.goto('/');
   await expect(page.locator('h1')).toHaveText('nihal maskey');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page).toHaveTitle('nihal maskey · lead engineer, kathmandu');
+  await expect(page).toHaveTitle(
+    'Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal',
+  );
 
   const noOverflow = await page.evaluate(
     () =>

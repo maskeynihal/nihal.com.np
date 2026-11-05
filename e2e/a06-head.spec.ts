@@ -2,7 +2,7 @@ import { test, expect, expectNoAxeViolations } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const ORIGIN = 'https://nihal.com.np';
-const TITLE = 'nihal maskey · lead engineer, kathmandu';
+const TITLE = 'Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal';
 
 const meta = (page: Page, attr: 'name' | 'property', key: string) =>
   page.locator(`head meta[${attr}="${key}"]`).getAttribute('content');
@@ -38,7 +38,7 @@ test('open graph and twitter tags are absolute @A-06', async ({
 }) => {
   await page.goto('/');
   const og = async (k: string) => meta(page, 'property', `og:${k}`);
-  expect(await og('type')).toBe('website');
+  expect(await og('type')).toBe('profile');
   expect(await og('url')).toBe(`${ORIGIN}/`);
   expect(await og('title')).toBe(TITLE);
   expect(await og('description')).toBe(await meta(page, 'name', 'description'));
@@ -68,20 +68,35 @@ test('JSON-LD Person parses with the expected fields @A-06', async ({
     .allTextContents();
   expect(blocks).toHaveLength(1);
   const ld = JSON.parse(blocks[0] ?? '');
-  expect(ld).toMatchObject({
-    '@context': 'https://schema.org',
-    '@type': 'Person',
+  expect(ld['@context']).toBe('https://schema.org');
+  const graph: { '@type': string }[] = ld['@graph'];
+  expect(graph.map((n) => n['@type'])).toEqual([
+    'Person',
+    'Organization',
+    'WebSite',
+    'ProfilePage',
+  ]);
+  const person = graph[0];
+  expect(person).toMatchObject({
     name: 'Nihal Maskey',
     url: ORIGIN,
-    jobTitle: 'Lead Engineer',
+    jobTitle: 'Lead Software Engineer',
     worksFor: { '@type': 'Organization', name: 'Leapfrog Technology' },
     address: { addressLocality: 'Kathmandu', addressCountry: 'NP' },
   });
-  expect(ld.worksFor.url).toMatch(/^https:\/\//);
-  expect(ld.sameAs).toEqual([
+  expect(graph[1]).toMatchObject({
+    name: 'Daboo Spaces',
+    founder: { '@id': `${ORIGIN}/#person` },
+  });
+  expect(graph[3]).toMatchObject({
+    mainEntity: { '@id': `${ORIGIN}/#person` },
+  });
+  expect((person as unknown as { sameAs: string[] }).sameAs).toEqual([
     'https://github.com/maskeynihal',
     'https://www.linkedin.com/in/maskeynihal',
     'https://x.com/nihalmaskey',
+    'https://www.instagram.com/maskeynihal',
+    'https://nihalmaskey.hashnode.dev',
   ]);
   expect(blocks[0]).not.toMatch(/trayt/i);
 });

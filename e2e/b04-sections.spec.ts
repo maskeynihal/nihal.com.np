@@ -108,11 +108,11 @@ test.describe('work, open source, writing, cv @B-04', () => {
   }) => {
     await page.goto('/');
     const table = page.getByRole('table', { name: copy.headings.cv });
-    await expect(table.locator('tr')).toHaveCount(rows.length);
+    await expect(table.locator('tr')).toHaveCount(rows.length + 1); // plus the skills row
     for (const [i, r] of rows.entries()) {
       const tr = table.locator('tr').nth(i);
       await expect(tr.locator('th[scope="row"]')).toHaveText(r.when);
-      await expect(tr.locator('td').nth(0)).toHaveText(r.role);
+      await expect(tr.locator('td').nth(0)).toContainText(r.role);
       await expect(tr.locator('td').nth(1)).toHaveText(r.org);
     }
     await expect(page.locator('#cv')).toContainText(copy.cv.note);

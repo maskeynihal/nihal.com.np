@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 
 const IDS = [
   'desk',
+  'about',
   'work',
   'open-source',
   'writing',
@@ -32,12 +33,13 @@ test.describe('sheet border and index @B-01', () => {
   }) => {
     await page.goto('/');
     const links = nav(page).getByRole('link');
-    await expect(links).toHaveCount(7);
+    await expect(links).toHaveCount(8);
     expect(
       await links.evaluateAll((l) => l.map((a) => a.getAttribute('href'))),
     ).toEqual(IDS.map((i) => `#${i}`));
     expect(await links.allTextContents()).toEqual([
       'desk',
+      'about',
       'work',
       'open source',
       'writing',
@@ -45,7 +47,7 @@ test.describe('sheet border and index @B-01', () => {
       'contact',
       'colophon',
     ]);
-    await links.nth(3).click();
+    await links.nth(4).click();
     await expect(page).toHaveURL(/#writing$/);
     await expect(page.locator('#writing')).toBeFocused();
     await expectNoAxeViolations(page, { label: '/ after index link' });
@@ -70,7 +72,8 @@ test.describe('sheet border and index @B-01', () => {
     expect(s.pe).toBe('none');
     expect(s.pos).toBe('fixed');
     expect(s.line).toBe('1px');
-    expect(s.color).toBe('rgb(255, 255, 255)');
+    // The border line is the --stroke token (white at 85% in blue mode).
+    expect(s.color).toBe('rgba(255, 255, 255, 0.85)');
     const size = page.viewportSize()!.width >= 1024 ? '24px' : '12px';
     expect(s.w).toBe(size);
   });
@@ -89,7 +92,7 @@ test.describe('sheet border and index @B-01', () => {
         }),
       );
     expect(new Set(boxes.map((b) => Math.round(b[0]!))).size).toBe(1);
-    expect(new Set(boxes.map((b) => Math.round(b[1]!))).size).toBe(7);
+    expect(new Set(boxes.map((b) => Math.round(b[1]!))).size).toBe(8);
     const main = await page
       .locator('main')
       .evaluate((e) => parseFloat(getComputedStyle(e).paddingInlineStart));
@@ -163,7 +166,7 @@ test.describe('sheet border and index @B-01', () => {
     await page.goto('/');
     await page.keyboard.press('Tab'); // skip link
     const seen: string[] = [];
-    for (let i = 0; i < 12 && seen.length < 7; i++) {
+    for (let i = 0; i < 14 && seen.length < 8; i++) {
       await page.keyboard.press('Tab');
       const href = await page.evaluate(() => {
         const a = document.activeElement;

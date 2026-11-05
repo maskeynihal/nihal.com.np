@@ -27,9 +27,9 @@ test.describe('desk island shell @E-01', () => {
     expect(html).not.toMatch(/Scene\.[\w-]+\.js/);
     expect(html).not.toMatch(/modulepreload[^>]*Scene/);
     // Readable desk text is plain HTML, hidden (not removed) until the canvas is live.
-    expect(html).toContain('reset the desk');
+    expect(html).toContain('put everything back');
     expect(html).toContain(
-      'drag things around. tap one to jump to its section.',
+      'pick something up. throw it off the table if you like.',
     );
   });
 
@@ -74,7 +74,7 @@ test.describe('desk island shell @E-01', () => {
     await expectNoAxeViolations(page, { label: '/ with the live canvas' });
   });
 
-  test('the canvas covers exactly the poster frame, in svh on phones and 3:2 from 768 @E-01', async ({
+  test('the canvas is a fixed, transparent, click-through layer over the whole viewport @E-01', async ({
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
@@ -85,17 +85,22 @@ test.describe('desk island shell @E-01', () => {
     ] as const) {
       await page.setViewportSize({ width: w, height: h });
       await goLive(page);
-      const p = await poster(page).boundingBox();
       const c = await page.locator('.desk-live').boundingBox();
-      expect(p && c).toBeTruthy();
-      expect(Math.abs(c!.width - p!.width)).toBeLessThan(1);
-      expect(Math.abs(c!.height - p!.height)).toBeLessThan(1);
-      if (w < 768)
-        expect(c!.height).toBeCloseTo(
-          Math.min(420, Math.max(320, 0.48 * h)),
-          0,
+      expect(c).toBeTruthy();
+      expect(Math.abs(c!.width - w)).toBeLessThan(1);
+      expect(Math.abs(c!.height - h)).toBeLessThan(1);
+      await expect(page.locator('.desk-live')).toHaveCSS('position', 'fixed');
+      // Nothing in the layer may catch the pointer: the page underneath stays clickable.
+      const hit = await page.evaluate(() => {
+        const t = document.querySelector('[data-motion-toggle]')!;
+        const r = t.getBoundingClientRect();
+        const e = document.elementFromPoint(
+          r.x + r.width / 2,
+          r.y + r.height / 2,
         );
-      else expect(c!.width / c!.height).toBeCloseTo(1.5, 1);
+        return !!e?.closest('[data-motion-toggle]');
+      });
+      expect(hit).toBe(true);
     }
   });
 
@@ -142,7 +147,7 @@ test.describe('desk island shell @E-01', () => {
     expect(lcp?.tag).not.toBe('CANVAS');
   });
 
-  test('hint and reset button show with the canvas; reset announces nothing new and fires the event @E-01', async ({
+  test('the hint shows with the canvas; the reset button waits until something is off the table @E-01', async ({
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
@@ -152,19 +157,10 @@ test.describe('desk island shell @E-01', () => {
     await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
       timeout: 45_000,
     });
-    await expect(reset).toBeVisible();
-    await expect(page.getByText('drag things around.')).toBeVisible();
-    const fired = page.evaluate(
-      () =>
-        new Promise<boolean>((resolve) =>
-          window.addEventListener('nihal:desk-reset', () => resolve(true), {
-            once: true,
-          }),
-        ),
-    );
-    await reset.click();
-    expect(await fired).toBe(true);
-    expect((await reset.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect(page.getByText('pick something up.')).toBeVisible();
+    // Nothing is free yet: the button stays hidden (the falling desk spec drives the rest).
+    await expect(reset).toHaveCSS('visibility', 'hidden');
+    await expectNoAxeViolations(page, { label: '/ live canvas, hint shown' });
   });
 
   test('desktop: the object list goes quiet until focus-within, but stays in the tab order @E-01', async ({

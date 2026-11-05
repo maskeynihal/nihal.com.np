@@ -14,7 +14,13 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ],
-  use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
+  use: {
+    baseURL: `http://localhost:${PORT}`,
+    trace: 'retain-on-failure',
+    // The theme follows the OS until chosen; the suite's baseline is the blue theme. Theme specs
+    // set `colorScheme` and the stored choice themselves.
+    colorScheme: 'dark',
+  },
   projects: [
     {
       name: 'desktop-chromium',

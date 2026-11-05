@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 
 const IDS = [
   'desk',
+  'about',
   'work',
   'open-source',
   'writing',
@@ -35,12 +36,12 @@ async function arrowsOutsideMono(page: Page): Promise<string[]> {
 }
 
 test.describe('sections and panels @B-02', () => {
-  test('seven headed sections in order, each a labelled region @B-02', async ({
+  test('eight headed sections in order, each a labelled region @B-02', async ({
     page,
   }) => {
     await page.goto('/');
     const ids = await page
-      .locator('main > section')
+      .locator('main > section[id]')
       .evaluateAll((els) => els.map((e) => e.id));
     expect(ids).toEqual(IDS);
     for (const id of IDS) {

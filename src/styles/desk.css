@@ -130,6 +130,13 @@
   height: 100%;
 }
 
+/* R3F's own wrapper divs and the canvas must never catch the pointer: the page underneath stays
+   clickable (the Scene listens on `window`). */
+.desk-live,
+.desk-live * {
+  pointer-events: none !important;
+}
+
 .desk-canvas canvas {
   display: block;
   pointer-events: none;
@@ -297,6 +304,12 @@
   /* A compact title block so the table is on the first screen: the rows run two across. */
   .title-block {
     max-width: 44rem;
+  }
+
+  /* The fallback face wraps the sentence onto fewer lines than Fraunces does: reserve four lines so
+     the font arriving moves nothing. */
+  .title-block-line {
+    min-block-size: 4lh;
   }
 
   .title-block-rows {

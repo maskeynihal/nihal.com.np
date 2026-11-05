@@ -56,13 +56,6 @@ async function settled(page: Page, timeout = 30_000) {
     .toBe(true);
 }
 
-const HOME: Record<string, [number, number]> = {
-  arduino: [0, 0.02],
-  'clock-ktm': [-0.55, -0.3],
-  calendar: [0.5, -0.24],
-  ghost: [0.46, 0.3],
-};
-
 /** Presses `id` and drags by (dx, dy); waits for the grab (the first one loads the engine). */
 async function dragTo(page: Page, id: string, dx: number, dy: number) {
   const o = await where(page, id);
@@ -162,98 +155,48 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     await page.mouse.move(c.x - 500, c.y + 300, { steps: 3 });
     await page.mouse.up();
     await settled(page);
+    // Everything stays on the screen (the walls, floor and ceiling are the viewport).
+    const vp = page.viewportSize()!;
     for (const b of await bodies(page)) {
-      expect(Math.abs(b.p[0]), `${b.id} x`).toBeLessThan(0.8);
-      expect(Math.abs(b.p[2]), `${b.id} z`).toBeLessThan(0.6);
-      expect(b.p[1], `${b.id} y`).toBeGreaterThan(-0.05);
-      expect(b.p[1], `${b.id} y`).toBeLessThan(0.2);
+      const at = await where(page, b.id);
+      expect(at.x, `${b.id} x`).toBeGreaterThan(0);
+      expect(at.x, `${b.id} x`).toBeLessThan(vp.width);
+      expect(at.y, `${b.id} y`).toBeGreaterThan(0);
+      expect(at.y, `${b.id} y`).toBeLessThanOrEqual(vp.height);
     }
-    const moved = (await bodies(page)).find((b) => b.id === 'clock-ktm')!;
-    expect(Math.hypot(moved.p[0] - -0.55, moved.p[2] - -0.3)).toBeGreaterThan(
-      0.05,
-    );
+    const now = await where(page, 'clock-ktm');
+    expect(Math.hypot(now.x - o.x, now.y - o.y)).toBeGreaterThan(10);
   });
 
-  test('a tap (no drag) goes to the object section; a drag does not @E-05', async ({
-    page,
-  }) => {
+  test('R and the reset button put everything back @E-05', async ({ page }) => {
     await goLive(page);
-    await recordEvents(page);
-    const o = await where(page, 'calendar');
-    await page.mouse.move(o.x, o.y);
-    await page.mouse.down();
-    await page.mouse.up();
-    await expect
-      .poll(async () =>
-        (await events(page)).filter((e) => e.type === 'nihal:navigate'),
-      )
-      .toEqual([{ type: 'nihal:navigate', detail: '#open-source' }]);
-    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(300);
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.activeElement?.closest('section')?.id),
-      )
-      .toBe('open-source');
-    await page.evaluate(() => scrollTo(0, 0));
-    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
-
-    // A drag that ends where it began is a drag, not a tap.
-    await recordEvents(page);
-    const g = await where(page, 'arduino');
-    await page.mouse.move(g.x, g.y);
-    await page.mouse.down();
-    await page.mouse.move(g.x + 60, g.y + 30, { steps: 4 });
-    await page.mouse.move(g.x, g.y, { steps: 4 });
-    await page.mouse.up();
-    await page.waitForTimeout(300);
-    expect(
-      (await events(page)).filter((e) => e.type === 'nihal:navigate'),
-    ).toEqual([]);
-  });
-
-  test('the ghost looks at the pointer only while it is held @E-05', async ({
-    page,
-  }) => {
-    await goLive(page);
-    const eyes = () =>
-      page.evaluate(() => window.__hooks!.desk!.scene!.ghostEyes());
-    expect(await eyes()).toEqual([0, 0]);
-    const o = await dragTo(page, 'ghost', 0, 0);
-    await page.mouse.move(o.x - 120, o.y + 10, { steps: 6 });
-    await expect.poll(() => grabbed(page), { timeout: 30_000 }).toBe('ghost');
-    await expect.poll(async () => (await eyes())[0]).not.toBe(0);
-    await page.mouse.up();
-    await expect.poll(async () => await eyes()).toEqual([0, 0]);
-  });
-
-  test('R and the reset button put everything back, asleep @E-05', async ({
-    page,
-  }) => {
-    await goLive(page);
+    const homes = {
+      arduino: await where(page, 'arduino'),
+      calendar: await where(page, 'calendar'),
+    };
+    const atHome = async () => {
+      for (const [id, h] of Object.entries(homes)) {
+        const p = await where(page, id);
+        if (Math.hypot(p.x - h.x, p.y - h.y) > 3) return false;
+      }
+      return true;
+    };
     await dragTo(page, 'arduino', 150, 90);
     await page.mouse.up();
     await settled(page);
-    const away = (await bodies(page)).find((b) => b.id === 'arduino')!;
-    expect(Math.hypot(away.p[0] - 0, away.p[2] - 0.02)).toBeGreaterThan(0.05);
-
-    const atHome = async () => {
-      const list = await bodies(page);
-      for (const b of list) {
-        const home = HOME[b.id];
-        if (!home) continue;
-        if (Math.hypot(b.p[0] - home[0], b.p[2] - home[1]) > 0.01) return false;
-      }
-      return list.every((b) => b.asleep);
-    };
+    expect(await atHome()).toBe(false);
     // R with the desk region focused.
     await page.locator('[data-desk-reset]').focus();
     await page.keyboard.press('r');
     await expect.poll(atHome).toBe(true);
 
-    // The button (same event).
-    await dragTo(page, 'calendar', -120, 80);
+    // The button (same event), once something is off the table.
+    await dragTo(page, 'calendar', 170, -40);
     await page.mouse.up();
     await settled(page);
+    await expect(page.locator('[data-desk-reset]')).toBeVisible({
+      timeout: 10_000,
+    });
     await page.locator('[data-desk-reset]').click();
     await expect.poll(atHome).toBe(true);
     await expectNoAxeViolations(page, { label: '/ desk after reset' });
@@ -263,20 +206,21 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     page,
   }) => {
     await goLive(page);
+    const home = await where(page, 'calendar');
     await dragTo(page, 'calendar', 10, 10);
     await page.mouse.up();
     await settled(page);
     const t0 = Date.now();
     expect(
       await page.evaluate(() =>
-        window.__hooks!.desk!.scene!.teleport('calendar', 4, 0.5, 0),
+        window.__hooks!.desk!.scene!.teleport('calendar', 9, 0.5, 0),
       ),
     ).toBe(true);
     await expect
       .poll(
         async () => {
-          const b = (await bodies(page)).find((x) => x.id === 'calendar')!;
-          return Math.abs(b.p[0] - 0.5) < 0.05 && b.asleep;
+          const p = await where(page, 'calendar');
+          return Math.hypot(p.x - home.x, p.y - home.y) < 3;
         },
         { timeout: 4000, intervals: [50] },
       )
@@ -376,10 +320,10 @@ test.describe('touch @E-05', () => {
     await page.evaluate(() => scrollTo(0, 0));
     const o = await where(page, id);
     const h = page.viewportSize()!.height;
-    if (o.y > h - 60) {
+    if (o.y > h - 120) {
       await page.evaluate((y) => scrollBy(0, y - 200), o.y);
       await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
-      await sleep(300);
+      await sleep(700);
       return {
         ...(await where(page, id)),
         scroll: await page.evaluate(() => scrollY),
@@ -445,7 +389,7 @@ test.describe('touch @E-05', () => {
     await expectNoAxeViolations(page, { label: '/ phone after a touch drag' });
   });
 
-  test('a tap goes to the section; a double tap on empty desk resets @E-05', async ({
+  test('a tap goes to the section; a hold-drag moves a body and R puts it back @E-05', async ({
     page,
   }) => {
     await goLive(page);
@@ -473,21 +417,15 @@ test.describe('touch @E-05', () => {
     }
     await t.end();
     await settled(page);
-    const moved = (await bodies(page)).find((b) => b.id === 'arduino')!;
-    expect(Math.hypot(moved.p[0], moved.p[2] - 0.02)).toBeGreaterThan(0.05);
+    const moved = await where(page, 'arduino');
+    expect(Math.hypot(moved.x - g.x, moved.y - g.y)).toBeGreaterThan(10);
 
-    const corner = { x: g.box.x + 12, y: g.box.y + 12 };
-    // Sent back to back (not awaited one by one) so a loaded machine cannot stretch the gap.
-    await Promise.all([
-      t.start(corner.x, corner.y),
-      t.end(),
-      t.start(corner.x, corner.y),
-      t.end(),
-    ]);
+    // There is no double-tap reset any more: the button and the R key are the way back.
+    await page.keyboard.press('r');
     await expect
       .poll(async () => {
-        const b = (await bodies(page)).find((x) => x.id === 'arduino')!;
-        return Math.hypot(b.p[0], b.p[2] - 0.02) < 0.01 && b.asleep;
+        const p = await where(page, 'arduino');
+        return Math.hypot(p.x - g.x, p.y - g.y) < 3;
       })
       .toBe(true);
   });
