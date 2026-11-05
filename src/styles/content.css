@@ -106,10 +106,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.revision-table td:last-child {
-  white-space: nowrap;
-}
-
 .revision-table tfoot td {
   padding-block-start: 1rem;
 }
@@ -120,17 +116,10 @@
   min-height: 44px;
 }
 
+/* Dates may wrap at their arrow; the tables must never be wider than the column. */
+.revision-table td:last-child,
 .cv-table th {
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  .revision-table td:last-child {
-    white-space: normal;
-  }
-  .cv-table th {
-    white-space: normal;
-  }
+  min-width: 5.5rem;
 }
 
 /* --- Writing ---------------------------------------------------------------------------- */
