@@ -169,3 +169,9 @@ Strictly one writer per checkout. A-01 → A-08 → A-02 → A-03 → A-04 → A
 
 ## DoD waivers
 Until A-08 is merged, reviewers waive: tagged Playwright spec, `pnpm test`, `check:graph`, `pnpm review <ID>`. They verify instead with direct commands: build, lint, format, typecheck, preview + curl, `git ls-files`. After A-08: no waivers. Gates that need a person (real devices, VoiceOver, NVDA) are owner gates in F-03/F-04; agents cannot sign them off.
+
+## Review deferral (2026-11-05)
+Owner instruction 2026-11-05: "Do all the works. Build the code and show me output. We will review it later." Per-ticket Sonnet review rounds are deferred from A-10 onward; implementers still run `pnpm verify` and `pnpm review <ID>` before each commit. Not yet reviewed:
+- A-10 r1 was stopped unfinished. Open questions for it: the nested `createRoot(host, { onCaughtError })` inside the client:only root (cleanup, R3F/context compatibility, simpler alternative); global error attribution by filename/stack regex `Desk|Scene|desk-vendor|physics` (false positives/negatives, cross-origin "Script error."); a real network abort of the Scene chunk (only a synthetic rejected import is tested).
+- Every ticket after A-10.
+Push, Vercel and branch protection (A-07 push, A-12) still need the owner's OK. A-07 `ci.yml` is written locally only.
