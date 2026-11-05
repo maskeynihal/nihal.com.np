@@ -54,10 +54,19 @@ export default defineConfig({
   ],
   // Serves whatever is in dist/. Run via `pnpm review` (it builds the e2e dist
   // with test hooks first); running `playwright test` directly is unsupported.
-  webServer: {
-    command: 'pnpm preview --port 4321 --ignore-lock',
-    url: 'http://localhost:4321',
-    reuseExistingServer: !process.env['CI'],
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: 'pnpm preview --port 4321 --ignore-lock',
+      url: 'http://localhost:4321',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 60_000,
+    },
+    // Same dist with the production response headers (CSP) applied; used by @A-09 specs.
+    {
+      command: 'pnpm exec tsx e2e/header-server.ts',
+      url: 'http://localhost:4391',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 60_000,
+    },
+  ],
 });
