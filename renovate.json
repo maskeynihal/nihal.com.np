@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", "group:monorepos"],
+  "timezone": "Asia/Kathmandu",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "TypeScript stays on 6.x: typescript-eslint and @astrojs/check do not support TypeScript 7. Lift once both do.",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "three, R3F, drei and rapier are version-coupled and pinned with ~; review together.",
+      "matchPackageNames": ["three", "@types/three", "/^@react-three//"],
+      "groupName": "3D stack",
+      "automerge": false
+    },
+    {
+      "description": "Astro and its integrations move together.",
+      "matchPackageNames": ["astro", "/^@astrojs//"],
+      "groupName": "astro",
+      "automerge": false
+    },
+    {
+      "description": "Playwright and axe change test results; never automerge.",
+      "matchPackageNames": ["@playwright/test", "@axe-core/playwright"],
+      "groupName": "e2e",
+      "automerge": false
+    }
+  ]
+}
