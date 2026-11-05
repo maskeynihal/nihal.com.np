@@ -12,8 +12,18 @@ import { buildPosterAlt } from '../content/poster-alt';
  *
  * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
  * moves) until `data-desk-state="live"`: the drag hint and the reset button.
+ * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
+ * so the shown objects are handed to it as `data-objects`: id, model file and home pose only.
  */
 const { titleBlock } = getCopy();
+const objects = JSON.stringify(
+  getObjects().map((o) => ({
+    id: o.id,
+    model: o.model.replace(/\.glb$/, ''),
+    p: o.home.p,
+    q: o.home.q,
+  })),
+);
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
 const svg = posterSvg
   .trim()
@@ -23,7 +33,7 @@ const svg = posterSvg
   );
 ---
 
-<div class="poster-frame" data-poster set:html={svg} />
+<div class="poster-frame" data-poster data-objects={objects} set:html={svg} />
 <div class="desk-controls" data-desk-controls>
   <p class="label desk-hint">{titleBlock.dragHint}</p>
   <button type="button" class="label desk-reset" data-desk-reset>

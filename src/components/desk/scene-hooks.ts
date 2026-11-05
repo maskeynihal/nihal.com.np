@@ -6,12 +6,14 @@ interface SceneProbe {
   frames: number;
   camera: PerspectiveCamera | null;
   size: () => { width: number; height: number };
+  probeSphere: (on: boolean) => { cx: number; cy: number; r: number } | null;
 }
 
 const probe: SceneProbe = {
   frames: 0,
   camera: null,
   size: () => ({ width: 0, height: 0 }),
+  probeSphere: () => null,
 };
 
 /** Merges the probe into `__hooks.desk.scene`. A plain build drops this (testHooks is a constant). */
@@ -26,6 +28,7 @@ export function installSceneHooks(): () => void {
   desk.scene = {
     frames: () => probe.frames,
     size: () => probe.size(),
+    probeSphere: (on) => probe.probeSphere(on),
   };
   return () => {
     delete desk.scene;
@@ -42,4 +45,10 @@ export function setCameraProbe(
 ): void {
   probe.camera = camera;
   probe.size = () => ({ width: size.width, height: size.height });
+}
+export function getProbeCamera(): PerspectiveCamera | null {
+  return probe.camera;
+}
+export function setSphereProbe(fn: SceneProbe['probeSphere']): void {
+  probe.probeSphere = fn;
 }

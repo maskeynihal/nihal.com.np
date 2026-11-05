@@ -23,6 +23,8 @@ interface DeskSceneHooks {
   frames(): number;
   /** Canvas size in CSS px. */
   size(): { width: number; height: number };
+  /** Swaps the desk for one lit sphere; returns its screen circle in canvas CSS px. */
+  probeSphere(on: boolean): { cx: number; cy: number; r: number } | null;
 }
 
 interface DeskHooks {
@@ -42,4 +44,9 @@ interface TestHooks {
 
 interface Window {
   __hooks?: TestHooks;
+}
+
+declare module '*.glb?url&no-inline' {
+  const url: string;
+  export default url;
 }
