@@ -1,7 +1,11 @@
 import { testHooks } from './env';
 
 if (testHooks) {
-  const hooks: NonNullable<Window['__hooks']> = { ready: true, longTasks: [] };
+  const hooks: NonNullable<Window['__hooks']> = {
+    ready: true,
+    longTasks: [],
+    errors: [],
+  };
   window.__hooks = hooks;
   try {
     new PerformanceObserver((list) => {

@@ -3,6 +3,8 @@ import Base from '../layouts/Base.astro';
 import { testHooks } from '../lib/env';
 import MotionToggle from '../components/MotionToggle.astro';
 import SoundToggle from '../components/SoundToggle.astro';
+import Poster from '../components/Poster.astro';
+import Desk from '../components/desk/Desk';
 import { getCopy } from '../content';
 
 const { titleBlock, headings } = getCopy();
@@ -22,6 +24,12 @@ const { titleBlock, headings } = getCopy();
         <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
       </p>
     </div>
+    <!-- The poster is plain HTML and visible by default. The Desk island only sets
+         data-desk-state (poster | live | failed) and the status note. -->
+    <figure class="desk" data-desk data-desk-state="poster">
+      <Poster />
+      <Desk client:only="react" />
+    </figure>
     <!-- Placeholder target for the skip link; B-04 replaces it with the real work section. -->
     <section id="work" tabindex="-1" aria-labelledby="work-heading">
       <h2 id="work-heading" class="sr-only">

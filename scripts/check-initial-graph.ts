@@ -3,7 +3,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { init, parse } from 'es-module-lexer';
 
-const FORBIDDEN_NAME = /desk-vendor|physics/;
+// Scene is the lazy 3D chunk (A-10): reaching it statically defeats the island split.
+const FORBIDDEN_NAME = /desk-vendor|physics|(?:^|\/)Scene[.-]/;
 const FORBIDDEN_CONTENT = /REVISION|rapier/;
 
 function walk(dir: string, out: string[] = []): string[] {

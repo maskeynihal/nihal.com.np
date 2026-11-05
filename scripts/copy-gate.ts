@@ -27,7 +27,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { copy } from '../src/content/copy';
-import { soundLabel } from '../src/content/client-copy';
+import { deskNote, soundLabel } from '../src/content/client-copy';
 import { work } from '../src/content/work';
 import { oss } from '../src/content/oss';
 import { writing } from '../src/content/writing';
@@ -380,6 +380,7 @@ export function contentEntries(): Entry[] {
   return [
     ...walkStrings('copy.ts', copy),
     ...walkStrings('client-copy.ts', soundLabel),
+    ...walkStrings('client-copy.ts', deskNote),
     ...walkStrings('work.ts', work),
     ...walkStrings('oss.ts', oss),
     ...walkStrings('writing.ts', writing),

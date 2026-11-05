@@ -1,3 +1,9 @@
 # One regular expression per line, matched against console error/warning text
 # and uncaught page errors. Blank lines and lines starting with # are ignored.
 # Every entry needs a comment above it saying why it is tolerated.
+
+# A-10: the one warning the "global error from a desk chunk" test in a10-boundary.spec.ts
+# triggers on purpose (a fake Scene.a10fake.js throws "scene loop crashed"). It is the
+# reportError console.warn for a handled failure. Errors raised through __hooks.desk.fail()
+# are marked intentional and never reach the console, so they need no entry.
+^\[nihal\] desk global Error scene loop crashed$

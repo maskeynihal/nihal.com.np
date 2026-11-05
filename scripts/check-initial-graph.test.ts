@@ -34,4 +34,9 @@ describe('check-initial-graph', () => {
       'index.html#inline-module-1 -> assets/mid.js -> assets/desk-vendor-abc.js',
     );
   });
+  it('fails when the Scene chunk is statically reachable', () => {
+    const r = run('leaky-scene');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('assets/entry.js -> assets/Scene.abc123.js');
+  });
 }, 60_000);

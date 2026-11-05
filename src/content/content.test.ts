@@ -8,7 +8,7 @@ import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
 import { pending } from './pending';
-import { soundLabel } from './client-copy';
+import { deskNote, soundLabel } from './client-copy';
 import { buildPosterAlt } from './poster-alt';
 import { getObjects } from './index';
 
@@ -102,6 +102,7 @@ describe('content files', () => {
   it('client-copy matches copy.ts', () => {
     expect(soundLabel.on).toBe(copy.prefs.on);
     expect(soundLabel.off).toBe(copy.prefs.off);
+    expect(deskNote.lost).toBe(copy.status.lost);
   });
 
   it('cross-reference: every #work-<id> target names a work item', () => {
