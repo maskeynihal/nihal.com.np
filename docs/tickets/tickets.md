@@ -43,6 +43,9 @@ Deps: A-06. `write-vercel-json.ts` postbuild hashes inline scripts and writes `v
 ### A-10 Error boundary and island isolation
 Deps: A-03. Error boundary around Desk shell and around Scene (fallback poster + "3D paused"); `client:only="react"`; logging hook. Verify @A-10: hook throws inside Scene → poster shown, no uncaught error.
 
+### A-13 Accessibility harness (axe)
+Deps: A-08. Found missing during A-06: no axe checks exist, though spec §11 and the DoD require axe in every project. Add `@axe-core/playwright`; extend `e2e/fixtures.ts` with an `axe` helper that runs WCAG 2.2 AA rules (`wcag2a, wcag2aa, wcag21aa, wcag22aa`) and fails on any violation, with an allowlist file for documented exceptions (start empty); `e2e/a13-axe.spec.ts` tagged `@A-13` runs it on `/`, `/404.html`, `/sent/` in all 6 projects (no-js included); every later ticket's spec calls the helper on the states it adds. Verify: all pages 0 violations; a seeded violation (image without alt) fails the test.
+
 ### A-11 Repo hygiene and docs
 Deps: A-01. Carry-over: document why TypeScript is pinned to 6.x (typescript-eslint and astro check lack TS 7 support) in README and a Renovate rule. README rewrite; CONTRIBUTING linking the review loop; Renovate config; CODEOWNERS. Verify: files present; links valid.
 
@@ -162,7 +165,7 @@ Deps: F-01. Safari macOS, iOS real device (5-min soak), Android real device, Fir
 Deps: F-01..F-04, all [CONFIRM]/[ASK] resolved or cut. PR to `main`; prod deploy; smoke on nihal.com.np; CHANGELOG. Verify: prod Lighthouse; headers via curl.
 
 ## Order
-Strictly one writer per checkout. A-01 → A-08 → A-02 → A-03 → A-04 → A-05 → A-06 → A-10 → A-11 → A-09 → A-07 → A-12 (A-07/A-12 need owner OK for push, Vercel, branch protection). D-06 → D-02 → D-01 may run in parallel only in an isolated git worktree (touches `scripts/models`, `src/assets` only), merged after review. Then B → B-09 → C-01/02 → E-11 → E-01..E-09 → C-03 → D-03 swap → F.
+Strictly one writer per checkout. A-01 → A-08 → A-02 → A-03 → A-04 → A-05 → A-06 → A-13 → A-10 → A-11 → A-09 → A-07 → A-12 (A-07/A-12 need owner OK for push, Vercel, branch protection). D-06 → D-02 → D-01 may run in parallel only in an isolated git worktree (touches `scripts/models`, `src/assets` only), merged after review. Then B → B-09 → C-01/02 → E-11 → E-01..E-09 → C-03 → D-03 swap → F.
 
 ## DoD waivers
 Until A-08 is merged, reviewers waive: tagged Playwright spec, `pnpm test`, `check:graph`, `pnpm review <ID>`. They verify instead with direct commands: build, lint, format, typecheck, preview + curl, `git ls-files`. After A-08: no waivers. Gates that need a person (real devices, VoiceOver, NVDA) are owner gates in F-03/F-04; agents cannot sign them off.
