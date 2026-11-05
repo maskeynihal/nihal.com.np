@@ -65,6 +65,21 @@ test.describe('CSP and headers @A-09', () => {
       await expectNoAxeViolations(page, { label: `${path} under CSP` });
     });
 
+  test('hook builds never load analytics @A-09', async ({
+    page,
+    javaScriptEnabled,
+  }) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    const asked: string[] = [];
+    page.on('request', (r) => {
+      if (/insights|va\.vercel-scripts/.test(r.url())) asked.push(r.url());
+    });
+    await page.goto('/');
+    await page.waitForLoadState('load');
+    expect(asked).toEqual([]);
+    expect(await violations(page)).toEqual([]);
+  });
+
   test('later-ticket origins and capabilities are allowed @A-09', async ({
     page,
     javaScriptEnabled,
