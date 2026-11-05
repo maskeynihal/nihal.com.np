@@ -105,12 +105,17 @@ export const copy = {
     ogAlt: 'nihal maskey, lead engineer, kathmandu',
   },
   notFound: {
+    title: 'nothing here · nihal maskey',
+    description:
+      'That page moved or never existed. The desk is one click away.',
     heading: 'nothing here',
     sheet: 'sheet not found',
     body: 'That page moved or never existed.',
     back: 'back to the desk',
   },
   sent: {
+    title: 'sent · nihal maskey',
+    description: "Your message is sent. I'll reply from contact@nihal.com.np.",
     heading: 'sent',
     body: "I'll reply from contact@nihal.com.np.",
     back: 'back to the desk',

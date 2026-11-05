@@ -5,7 +5,7 @@ import { getCopy } from '../content';
 const { notFound } = getCopy();
 ---
 
-<Base noindex>
+<Base noindex title={notFound.title} description={notFound.description}>
   <main class="page-main">
     <div class="paper page-sheet">
       <p class="label">{notFound.sheet}</p>

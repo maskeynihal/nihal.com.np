@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoAxeViolations } from './fixtures';
 
 const motionBtn = (page: import('@playwright/test').Page) =>
   page.getByRole('button', { name: 'reduce motion' });
@@ -110,6 +110,7 @@ test.describe('preferences @A-03', () => {
     await btn.click();
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expectNoAxeViolations(page, { label: '/ motion reduced' });
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
     await expect(motionBtn(page)).toHaveAttribute('aria-pressed', 'true');

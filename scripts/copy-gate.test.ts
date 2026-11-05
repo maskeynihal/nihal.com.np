@@ -108,17 +108,17 @@ describe('inflections', () => {
     'database in the cloud',
     'DynamoDB table',
     'a dynamically typed language',
-    'the harnessed-free test',
     'unlockable',
     'elevator',
     'delvery',
     'The Loop Harness repo',
   ])('stays clean: %s', (t) => {
-    expect(
-      scanText(t).filter(
-        (h) => h.rule !== 'banned-word' || !/harness/i.test(h.match),
-      ),
-    ).toEqual([]);
+    expect(scanText(t)).toEqual([]);
+  });
+  it('harnessed-free: the word harnessed is a hit even before a hyphen', () => {
+    expect(scanText('the harnessed-free test').map((h) => h.match)).toEqual([
+      'harnessed',
+    ]);
   });
   it('dynamic is a hit, DynamoDB is not', () => {
     expect(has('dynamic', 'banned-word')).toBe(true);

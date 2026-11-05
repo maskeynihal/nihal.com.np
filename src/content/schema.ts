@@ -163,12 +163,20 @@ export const Copy = z.strictObject({
   }),
   meta: z.strictObject({ title: text, description: text, ogAlt: text }),
   notFound: z.strictObject({
+    title: text,
+    description: text,
     heading: text,
     sheet: text,
     body: text,
     back: text,
   }),
-  sent: z.strictObject({ heading: text, body: text, back: text }),
+  sent: z.strictObject({
+    title: text,
+    description: text,
+    heading: text,
+    body: text,
+    back: text,
+  }),
   status: z.strictObject({
     loading: text,
     off: text,

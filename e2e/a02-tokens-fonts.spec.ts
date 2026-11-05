@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoAxeViolations } from './fixtures';
 
 test.describe('tokens and fonts @A-02', () => {
   test('body background is the blue token', async ({ page }) => {
@@ -7,6 +7,7 @@ test.describe('tokens and fonts @A-02', () => {
       () => getComputedStyle(document.body).backgroundColor,
     );
     expect(bg).toBe('rgb(31, 63, 224)');
+    await expectNoAxeViolations(page, { label: '/ tokens' });
   });
 
   test('h1 resolves to Fraunces and has no Inter', async ({ page }) => {

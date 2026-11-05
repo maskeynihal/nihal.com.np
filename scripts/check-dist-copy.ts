@@ -8,7 +8,7 @@
  *  - attributes `alt`, `title`, `placeholder` and every `aria-*`;
  *  - <meta content> for name/property `description`, `og:*`, `twitter:*`;
  *  - string values of <script type="application/ld+json"> (URLs skipped).
- * Output `file: context: rule: match`, exit 1 on any hit. Heading case is not checked here.
+ * Output `file:line: context: rule: match` (line is the HTML source line), exit 1 on any hit. Heading case is not checked here.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -18,6 +18,8 @@ import { scanText } from './copy-gate';
 
 export interface Finding {
   file: string;
+  /** 1-based line in the HTML source. */
+  line: number;
   context: string;
   rule: string;
   match: string;
@@ -30,9 +32,14 @@ interface Node {
   attrs?: { name: string; value: string }[];
   childNodes?: Node[];
   content?: Node;
+  sourceCodeLocation?: {
+    startLine: number;
+    attrs?: Record<string, { startLine: number }>;
+  } | null;
 }
 
 export interface Piece {
+  line: number;
   context: string;
   text: string;
 }
@@ -40,37 +47,42 @@ export interface Piece {
 const META_NAME = /^(description|og:.+|twitter:.+)$/i;
 const URL_RE = /^(https?:\/\/|mailto:)/;
 
-function jsonStrings(value: unknown, path: string, out: Piece[]) {
+function jsonStrings(value: unknown, path: string, out: Piece[], line: number) {
   if (typeof value === 'string') {
     if (!URL_RE.test(value))
-      out.push({ context: `jsonld ${path}`, text: value });
+      out.push({ line, context: `jsonld ${path}`, text: value });
   } else if (Array.isArray(value))
-    value.forEach((v, i) => jsonStrings(v, `${path}[${i}]`, out));
+    value.forEach((v, i) => jsonStrings(v, `${path}[${i}]`, out, line));
   else if (value && typeof value === 'object')
     for (const [k, v] of Object.entries(value))
-      jsonStrings(v, `${path}.${k}`, out);
+      jsonStrings(v, `${path}.${k}`, out, line);
 }
 
 /** Every readable string in one HTML document, with a context label. */
 export function htmlPieces(html: string): Piece[] {
   const out: Piece[] = [];
   // scriptingEnabled false: <noscript> content is parsed into elements, so its text is seen.
-  const doc = parse(html, { scriptingEnabled: false }) as unknown as Node;
-  const walk = (n: Node, parent: string) => {
+  const doc = parse(html, {
+    scriptingEnabled: false,
+    sourceCodeLocationInfo: true,
+  }) as unknown as Node;
+  const walk = (n: Node, parent: string, parentLine: number) => {
     const tag = n.tagName;
     if (n.nodeName === '#text') {
       const text = (n.value ?? '').trim();
       if (text && parent !== 'script' && parent !== 'style')
         out.push({
+          line: n.sourceCodeLocation?.startLine ?? parentLine,
           context: parent === 'title' ? 'title' : `text <${parent}>`,
           text,
         });
       return;
     }
     if (!tag) {
-      for (const c of n.childNodes ?? []) walk(c, parent);
+      for (const c of n.childNodes ?? []) walk(c, parent, parentLine);
       return;
     }
+    const line = n.sourceCodeLocation?.startLine ?? parentLine;
     const attrs = new Map((n.attrs ?? []).map((a) => [a.name, a.value]));
     for (const [name, value] of attrs)
       if (
@@ -79,27 +91,35 @@ export function htmlPieces(html: string): Piece[] {
         name === 'placeholder' ||
         name.startsWith('aria-')
       )
-        out.push({ context: `attr ${name} <${tag}>`, text: value });
+        out.push({
+          line: n.sourceCodeLocation?.attrs?.[name]?.startLine ?? line,
+          context: `attr ${name} <${tag}>`,
+          text: value,
+        });
     if (tag === 'meta') {
       const key = attrs.get('name') ?? attrs.get('property') ?? '';
       if (META_NAME.test(key))
-        out.push({ context: `meta ${key}`, text: attrs.get('content') ?? '' });
+        out.push({
+          line,
+          context: `meta ${key}`,
+          text: attrs.get('content') ?? '',
+        });
     }
     if (tag === 'script' && attrs.get('type') === 'application/ld+json') {
       const body = (n.childNodes ?? []).map((c) => c.value ?? '').join('');
       try {
-        jsonStrings(JSON.parse(body), '$', out);
+        jsonStrings(JSON.parse(body), '$', out, line);
       } catch {
-        out.push({ context: 'jsonld', text: body });
+        out.push({ line, context: 'jsonld', text: body });
       }
       return;
     }
     if (tag === 'script' || tag === 'style') return;
     const kids =
       tag === 'template' && n.content ? [n.content] : (n.childNodes ?? []);
-    for (const c of kids) walk(c, tag);
+    for (const c of kids) walk(c, tag, line);
   };
-  walk(doc, '#document');
+  walk(doc, '#document', 1);
   return out.filter((p) => p.text.trim() !== '');
 }
 
@@ -111,7 +131,13 @@ export function scanHtml(file: string, html: string): Finding[] {
       const key = `${p.context}|${h.rule}|${h.match}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      findings.push({ file, context: p.context, rule: h.rule, match: h.match });
+      findings.push({
+        file,
+        line: p.line,
+        context: p.context,
+        rule: h.rule,
+        match: h.match,
+      });
     }
   return findings;
 }
@@ -144,7 +170,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (findings.length) {
     console.error('check:dist-copy FAILED:');
     for (const f of findings)
-      console.error(`${f.file}: ${f.context}: ${f.rule}: ${f.match}`);
+      console.error(`${f.file}:${f.line}: ${f.context}: ${f.rule}: ${f.match}`);
     process.exit(1);
   }
   console.log(`check:dist-copy ok (${files.length} pages)`);

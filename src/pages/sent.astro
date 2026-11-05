@@ -5,7 +5,7 @@ import { getCopy } from '../content';
 const { sent } = getCopy();
 ---
 
-<Base noindex>
+<Base noindex title={sent.title} description={sent.description}>
   <main class="page-main">
     <div class="paper page-sheet">
       <h1 class="page-title">{sent.heading}</h1>

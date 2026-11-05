@@ -55,6 +55,7 @@ describe('scanHtml', () => {
     expect(scanHtml('i.html', page('', `<ul>${items}</ul>`))).toEqual([
       {
         file: 'i.html',
+        line: 1,
         context: 'text <li>',
         rule: 'banned-word',
         match: 'seamless',
@@ -69,6 +70,7 @@ describe('scanHtml', () => {
     expect(f).toEqual([
       {
         file: 'i.html',
+        line: 1,
         context: 'meta og:description',
         rule: 'banned-word',
         match: 'robust',
@@ -86,6 +88,7 @@ describe('scanHtml', () => {
     expect(f).toEqual([
       {
         file: 'i.html',
+        line: 1,
         context: 'jsonld $.jobTitle',
         rule: 'em-dash',
         match: '—',
@@ -138,6 +141,32 @@ describe('checkDistCopy and cli', () => {
       { encoding: 'utf8' },
     );
     expect(r.status).toBe(1);
-    expect(r.stderr).toContain('index.html: text <li>: banned-word: seamless');
+    expect(r.stderr).toContain(
+      'index.html:1: text <li>: banned-word: seamless',
+    );
+  });
+  it('reports the HTML source line of text, attributes and meta', () => {
+    const html = [
+      '<!doctype html>',
+      '<html><head><title>t</title>',
+      '<meta name="description" content="A robust thing">',
+      '</head><body>',
+      '<p>fine</p>',
+      '<ul>',
+      '<li>ok</li>',
+      '<li>seamless</li>',
+      '</ul>',
+      '<img',
+      '  src="/a.png"',
+      '  alt="leveraged">',
+      '</body></html>',
+    ].join('\n');
+    expect(
+      scanHtml('i.html', html).map((f) => `${f.line}:${f.context}:${f.match}`),
+    ).toEqual([
+      '3:meta description:robust',
+      '8:text <li>:seamless',
+      '12:attr alt <img>:leveraged',
+    ]);
   });
 });

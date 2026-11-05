@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoAxeViolations } from './fixtures';
 import { readFileSync } from 'node:fs';
 import { copy } from '../src/content/copy';
 
@@ -18,6 +18,7 @@ test('title block option A comes from content @A-04', async ({ page }) => {
   // No unresolved bracket text reaches the page.
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/\[(CONFIRM|ASK)/);
+  await expectNoAxeViolations(page, { label: '/ content' });
 });
 
 test('no script or stylesheet the page loads contains unconfirmed notes @A-04', async ({

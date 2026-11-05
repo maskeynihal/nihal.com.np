@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoAxeViolations } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const ORIGIN = 'https://nihal.com.np';
@@ -17,6 +17,7 @@ test('title, description, canonical, robots, theme @A-06', async ({ page }) => {
     `${ORIGIN}/`,
   );
   expect(await meta(page, 'name', 'robots')).toBe('index, follow');
+  await expectNoAxeViolations(page, { label: '/ head' });
   expect(await meta(page, 'name', 'theme-color')).toBe('#1F3FE0');
   expect(await meta(page, 'name', 'color-scheme')).toBe('light');
   await expect(page.locator('head link[rel="manifest"]')).toHaveAttribute(
@@ -100,6 +101,11 @@ test('an unknown path returns 404 with the sheet-not-found page @A-06', async ({
 test('404 page content, noindex and working link @A-06', async ({ page }) => {
   await page.goto('/404.html');
   await expect(page.locator('h1')).toHaveText('nothing here');
+  await expect(page).toHaveTitle('nothing here · nihal maskey');
+  expect((await meta(page, 'name', 'description'))?.length).toBeGreaterThan(20);
+  expect(await meta(page, 'name', 'description')).not.toBe(
+    'Lead engineer in Kathmandu.',
+  );
   await expect(page.getByText('sheet not found')).toBeVisible();
   await expect(
     page.getByText('That page moved or never existed.'),
@@ -113,6 +119,7 @@ test('404 page content, noindex and working link @A-06', async ({ page }) => {
 test('/sent/ is noindex @A-06', async ({ page }) => {
   await page.goto('/sent/');
   await expect(page.locator('h1')).toHaveText('sent');
+  await expect(page).toHaveTitle('sent · nihal maskey');
   await expect(
     page.getByText("I'll reply from contact@nihal.com.np."),
   ).toBeVisible();
