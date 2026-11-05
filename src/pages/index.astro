@@ -4,6 +4,7 @@ import { testHooks } from '../lib/env';
 import TitleBlock from '../components/TitleBlock.astro';
 import ObjectList from '../components/ObjectList.astro';
 import Poster from '../components/Poster.astro';
+import Garden from '../components/garden/Garden.astro';
 import Desk from '../components/desk/Desk';
 import Section from '../components/Section.astro';
 import PaperPanel from '../components/PaperPanel.astro';
@@ -115,6 +116,8 @@ const year = String(new Date().getFullYear());
         </ul>
       </PaperPanel>
     </Section>
+
+    <Garden />
 
     <!-- B-07 closes the sheet under the colophon. -->
     <Section id="colophon" heading={rowLabel('colophon')} side="right">
