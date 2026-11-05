@@ -95,17 +95,6 @@ const year = String(new Date().getFullYear());
           ))}
         </ul>
         <p class="small">{contact.overlap}</p>
-        <ul class="sheet-links label">
-          {contact.socials.map((s) => (
-            <li>
-              <a href={s.href} rel="me noopener">
-                {s.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </PaperPanel>
-      <PaperPanel class="contact-panel">
         <ContactForm
           client:visible
           action={`https://formspree.io/f/${site.formspreeId}`}
@@ -115,6 +104,15 @@ const year = String(new Date().getFullYear());
           success={contact.success}
           errors={contact.errors}
         />
+        <ul class="sheet-links label">
+          {contact.socials.map((s) => (
+            <li>
+              <a href={s.href} rel="me noopener">
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
       </PaperPanel>
     </Section>
 

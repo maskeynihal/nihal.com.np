@@ -28,6 +28,8 @@ export const WorkItem = z.strictObject({
   meta: text,
   body: z.array(text).min(1),
   frameNote: text.optional(),
+  /** A playable embed (B-08): the cross-origin game page, also linked directly. */
+  arcade: z.strictObject({ href: url }).optional(),
   links: z.array(Link),
   confirmed: z.boolean(),
 });

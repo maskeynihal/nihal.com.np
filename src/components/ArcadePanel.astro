@@ -1,0 +1,103 @@
+---
+import { getCopy } from '../content';
+
+/**
+ * The arcade (B-08): a "play" button that opens his GitHub Pages Pac-Man in an iframe. The
+ * iframe does not exist in the HTML or the DOM until the first press, so nothing is loaded or
+ * run for visitors who do not play. The direct link is always rendered, and is the whole
+ * feature with scripts off (the button is shown by the script).
+ *
+ * Keyboard: pressing "play" moves focus to the frame region. A cross-origin frame swallows
+ * key events once focus is inside it, so Escape (handled here while the focus is outside the
+ * frame) and a real "esc to leave" button (reachable by Shift+Tab from the frame) both close
+ * the arcade, remove the iframe and put focus back on "play".
+ */
+interface Props {
+  title: string;
+  href: string;
+}
+const { title, href } = Astro.props;
+const { work } = getCopy();
+---
+
+<div class="arcade" data-arcade data-src={href} data-title={title}>
+  <button
+    type="button"
+    class="label arcade-play"
+    data-arcade-play
+    aria-expanded="false"
+    hidden
+  >
+    {work.play}
+  </button>
+  <div
+    class="arcade-stage"
+    data-arcade-stage
+    role="group"
+    aria-label={title}
+    tabindex="-1"
+    hidden
+  >
+    <button type="button" class="label arcade-leave" data-arcade-leave>
+      {work.leave}
+    </button>
+    <div class="arcade-frame" data-arcade-frame></div>
+  </div>
+  <a class="sheet-link" href={href} target="_blank" rel="noopener">
+    {work.openNewTab}
+  </a>
+</div>
+
+<script>
+  // The sandbox: the game is a different origin (maskeynihal.github.io), so
+  // `allow-same-origin` only lets it keep its own origin's storage and cannot reach this page;
+  // `allow-scripts` is what a canvas game needs. `allow-same-origin` together with
+  // `allow-scripts` would let a SAME-origin page remove its own sandbox, which is why this is
+  // safe only because the game stays cross-origin. No top-navigation, popups, forms or
+  // downloads are allowed (they are simply not listed). The CSP `frame-src` (A-09) pins the
+  // one origin that may be framed.
+  const SANDBOX = 'allow-scripts allow-same-origin';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-arcade]')) {
+    const play = root.querySelector<HTMLButtonElement>('[data-arcade-play]');
+    const stage = root.querySelector<HTMLElement>('[data-arcade-stage]');
+    const leave = root.querySelector<HTMLButtonElement>('[data-arcade-leave]');
+    const frame = root.querySelector<HTMLElement>('[data-arcade-frame]');
+    const src = root.dataset['src'];
+    const title = root.dataset['title'];
+    if (!play || !stage || !leave || !frame || !src || !title) continue;
+    play.hidden = false;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) close();
+    };
+
+    function open() {
+      // A second press while open only brings focus back to the region (no second iframe).
+      if (!frame!.querySelector('iframe')) {
+        const f = document.createElement('iframe');
+        f.title = title!;
+        f.src = src!;
+        f.loading = 'lazy';
+        f.referrerPolicy = 'no-referrer';
+        f.setAttribute('sandbox', SANDBOX);
+        frame!.append(f);
+        stage!.hidden = false;
+        play!.setAttribute('aria-expanded', 'true');
+        document.addEventListener('keydown', onKey);
+      }
+      stage!.focus();
+    }
+
+    function close() {
+      document.removeEventListener('keydown', onKey);
+      frame!.replaceChildren();
+      stage!.hidden = true;
+      play!.setAttribute('aria-expanded', 'false');
+      play!.focus();
+    }
+
+    play.addEventListener('click', open);
+    leave.addEventListener('click', close);
+  }
+</script>

@@ -302,6 +302,10 @@
   opacity: 0.7;
 }
 
+.contact-form-wrap {
+  margin-block-start: 1rem;
+}
+
 .form-status {
   margin-block-start: 1rem;
 }
@@ -336,4 +340,57 @@
 
 .end-mark {
   font-family: var(--font-body);
+}
+
+/* --- Arcade (B-08) ------------------------------------------------------------------------ */
+.arcade {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.arcade-play,
+.arcade-leave {
+  min-height: 44px;
+  padding: 0.5rem 1.5rem;
+  color: var(--paper);
+  background: var(--blue-ink);
+  border: 1px solid var(--blue-ink);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.arcade-leave {
+  color: var(--blue-ink);
+  background: transparent;
+}
+
+.arcade-play:hover {
+  background: var(--blue-deep);
+}
+
+.arcade-stage {
+  width: 100%;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.arcade-stage[hidden] {
+  display: none;
+}
+
+.arcade-frame {
+  width: 100%;
+  height: min(70vh, 40rem);
+  min-height: 20rem;
+  border: 1px solid var(--blue-ink);
+  background: var(--white);
+}
+
+.arcade-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }

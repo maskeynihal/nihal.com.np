@@ -2,6 +2,7 @@
 import type { WorkItem } from '../content/schema';
 import { splitDateLine } from '../lib/dates';
 import PaperPanel from './PaperPanel.astro';
+import ArcadePanel from './ArcadePanel.astro';
 
 const marks = import.meta.glob<string>('../assets/marks/*.svg', {
   query: '?raw',
@@ -50,6 +51,7 @@ const { date, rest } = splitDateLine(item.dateLine);
       </figcaption>
     </figure>
   )}
+  {item.arcade && <ArcadePanel title={item.title} href={item.arcade.href} />}
   {item.links.length > 0 && (
     <ul class="label sheet-links">
       {item.links.map((l) => (

@@ -78,6 +78,7 @@ export const work: WorkItem[] = [
     body: [
       'My internship project at Leapfrog, written to learn JavaScript and the canvas API. Easy, medium and hard modes, three power-ups (Red Cherry, Ghost Wrap, Blue Dot), and a two-player mode on WASD with a freeze and unfreeze mechanic. The ghosts use path-finding rather than random movement. You can play it here.',
     ],
+    arcade: { href: 'https://maskeynihal.github.io/pacman/' },
     links: [
       { label: 'GitHub', href: 'https://github.com/maskeynihal/pacman' },
       {
