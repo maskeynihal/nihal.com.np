@@ -13,6 +13,7 @@ import {
 import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { entryIdOf, registry } from './registry';
+import { activity } from './activity';
 import { physicsBridge } from './physics-bridge';
 import { setInteractionProbe } from './scene-hooks';
 
@@ -118,6 +119,7 @@ export function Interaction() {
     const setHover = (id: string | null) => {
       if (hover.current.id === id) return;
       hover.current.id = id;
+      activity.set({ hover: id });
       el.style.cursor = id ? 'grab' : '';
       invalidate();
     };
@@ -158,6 +160,7 @@ export function Interaction() {
       }
       el.style.cursor = 'grabbing';
       setHover(null);
+      activity.set({ grabbed: p.id });
       sendDrag(true);
       if (p.id === 'ghost') ghostLook.set({ x: p.last.x, z: p.last.z });
     };
@@ -173,6 +176,7 @@ export function Interaction() {
           api.release(v.x, v.z);
         } else api.drop();
       }
+      activity.set({ grabbed: null });
       sendDrag(false);
     };
 
@@ -395,6 +399,7 @@ export function Interaction() {
       window.removeEventListener(DESK_RESET_EVENT, reset);
       document.removeEventListener('visibilitychange', onVisibility);
       el.style.cursor = '';
+      activity.set({ hover: null, grabbed: null });
       setInteractionProbe(null);
     };
   }, [gl, camera, scene, invalidate]);

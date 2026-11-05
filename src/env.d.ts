@@ -55,6 +55,13 @@ interface DeskSceneHooks {
   hovered(): string | null;
   /** Hover lift of the model root, metres. */
   hoverLift(id: string): number;
+  /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
+  callouts(): {
+    id: string;
+    text: string;
+    active: boolean;
+    lineOpacity: number;
+  }[];
   /** Idle timers (OLED, clocks, calendar) stop requesting frames while on. */
   quiet(on: boolean): void;
 }

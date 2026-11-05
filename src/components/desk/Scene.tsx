@@ -57,6 +57,7 @@ import {
   setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
+import { Callouts } from './Callouts';
 import { Interaction } from './Interaction';
 import { IslandBoundary } from './IslandBoundary';
 import { physicsBridge } from './physics-bridge';
@@ -607,6 +608,7 @@ export default function Scene({ onReady }: { onReady: () => void }) {
           >
             <Rig art={art} />
             <Interaction />
+            <Callouts />
             {physicsOn ? (
               <IslandBoundary
                 island="physics"

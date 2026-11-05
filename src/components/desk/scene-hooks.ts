@@ -23,6 +23,12 @@ export interface SceneProbe {
     hovered: () => string | null;
     lift: (id: string) => number;
   };
+  callouts: () => {
+    id: string;
+    text: string;
+    active: boolean;
+    lineOpacity: number;
+  }[];
   /** While true the 1 s / 500 ms timers keep running but stop requesting frames (tests only). */
   quiet: boolean;
 }
@@ -37,6 +43,7 @@ export const probe: SceneProbe = {
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
   interaction: { pick: () => null, hovered: () => null, lift: () => 0 },
+  callouts: () => [],
   quiet: false,
 };
 
@@ -79,6 +86,7 @@ export function installSceneHooks(): () => void {
     pick: (id) => probe.interaction.pick(id),
     hovered: () => probe.interaction.hovered(),
     hoverLift: (id) => probe.interaction.lift(id),
+    callouts: () => probe.callouts(),
     quiet: (on) => {
       probe.quiet = on;
     },
@@ -133,4 +141,7 @@ export function setInteractionProbe(i: SceneProbe['interaction'] | null): void {
     hovered: () => null,
     lift: () => 0,
   };
+}
+export function setCalloutProbe(fn: SceneProbe['callouts'] | null): void {
+  probe.callouts = fn ?? (() => []);
 }
