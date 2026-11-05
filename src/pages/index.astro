@@ -5,37 +5,86 @@ import MotionToggle from '../components/MotionToggle.astro';
 import SoundToggle from '../components/SoundToggle.astro';
 import Poster from '../components/Poster.astro';
 import Desk from '../components/desk/Desk';
+import Section from '../components/Section.astro';
+import PaperPanel from '../components/PaperPanel.astro';
 import { getCopy } from '../content';
+import { rowLabel } from '../lib/sections';
 
-const { titleBlock, headings } = getCopy();
+const { titleBlock, headings, openSource, writing, cv, contact, colophon } =
+  getCopy();
+const year = String(new Date().getFullYear());
 ---
 
 <Base skipTo="work" jsonLd>
-  <main class="page-main">
-    <h1 class="name">{titleBlock.name}</h1>
-    <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
-    <div class="page-prefs">
-      <MotionToggle />
-      <SoundToggle />
-    </div>
-    <div class="paper page-sheet">
-      <p>{titleBlock.options[titleBlock.selected]}</p>
-      <p class="page-sheet-contact">
-        <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+  <main class="sheet">
+    <Section id="desk" side="full" labelledBy="name">
+      <h1 id="name" class="name">
+        {titleBlock.name}
+      </h1>
+      <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
+      <div class="page-prefs">
+        <MotionToggle />
+        <SoundToggle />
+      </div>
+      <div class="paper page-sheet">
+        <p>{titleBlock.options[titleBlock.selected]}</p>
+        <p class="page-sheet-contact">
+          <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+        </p>
+      </div>
+      <!-- The poster is plain HTML and visible by default. The Desk island only sets
+           data-desk-state (poster | live | failed) and the status note. -->
+      <figure class="desk" data-desk data-desk-state="poster">
+        <Poster />
+        <Desk client:only="react" />
+      </figure>
+    </Section>
+
+    <!-- work, open-source, writing and cv: headed sections; B-04 fills them with panels and tables. -->
+    <Section id="work" heading={headings.work} side="left" />
+
+    <Section id="open-source" heading={headings.openSource} side="right">
+      <p>{openSource.intro}</p>
+    </Section>
+
+    <Section id="writing" heading={headings.writing} side="left">
+      <p>{writing.intro}</p>
+    </Section>
+
+    <Section id="cv" heading={headings.cv} side="right">
+      <p>{cv.note}</p>
+    </Section>
+
+    <!-- B-06a adds the clocks and copy button, B-06b the form. -->
+    <Section id="contact" heading={headings.contact} side="left">
+      <PaperPanel>
+        <p>{contact.lead}</p>
+        <p class="page-sheet-contact">
+          <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+        </p>
+        <p class="small">{contact.overlap}</p>
+        <ul class="sheet-links label">
+          {contact.socials.map((s) => (
+            <li>
+              <a href={s.href} rel="me noopener">
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </PaperPanel>
+    </Section>
+
+    <!-- B-07 closes the sheet under the colophon. -->
+    <Section id="colophon" heading={rowLabel('colophon')} side="right">
+      <p class="small">{colophon.copyright.replace('{year}', year)}</p>
+      <p class="small">
+        <a href={colophon.sourceHref} rel="noopener">
+          {colophon.source}
+        </a>
       </p>
-    </div>
-    <!-- The poster is plain HTML and visible by default. The Desk island only sets
-         data-desk-state (poster | live | failed) and the status note. -->
-    <figure class="desk" data-desk data-desk-state="poster">
-      <Poster />
-      <Desk client:only="react" />
-    </figure>
-    <!-- Placeholder target for the skip link; B-04 replaces it with the real work section. -->
-    <section id="work" tabindex="-1" aria-labelledby="work-heading">
-      <h2 id="work-heading" class="sr-only">
-        {headings.work}
-      </h2>
-    </section>
+    </Section>
+
     {testHooks && (
       <div
         id="motion-probe"

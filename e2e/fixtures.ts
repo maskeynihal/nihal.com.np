@@ -85,6 +85,19 @@ export async function expectNoAxeViolations(
   page: Page,
   { include = [], exclude = [], label }: AxeOptions,
 ): Promise<void> {
+  // Panels below the fold start at opacity 0 and fade in on scroll (B-02). axe blends opacity
+  // into contrast, so reveal them and let the transition end before scanning.
+  if (test.info().project.use.javaScriptEnabled !== false)
+    await page.evaluate(async () => {
+      for (const p of document.querySelectorAll('.panel-pending'))
+        p.classList.remove('panel-pending');
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a instanceof CSSTransition)
+          .map((a) => a.finished.catch(() => undefined)),
+      );
+    });
   const scanPage = (target: Page, tags: string[]) => {
     let b = new AxeBuilder({ page: target }).withTags(tags);
     for (const i of include) b = b.include(i);

@@ -63,9 +63,9 @@ test.describe('tokens and fonts @A-02', () => {
   }) => {
     test.skip(isMobile, 'keyboard focus is a desktop path');
     await page.goto('/');
-    const link = page.locator('a[href^="mailto:"]');
-    // The A-03 preference toggles precede the link in tab order.
-    for (let i = 0; i < 5; i++) {
+    const link = page.locator('#desk a[href^="mailto:"]');
+    // The skip link, the seven index rows (B-01) and the A-03 toggles precede it in tab order.
+    for (let i = 0; i < 15; i++) {
       await page.keyboard.press('Tab');
       if (await link.evaluate((el) => el === document.activeElement)) break;
     }

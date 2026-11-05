@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import './fonts.generated.css';
 @import './tokens.css';
+@import './sheet.css';
 
 /* Expose the :root tokens to Tailwind by reference (no literal values here).
    Font utilities use distinct names (font-heading/prose/code) because
@@ -210,7 +211,6 @@ a {
   margin-top: 0.5rem;
 }
 
-/* Placeholder page layout (A-02); replaced by the real sections. */
 .page-main {
   padding: 24px 16px;
 }

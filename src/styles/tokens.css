@@ -24,3 +24,26 @@
   --font-mono:
     'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace, Menlo, monospace;
 }
+
+/* Sheet layout (design 2.4). Phones first; widths widen at 768 and 1024. */
+:root {
+  --inset: 12px; /* border inset from the viewport edge */
+  --gutter: 16px;
+  --rhythm: 96px; /* distance between sections */
+  --strip-h: 44px; /* bottom index strip, below 1024 */
+  --index-w: 7.5rem; /* left-margin index, from 1024 */
+  --enter-ms: 320ms;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --inset: 24px;
+    --rhythm: 160px;
+  }
+}

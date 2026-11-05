@@ -1,0 +1,38 @@
+---
+import type { SectionId } from '../lib/sections';
+
+/**
+ * One section of the sheet: a 12-column grid, text on columns 2-7 (`left`) or 6-12 (`right`),
+ * `full` for the desk. Sections alternate sides; never centered. Spacing is padding, not margin,
+ * so sections touch and the index's midline observer always has exactly one target.
+ * `tabindex="-1"` makes the section a focus target for the index, the skip link and object taps.
+ */
+interface Props {
+  id: SectionId;
+  /** Visible h2. Omit when the section brings its own heading and pass `labelledBy`. */
+  heading?: string;
+  labelledBy?: string;
+  side?: 'left' | 'right' | 'full';
+}
+const { id, heading, labelledBy, side = 'left' } = Astro.props;
+const headingId = `${id}-heading`;
+---
+
+<section
+  id={id}
+  class="section"
+  data-side={side}
+  tabindex="-1"
+  aria-labelledby={heading ? headingId : labelledBy}
+>
+  <div class="section-grid">
+    {heading && (
+      <h2 id={headingId} class="section-heading">
+        {heading}
+      </h2>
+    )}
+    <div class="section-body">
+      <slot />
+    </div>
+  </div>
+</section>

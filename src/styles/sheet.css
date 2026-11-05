@@ -1,0 +1,91 @@
+/* The sheet: border, index, 12-column sections, panels (B-01, B-02). Tokens live in tokens.css. */
+
+/* --- Page frame --------------------------------------------------------------------------- */
+.sheet {
+  padding-block-start: calc(var(--inset) + var(--gutter));
+  padding-block-end: calc(var(--inset) + var(--strip-h) + var(--gutter));
+  padding-inline: calc(var(--inset) + var(--gutter));
+}
+
+@media (min-width: 1024px) {
+  .sheet {
+    padding-block-end: calc(var(--inset) + var(--gutter));
+    /* Border, index column, then a gutter either side of it. */
+    padding-inline-start: calc(
+      var(--inset) + var(--index-w) + var(--gutter) * 2
+    );
+  }
+}
+
+/* --- Sections ----------------------------------------------------------------------------- */
+.section {
+  padding-block: calc(var(--rhythm) / 2);
+}
+
+.section:first-child {
+  padding-block-start: 0;
+}
+
+.section:focus {
+  outline: none;
+}
+
+.section:focus-visible {
+  outline: 2px solid var(--mist-strong);
+  outline-offset: -2px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.section-grid > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.section-heading {
+  overflow-wrap: anywhere;
+  margin-block-end: 1.5rem;
+}
+
+.section-body > * + * {
+  margin-block-start: 1rem;
+}
+
+@media (min-width: 768px) {
+  .section[data-side='left'] .section-grid > * {
+    grid-column: 2 / 8;
+  }
+  .section[data-side='right'] .section-grid > * {
+    grid-column: 6 / 13;
+  }
+}
+
+/* --- Paper panel ------------------------------------------------------------------------- */
+.panel {
+  transition: opacity var(--enter-ms) cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.panel-pending {
+  opacity: 0;
+}
+
+/* Link row inside a panel. */
+.sheet-links {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+}
+
+.sheet-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

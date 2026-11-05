@@ -1,0 +1,48 @@
+---
+/**
+ * A paper surface for anything longer than two lines (straight edges, 6 px radius, from `.paper`).
+ * Below the fold it fades in once (opacity only, 320 ms); the script below only hides panels that
+ * start offscreen, so nothing is ever hidden without JS, under reduced motion, or above the fold.
+ */
+interface Props {
+  as?: 'div' | 'article' | 'aside';
+  id?: string;
+  class?: string;
+  /** Disable the fade (panels that must be readable immediately). */
+  still?: boolean;
+}
+const { as: Tag = 'div', id, class: extra = '', still = false } = Astro.props;
+---
+
+<Tag
+  id={id}
+  class:list={['paper', 'panel', extra]}
+  data-panel={still ? 'still' : ''}
+>
+  <slot />
+</Tag>
+
+<script>
+  const panels = [...document.querySelectorAll<HTMLElement>('[data-panel=""]')];
+  const reduced = () => document.documentElement.dataset['motion'] === 'reduce';
+  if (panels.length && 'IntersectionObserver' in window && !reduced()) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          (e.target as HTMLElement).classList.remove('panel-pending');
+          io.unobserve(e.target);
+        }
+      },
+      { threshold: 0.05 },
+    );
+    const vh = window.innerHeight;
+    for (const p of panels) {
+      // Only panels that start below the fold are hidden, so there is no flash on first paint.
+      if (p.getBoundingClientRect().top > vh) {
+        p.classList.add('panel-pending');
+        io.observe(p);
+      }
+    }
+  }
+</script>

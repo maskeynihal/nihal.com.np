@@ -10,6 +10,14 @@
     border-color: var(--hairline);
   }
 
+  .panel-pending {
+    opacity: 1 !important;
+  }
+
+  .sheet {
+    padding: 0 !important;
+  }
+
   [data-print='hide'] {
     display: none !important;
   }
