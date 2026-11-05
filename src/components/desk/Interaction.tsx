@@ -16,6 +16,7 @@ import { entryIdOf, registry } from './registry';
 import { activity } from './activity';
 import { physicsBridge } from './physics-bridge';
 import { setInteractionProbe } from './scene-hooks';
+import { armSound } from '../../lib/sound';
 
 /** Height of the plane the pointer is projected onto while dragging, metres. */
 const PLANE_Y = 0.03;
@@ -183,6 +184,8 @@ export function Interaction() {
     const onDown = (e: PointerEvent) => {
       if (press) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // A press is the gesture that lets a visitor who left sound on hear the desk.
+      armSound();
       const id = pick(e);
       const touch = e.pointerType !== 'mouse';
       if (!id) {

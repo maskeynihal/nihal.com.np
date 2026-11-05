@@ -67,6 +67,8 @@ interface DeskSceneHooks {
     active: boolean;
     lineOpacity: number;
   }[];
+  /** `null` while sound is off or no press has armed it; else the context state and clips started. */
+  audio(): { state: string; played: { clip: string; gain: number }[] } | null;
   /** Idle timers (OLED, clocks, calendar) stop requesting frames while on. */
   quiet(on: boolean): void;
 }

@@ -27,6 +27,7 @@ import { calendarFace } from '../../lib/desk/calendar';
 import { eyeYaw } from '../../lib/desk/eyes';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { OLED_TICK_MS } from '../../lib/desk/oled';
+import { playTick } from '../../lib/sound';
 import { parseObjects, type ObjectDef } from '../../lib/desk/object-def';
 import { readToken } from '../../lib/desk/tokens';
 import holidays from '../../content/holidays.json';
@@ -343,8 +344,12 @@ function ClockHands({ id, root }: { id: string; root: Object3D }) {
     const hour = root.getObjectByName('hand-hour');
     const minute = root.getObjectByName('hand-minute');
     if (!hour || !minute) return;
+    let minuteSeen: number | null = null;
     const set = () => {
       const a = handAngles(new Date(), clockZone(id));
+      // Tick when the minute hand moves, not on the first reading.
+      if (minuteSeen !== null && minuteSeen !== a.minute) playTick();
+      minuteSeen = a.minute;
       const h = pivotY(a.hour);
       const m = pivotY(a.minute);
       if (hour.rotation.y !== h || minute.rotation.y !== m) {

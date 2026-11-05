@@ -19,6 +19,7 @@ import { copy } from '../content/copy';
 
 <script>
   import { getSound, setSound, subscribeSound } from '../lib/prefs';
+  import { armSound } from '../lib/sound';
   import { soundLabel } from '../content/client-copy';
 
   document
@@ -31,8 +32,10 @@ import { copy } from '../content/copy';
       };
       sync(getSound());
       subscribeSound(sync);
-      btn.addEventListener('click', () =>
-        setSound(getSound() === 'on' ? 'off' : 'on'),
-      );
+      btn.addEventListener('click', () => {
+        setSound(getSound() === 'on' ? 'off' : 'on');
+        // The press is the user gesture the AudioContext needs; a no-op when sound just went off.
+        armSound();
+      });
     });
 </script>

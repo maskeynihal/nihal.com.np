@@ -2,6 +2,7 @@ import type { PerspectiveCamera } from 'three';
 import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
 import { physicsBridge } from './physics-bridge';
+import { audioProbe } from '../../lib/sound';
 
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
 export interface SceneProbe {
@@ -100,6 +101,7 @@ export function installSceneHooks(): () => void {
     explodeOffset: (id) => probe.explode.offset(id),
     explodeLeaders: () => probe.explode.leaders(),
     callouts: () => probe.callouts(),
+    audio: () => audioProbe(),
     quiet: (on) => {
       probe.quiet = on;
     },

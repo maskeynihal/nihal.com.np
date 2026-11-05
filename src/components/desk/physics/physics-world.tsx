@@ -29,6 +29,7 @@ import {
 } from '../../../lib/desk/drag';
 import type { ObjectDef } from '../../../lib/desk/object-def';
 import { registry, type RegistryEntry } from '../registry';
+import { playImpact } from '../../../lib/sound';
 import { physicsBridge, type PhysicsApi } from '../physics-bridge';
 
 /**
@@ -170,6 +171,15 @@ function Body({
       ref={(rb) => {
         if (rb) onBody(def.id, rb);
       }}
+      onCollisionEnter={({ target, other }) => {
+        // Peak of the last few velocity samples: the body's velocity now is already the
+        // bounced one. Sound is off unless a press armed it, so this is a no-op by default.
+        const speed = Math.max(
+          speeds.get(target.rigidBody?.handle ?? -1) ?? 0,
+          speeds.get(other.rigidBody?.handle ?? -1) ?? 0,
+        );
+        playImpact(speed);
+      }}
       type={startType(def)}
       colliders={false}
       position={def.p}
@@ -194,6 +204,16 @@ interface Grab {
   vx: number;
   vz: number;
 }
+
+/**
+ * Peak speed of each body (by handle) over the steps of the current frame, m/s. The engine
+ * runs every step of a frame, then reports that frame's contacts, so a hard fall that ends in the
+ * same frame has already lost its speed by then; the peak is what the tap is scaled by.
+ */
+const speeds = new Map<number, number>();
+
+let lastStepAt = 0;
+const FRAME_GAP_MS = 8;
 
 const _v = new Vector3();
 const _q = new Quaternion();
@@ -281,6 +301,9 @@ function World({ entries }: { entries: RegistryEntry[] }) {
 
   useAfterPhysicsStep(() => {
     const now = performance.now();
+    // A pause of a few ms since the last step means a new frame: forget the last frame's peaks.
+    if (now - lastStepAt > FRAME_GAP_MS) speeds.clear();
+    lastStepAt = now;
     for (const entry of entries) {
       const rb = bodies.current.get(entry.id);
       if (!rb) continue;
@@ -289,6 +312,12 @@ function World({ entries }: { entries: RegistryEntry[] }) {
         settle.current.delete(entry.id);
         rb.setBodyType(type('kinematicPosition'), false);
       }
+      const held = grab.current?.id === entry.id ? grab.current : null;
+      const lv = rb.linvel();
+      const now1 = held
+        ? Math.hypot(held.vx, held.vz)
+        : Math.hypot(lv.x, lv.y, lv.z);
+      speeds.set(rb.handle, Math.max(speeds.get(rb.handle) ?? 0, now1));
       const p = rb.translation();
       if (outOfBounds(p)) {
         const since = outSince.current.get(entry.id);
