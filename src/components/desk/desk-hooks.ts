@@ -20,8 +20,8 @@ export function registerDeskHooks(controls: DeskHookControls): void {
   if (!testHooks) return;
   const hooks = window.__hooks;
   if (!hooks) return;
-  hooks.desk = {
-    fail(kind) {
+  hooks.desk = Object.assign(hooks.desk ?? {}, {
+    fail(kind: DeskFailKind) {
       switch (kind) {
         case 'scene':
           controls.setScene(ThrowingScene);
@@ -60,5 +60,5 @@ export function registerDeskHooks(controls: DeskHookControls): void {
         ] ?? ''
       );
     },
-  };
+  });
 }

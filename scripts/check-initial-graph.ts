@@ -5,7 +5,8 @@ import { init, parse } from 'es-module-lexer';
 
 // Scene is the lazy 3D chunk (A-10): reaching it statically defeats the island split.
 const FORBIDDEN_NAME = /desk-vendor|physics|(?:^|\/)Scene[.-]/;
-const FORBIDDEN_CONTENT = /REVISION|rapier/;
+// `REVISION` can be mangled out of a minified three; `__THREE__` (the window.__THREE__ duplicate check) survives.
+const FORBIDDEN_CONTENT = /REVISION|__THREE__|rapier/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

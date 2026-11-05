@@ -18,7 +18,15 @@ interface ErrorRecord {
 
 type DeskFailKind = 'scene' | 'shell' | 'chunk' | 'async';
 
+interface DeskSceneHooks {
+  /** Frames the canvas has rendered. */
+  frames(): number;
+  /** Canvas size in CSS px. */
+  size(): { width: number; height: number };
+}
+
 interface DeskHooks {
+  scene?: DeskSceneHooks;
   /** Triggers one failure path on purpose; the resulting error is marked intentional. */
   fail(kind: DeskFailKind): void;
   /** 'poster' (default), 'live' (Scene mounted) or 'failed'. */

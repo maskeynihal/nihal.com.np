@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { deskNote } from '../../content/client-copy';
 import { DeskShell, type DeskStatus } from './DeskShell';
 import { IslandRoot } from './island-root';
+import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { installGlobalErrorReporting } from './island-errors';
 
 /**
@@ -13,6 +14,10 @@ import { installGlobalErrorReporting } from './island-errors';
  * and writes the note into a persistent `role="status"` element (an element that already
  * exists announces more reliably than one inserted with its text). Only a positive
  * state (`live`, E-01) may ever hide the poster; `failed` always shows it.
+ *
+ * The canvas layer (`.desk-live`) overlays the poster; CSS crossfades them on `data-desk-state`.
+ * The drag hint, the reset button and the OLED caption are Astro markup in `Poster.astro`
+ * (visible text must exist without this island); this component only wires the button.
  */
 export default function Desk() {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -30,14 +35,25 @@ export default function Desk() {
     if (figure) figure.dataset['deskState'] = status;
   }, [status]);
 
+  // "reset the desk" lives in Poster.astro; the Scene (E-05) listens for the event.
+  useEffect(() => {
+    const button = wrapRef.current
+      ?.closest<HTMLElement>('[data-desk]')
+      ?.querySelector<HTMLButtonElement>('[data-desk-reset]');
+    if (!button) return;
+    const reset = () => window.dispatchEvent(new CustomEvent(DESK_RESET_EVENT));
+    button.addEventListener('click', reset);
+    return () => button.removeEventListener('click', reset);
+  }, []);
+
   useEffect(
     () => installGlobalErrorReporting(() => onStatus('failed')),
     [onStatus],
   );
 
   return (
-    <div ref={wrapRef}>
-      <IslandRoot>
+    <div ref={wrapRef} className="desk-island">
+      <IslandRoot className="desk-live">
         <DeskShell onStatus={onStatus} />
       </IslandRoot>
       <p role="status" className="label desk-note">

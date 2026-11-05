@@ -54,10 +54,13 @@
 /* --- The drawing ---------------------------------------------------------------------- */
 .desk {
   margin: 0;
+  position: relative;
 }
 
-/* Phones: a fixed-height frame the canvas will fill, so swapping poster for canvas moves nothing. */
-.poster-frame {
+/* Phones: a fixed-height frame the canvas will fill, so swapping poster for canvas moves nothing.
+   The poster frame, the canvas layer and the caption overlay share these rules. */
+.poster-frame,
+.desk-live {
   height: clamp(320px, 48svh, 420px);
 }
 
@@ -65,6 +68,79 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* The canvas layer (Desk island) sits exactly over the poster and fades in once the first frame
+   is drawn (300 ms; none under reduced motion, see global.css). It takes no pointer events until
+   live so it can never block the page, and it stays out of the accessibility tree: the object
+   list is the way in. */
+.desk-island {
+  display: contents;
+}
+
+.desk-live {
+  position: absolute;
+  inset: 0 0 auto 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.desk-live > div,
+.desk-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.desk-canvas canvas {
+  display: block;
+  /* Touch: the page always scrolls; a grab (E-05) takes over with press-and-hold. */
+  touch-action: pan-y;
+}
+
+.desk[data-desk-state='live'] .desk-live {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The poster stays underneath for the fade, then leaves the paint. It is `inert` too (Poster.astro).
+   Back to visible at once on `failed` or when motion is switched off. */
+.desk[data-desk-state='live'] .poster-frame {
+  visibility: hidden;
+  transition: visibility 0s linear 300ms;
+}
+
+/* Hint and reset button, under the drawing. Space is reserved in every state (visibility, not
+   display) so the canvas arriving moves nothing. */
+.desk-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  min-height: 44px;
+  visibility: hidden;
+}
+
+.desk[data-desk-state='live'] .desk-controls {
+  visibility: visible;
+}
+
+.desk-hint {
+  margin: 0;
+}
+
+.desk-reset {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
 }
 
 /* The island mounts this live region after first paint. While empty it must take no space, or
@@ -94,14 +170,11 @@
 }
 
 @media (min-width: 768px) {
-  .poster-frame {
+  .poster-frame,
+  .desk-live {
     height: auto;
     aspect-ratio: 3 / 2;
   }
-
-  /* E-01: once the canvas replaces the poster, hide this list on desktop until :focus-within
-     (opacity only, so it stays in the tab order and nothing moves). Until then the poster is
-     the only drawing, so the list stays visible at every width. */
 }
 
 @media (min-width: 1024px) {
@@ -127,5 +200,15 @@
   .object-list {
     grid-column: 6 / 13;
     grid-row: 2;
+  }
+
+  /* E-01: once the canvas has replaced the poster, the object list is quiet on desktop until it
+     holds focus (opacity only, so it stays in the tab order, stays readable to assistive tech and
+     nothing moves). While the poster is the drawing (no WebGL, reduced motion, error, JS off) the
+     list stays visible, and it always stays visible below 1024 px where touch is the main input.
+     The list is a sibling of the figure, hence :has() on the shared stage. */
+  .desk-stage:has(.desk[data-desk-state='live'])
+    .object-list:not(:focus-within) {
+    opacity: 0;
   }
 }

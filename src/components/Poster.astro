@@ -1,6 +1,6 @@
 ---
 import posterSvg from '../assets/poster.svg?raw';
-import { getObjects } from '../content';
+import { getCopy, getObjects } from '../content';
 import { buildPosterAlt } from '../content/poster-alt';
 
 /**
@@ -9,7 +9,11 @@ import { buildPosterAlt } from '../content/poster-alt';
  * from the objects actually shown. It is also the fallback for every no-3D path; the Desk island
  * only sets `data-desk-state` on the wrapping figure. The script below makes the poster `inert`
  * while the canvas is live (the object list is the keyboard path) and restores it otherwise.
+ *
+ * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
+ * moves) until `data-desk-state="live"`: the drag hint and the reset button.
  */
+const { titleBlock } = getCopy();
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
 const svg = posterSvg
   .trim()
@@ -20,6 +24,12 @@ const svg = posterSvg
 ---
 
 <div class="poster-frame" data-poster set:html={svg} />
+<div class="desk-controls" data-desk-controls>
+  <p class="label desk-hint">{titleBlock.dragHint}</p>
+  <button type="button" class="label desk-reset" data-desk-reset>
+    {titleBlock.reset}
+  </button>
+</div>
 
 <script>
   const frame = document.querySelector<HTMLElement>('[data-poster]');
