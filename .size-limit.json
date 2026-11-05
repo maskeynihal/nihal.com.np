@@ -6,9 +6,15 @@
       "!dist/_astro/Scene.*.js",
       "!dist/_astro/desk-vendor*.js",
       "!dist/_astro/physics*.js",
-      "!dist/_astro/rapier*.js"
+      "!dist/_astro/rapier*.js",
+      "!dist/_astro/garden*.js"
     ],
     "limit": "100 KB"
+  },
+  {
+    "name": "garden (br)",
+    "path": "dist/_astro/garden.*.js",
+    "limit": "12 KB"
   },
   {
     "name": "desk-vendor (br)",

@@ -1,0 +1,59 @@
+/* The garden: a wide line-art strip above the colophon. Decoration only; the canvas is aria-hidden. */
+.garden {
+  padding-block: calc(var(--rhythm) / 2) 0;
+}
+
+.garden-stage {
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.garden-canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 320px;
+  touch-action: pan-y;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .garden-canvas {
+    block-size: 420px;
+  }
+}
+
+.garden-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-block: 0.5rem calc(var(--rhythm) / 2);
+}
+
+.garden-caption {
+  margin: 0;
+}
+
+.garden-throw {
+  appearance: none;
+  background: none;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  min-block-size: 44px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.garden-throw[hidden] {
+  display: none;
+}
+
+.garden-throw:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}

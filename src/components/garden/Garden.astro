@@ -1,0 +1,30 @@
+---
+import '../../styles/garden.css';
+---
+
+<section class="garden" aria-label="garden" data-garden data-print="hide">
+  <canvas class="garden-canvas" aria-hidden="true"></canvas>
+  <div class="garden-foot">
+    <p class="garden-caption small">
+      the garden. click to throw a ball for the dogs.
+    </p>
+    <button type="button" class="garden-throw label" data-garden-throw>
+      throw a ball
+    </button>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-garden]');
+  if (root) {
+    const io = new IntersectionObserver(
+      (es) => {
+        if (!es.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        import('../../lib/garden/garden').then((m) => m.mountGarden(root));
+      },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(root);
+  }
+</script>
