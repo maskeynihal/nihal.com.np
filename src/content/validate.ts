@@ -5,11 +5,13 @@ import { oss } from './oss';
 import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
+import { clocks } from './clocks';
 import { pending } from './pending';
 import holidays from './holidays.json';
 import github from './generated/github.json';
 import {
   BodyList,
+  ClockList,
   Copy,
   CvList,
   GithubData,
@@ -80,6 +82,7 @@ export function validateAll() {
     writing: parse('writing.ts', PostList, writing),
     cv: parse('cv.ts', CvList, cv),
     objects: parse('objects.ts', BodyList, objects),
+    clocks: parse('clocks.ts', ClockList, clocks),
     holidays: parse('holidays.json', HolidayList, holidays),
     github: parse('generated/github.json', GithubData, github),
   };

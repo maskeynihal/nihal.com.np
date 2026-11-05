@@ -1,6 +1,7 @@
 ---
 import { getCopy } from '../content';
 import { revLine } from '../lib/title-block';
+import CopyEmail from './CopyEmail.astro';
 import MotionToggle from './MotionToggle.astro';
 import SoundToggle from './SoundToggle.astro';
 
@@ -21,8 +22,7 @@ const rev = revLine(titleBlock.revLine, new Date());
   <p class="title-block-line">{titleBlock.options[titleBlock.selected]}</p>
   <ul class="label title-block-rows">
     <li>
-      <!-- CopyEmail (copy button) replaces this link in B-06a. -->
-      <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+      <CopyEmail />
     </li>
     <li>
       <time class="live-time" data-live-time></time> {titleBlock.timeLabel}

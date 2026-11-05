@@ -13,14 +13,24 @@ import WorkPanel from '../components/WorkPanel.astro';
 import RevisionTable from '../components/RevisionTable.astro';
 import WritingList from '../components/WritingList.astro';
 import CvTable from '../components/CvTable.astro';
-import { getCopy, getWork, getOss, getWriting, getCv } from '../content';
+import CopyEmail from '../components/CopyEmail.astro';
+import ClockFace from '../components/ClockFace.astro';
+import {
+  getCopy,
+  getWork,
+  getOss,
+  getWriting,
+  getCv,
+  getClocks,
+} from '../content';
 import { rowLabel } from '../lib/sections';
 
-const { titleBlock, headings, writing, cv, contact, colophon } = getCopy();
+const { headings, writing, cv, contact, colophon } = getCopy();
 const work = getWork();
 const oss = getOss();
 const posts = getWriting();
 const cvRows = getCv();
+const clocks = getClocks();
 const year = String(new Date().getFullYear());
 ---
 
@@ -67,13 +77,20 @@ const year = String(new Date().getFullYear());
       </PaperPanel>
     </Section>
 
-    <!-- B-06a adds the clocks and copy button, B-06b the form. -->
+    <!-- B-06b adds the form under the first panel. -->
     <Section id="contact" heading={headings.contact} side="left">
-      <PaperPanel>
+      <PaperPanel class="contact-panel">
         <p>{contact.lead}</p>
-        <p class="page-sheet-contact">
-          <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+        <p>
+          <CopyEmail />
         </p>
+        <ul class="clocks">
+          {clocks.map((c) => (
+            <li>
+              <ClockFace city={c.city} timeZone={c.timeZone} />
+            </li>
+          ))}
+        </ul>
         <p class="small">{contact.overlap}</p>
         <ul class="sheet-links label">
           {contact.socials.map((s) => (

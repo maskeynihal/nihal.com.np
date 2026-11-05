@@ -15,5 +15,7 @@ export const site = {
     },
     address: { locality: 'Kathmandu', country: 'NP' },
   },
+  /** Formspree form id (docs/specs/00-product-brief.md: the existing endpoint `xanoenzo` stays). */
+  formspreeId: 'xanoenzo',
   og: { image: '/og.png', width: 1200, height: 630 },
 } as const;

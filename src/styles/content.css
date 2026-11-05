@@ -153,3 +153,64 @@
   align-items: center;
   min-height: 44px;
 }
+
+/* --- Contact: copy email, clocks (B-06a) ------------------------------------------------- */
+.copy-email-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.clocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 1.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clock {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.clock-face {
+  width: 5rem;
+  height: 5rem;
+  fill: none;
+  stroke: var(--blue-ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.clock-tick {
+  stroke-width: 1;
+}
+
+.clock figcaption {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.clock-reading {
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-city {
+  overflow-wrap: anywhere;
+}
+
+.contact-panel > * + * {
+  margin-block-start: 1rem;
+}
+
+.contact-panel .sheet-links {
+  margin-block-end: 0;
+}

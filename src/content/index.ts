@@ -1,4 +1,12 @@
-import type { BodyDef, CvRow, Holiday, PR, Post, WorkItem } from './schema';
+import type {
+  BodyDef,
+  ClockDef,
+  CvRow,
+  Holiday,
+  PR,
+  Post,
+  WorkItem,
+} from './schema';
 import type { GithubData } from './schema';
 import { copy } from './copy';
 import { work } from './work';
@@ -6,6 +14,7 @@ import { oss } from './oss';
 import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
+import { clocks } from './clocks';
 import holidays from './holidays.json';
 import github from './generated/github.json';
 
@@ -26,9 +35,10 @@ export const getCopy = () => copy;
 export const getWork = (): WorkItem[] => visible(work);
 export const getCv = (): CvRow[] => visible(cv);
 export const getObjects = (): BodyDef[] => visible(objects);
+export const getClocks = (): ClockDef[] => visible(clocks);
 export const getOss = (): PR[] => [...oss];
 export const getWriting = (): Post[] => [...writing];
 export const getHolidays = (): Holiday[] => [...(holidays as Holiday[])];
 export const getGithub = (): GithubData => github as GithubData;
 
-export type { BodyDef, CvRow, Holiday, PR, Post, WorkItem };
+export type { BodyDef, ClockDef, CvRow, Holiday, PR, Post, WorkItem };

@@ -1,0 +1,91 @@
+---
+import { getCopy } from '../content';
+
+/**
+ * The contact address. In the HTML it is a real `mailto:` link, so it works with scripts off,
+ * in a mail-only browser and for crawlers. With scripts on, a plain click copies the address
+ * (clipboard API, then a select-and-copy fallback) and shows "copied" for 1.6 s, mirrored in a
+ * polite live region. Modified clicks (new tab, save link) and a total copy failure fall
+ * through to the mailto link.
+ */
+const { titleBlock, contact } = getCopy();
+---
+
+<span class="copy-email">
+  <a
+    class="copy-email-link"
+    href={`mailto:${titleBlock.email}`}
+    data-copy-email
+    data-address={titleBlock.email}
+    data-copied={contact.copied}
+  >
+    <span data-copy-label>{titleBlock.email}</span>
+  </a>
+  <span class="sr-only" role="status" data-copy-status></span>
+</span>
+
+<script>
+  const COPIED_MS = 1600;
+
+  /** Select the address text, then copy the selection (works without the async clipboard). */
+  function selectAndCopy(label: HTMLElement): boolean {
+    const sel = window.getSelection();
+    if (!sel) return false;
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      return document.execCommand('copy');
+    } catch {
+      return false;
+    }
+  }
+
+  async function copyText(text: string, label: HTMLElement): Promise<boolean> {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Denied or unavailable: fall back to selecting the text.
+      }
+    }
+    return selectAndCopy(label);
+  }
+
+  for (const link of document.querySelectorAll<HTMLAnchorElement>(
+    '[data-copy-email]',
+  )) {
+    const label = link.querySelector<HTMLElement>('[data-copy-label]');
+    const status =
+      link.parentElement?.querySelector<HTMLElement>('[data-copy-status]');
+    const address = link.dataset['address'];
+    const copied = link.dataset['copied'];
+    if (!label || !status || !address || !copied) continue;
+    const original = label.textContent ?? address;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    link.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      void copyText(address, label).then((ok) => {
+        if (!ok) {
+          window.location.href = link.href;
+          return;
+        }
+        // Hold the width so the swap to the shorter word does not move the line.
+        link.style.minWidth = `${link.offsetWidth}px`;
+        label.textContent = copied;
+        status.textContent = copied;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          label.textContent = original;
+          status.textContent = '';
+          link.style.minWidth = '';
+        }, COPIED_MS);
+      });
+    });
+  }
+</script>

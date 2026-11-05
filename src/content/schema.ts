@@ -58,6 +58,26 @@ export const SECTION_TARGET = new RegExp(
   `^#(desk|work|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
 );
 
+/** An IANA zone the runtime can format (checked with Intl, no zone table). */
+const timeZone = z.string().refine(
+  (v) => {
+    try {
+      new Intl.DateTimeFormat('en-GB', { timeZone: v });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'expected an IANA time zone name' },
+);
+
+export const ClockDef = z.strictObject({
+  id: z.enum(['clock-ktm', 'clock-2', 'clock-3']),
+  city: text,
+  timeZone,
+  confirmed: z.boolean(),
+});
+
 export const BodyDef = z.strictObject({
   id: z.enum([
     'arduino',
@@ -206,6 +226,7 @@ export type WorkItem = z.infer<typeof WorkItem>;
 export type PR = z.infer<typeof PR>;
 export type Post = z.infer<typeof Post>;
 export type CvRow = z.infer<typeof CvRow>;
+export type ClockDef = z.infer<typeof ClockDef>;
 export type BodyDef = z.infer<typeof BodyDef>;
 export type Holiday = z.infer<typeof Holiday>;
 export type Copy = z.infer<typeof Copy>;
@@ -215,5 +236,6 @@ export const WorkList = z.array(WorkItem).length(5);
 export const PRList = z.array(PR);
 export const PostList = z.array(Post);
 export const CvList = z.array(CvRow);
+export const ClockList = z.array(ClockDef).length(3);
 export const BodyList = z.array(BodyDef);
 export const HolidayList = z.array(Holiday);
