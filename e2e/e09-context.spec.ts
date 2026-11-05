@@ -55,6 +55,8 @@ test.describe('context loss and disposal @E-09', () => {
     await goLive(page);
     await scene(page, (s) => s.loseContext());
     await expect(figure(page)).toHaveAttribute('data-desk-state', 'poster');
+    // Paused (poster and note, one restore pending); both this and the final state show the same.
+    await expectNoAxeViolations(page, { label: '/ with the context lost' });
     await expect(figure(page)).toHaveAttribute('data-desk-state', 'failed', {
       timeout: 10_000,
     });
