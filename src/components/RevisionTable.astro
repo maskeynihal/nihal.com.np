@@ -1,0 +1,62 @@
+---
+import type { PR } from '../content/schema';
+import { dayOf, isDatetime } from '../lib/dates';
+import { getCopy, getGithub } from '../content';
+
+/**
+ * The open-source ledger as a revision table: repo, what, merged. A real `<table>` with a
+ * caption (the section intro). Counts and the as-of date come from the build-time GitHub
+ * snapshot. Month values become `<time datetime>`; ranges and bare years stay text.
+ */
+interface Props {
+  rows: PR[];
+}
+const { rows } = Astro.props;
+const { openSource } = getCopy();
+const [repo, what, merged] = openSource.columns;
+const gh = getGithub();
+const asOf = dayOf(gh.fetchedAt);
+const [beforeDate = '', afterDate = ''] = openSource.footer
+  .replace('{merged}', String(gh.merged))
+  .replace('{closed}', String(gh.closed))
+  .split('{date}');
+---
+
+<table class="revision-table">
+  <caption>{openSource.intro}</caption>
+  <thead>
+    <tr>
+      <th scope="col">{repo}</th>
+      <th scope="col">{what}</th>
+      <th scope="col">{merged}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {rows.map((r) => (
+      <tr>
+        <th scope="row">
+          <a href={r.href} rel="noopener">
+            {r.repo}
+          </a>
+        </th>
+        <td>{r.what}</td>
+        <td>
+          {isDatetime(r.merged) ? (
+            <time datetime={r.merged}>{r.merged}</time>
+          ) : (
+            r.merged
+          )}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3">
+        {beforeDate}
+        <time datetime={asOf}>{asOf}</time>
+        {afterDate}
+      </td>
+    </tr>
+  </tfoot>
+</table>

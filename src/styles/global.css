@@ -3,6 +3,7 @@
 @import './tokens.css';
 @import './sheet.css';
 @import './desk.css';
+@import './content.css';
 
 /* Expose the :root tokens to Tailwind by reference (no literal values here).
    Font utilities use distinct names (font-heading/prose/code) because

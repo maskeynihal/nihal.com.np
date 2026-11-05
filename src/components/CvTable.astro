@@ -1,0 +1,23 @@
+---
+import type { CvRow } from '../content/schema';
+
+/** Roles and dates as a table; the date cell is the row header. Named by the section heading. */
+interface Props {
+  rows: CvRow[];
+}
+const { rows } = Astro.props;
+---
+
+<table class="cv-table" aria-labelledby="cv-heading">
+  <tbody>
+    {rows.map((r) => (
+      <tr>
+        <th scope="row" class="label">
+          {r.when}
+        </th>
+        <td>{r.role}</td>
+        <td>{r.org}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>

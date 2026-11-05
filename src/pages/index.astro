@@ -9,11 +9,18 @@ import Section from '../components/Section.astro';
 import PaperPanel from '../components/PaperPanel.astro';
 import SheetBorder from '../components/SheetBorder.astro';
 import SheetIndex from '../components/SheetIndex.astro';
-import { getCopy } from '../content';
+import WorkPanel from '../components/WorkPanel.astro';
+import RevisionTable from '../components/RevisionTable.astro';
+import WritingList from '../components/WritingList.astro';
+import CvTable from '../components/CvTable.astro';
+import { getCopy, getWork, getOss, getWriting, getCv } from '../content';
 import { rowLabel } from '../lib/sections';
 
-const { titleBlock, headings, openSource, writing, cv, contact, colophon } =
-  getCopy();
+const { titleBlock, headings, writing, cv, contact, colophon } = getCopy();
+const work = getWork();
+const oss = getOss();
+const posts = getWriting();
+const cvRows = getCv();
 const year = String(new Date().getFullYear());
 ---
 
@@ -34,19 +41,30 @@ const year = String(new Date().getFullYear());
       </div>
     </Section>
 
-    <!-- work, open-source, writing and cv: headed sections; B-04 fills them with panels and tables. -->
-    <Section id="work" heading={headings.work} side="left" />
+    <Section id="work" heading={headings.work} side="left">
+      {work.map((item) => (
+        <WorkPanel item={item} />
+      ))}
+    </Section>
 
     <Section id="open-source" heading={headings.openSource} side="right">
-      <p>{openSource.intro}</p>
+      <PaperPanel>
+        <RevisionTable rows={oss} />
+      </PaperPanel>
     </Section>
 
     <Section id="writing" heading={headings.writing} side="left">
       <p>{writing.intro}</p>
+      <PaperPanel>
+        <WritingList posts={posts} />
+      </PaperPanel>
     </Section>
 
     <Section id="cv" heading={headings.cv} side="right">
       <p>{cv.note}</p>
+      <PaperPanel>
+        <CvTable rows={cvRows} />
+      </PaperPanel>
     </Section>
 
     <!-- B-06a adds the clocks and copy button, B-06b the form. -->

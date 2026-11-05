@@ -1,0 +1,49 @@
+---
+import type { WorkItem } from '../content/schema';
+import { splitDateLine } from '../lib/dates';
+import PaperPanel from './PaperPanel.astro';
+
+/**
+ * One work panel: anchor `work-<id>` (desk objects link here), heading, a mono date line
+ * (what happened, when), prose and real links. All plain HTML. An item with a `frameNote`
+ * (client work with no code) also gets an empty drawing frame whose title block is filled in.
+ * The drawn mark joins the panel in B-05.
+ */
+interface Props {
+  item: WorkItem;
+}
+const { item } = Astro.props;
+const headingId = `work-${item.id}-heading`;
+const { date, rest } = splitDateLine(item.dateLine);
+---
+
+<PaperPanel as="article" id={`work-${item.id}`} class="work-panel">
+  <h3 id={headingId}>{item.title}</h3>
+  <p class="label work-date">
+    {date ? <time datetime={date.datetime}>{date.text}</time> : null}
+    {rest}
+  </p>
+  <p class="label work-meta">{item.meta}</p>
+  {item.body.map((p) => (
+    <p>{p}</p>
+  ))}
+  {item.frameNote && (
+    <figure class="drawing-frame">
+      <figcaption>
+        <span class="label">{item.title}</span>
+        <span>{item.frameNote}</span>
+      </figcaption>
+    </figure>
+  )}
+  {item.links.length > 0 && (
+    <ul class="label sheet-links">
+      {item.links.map((l) => (
+        <li>
+          <a href={l.href} rel="noopener">
+            {l.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</PaperPanel>

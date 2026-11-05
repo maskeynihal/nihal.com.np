@@ -1,0 +1,154 @@
+/* Work panels, revision table, writing list, cv table (B-04). All of it plain HTML on paper. */
+
+/* Anchors for desk objects and the index: land with the panel clear of the border. */
+.work-panel {
+  scroll-margin-block-start: calc(var(--inset) + var(--gutter));
+}
+
+.section-body > .work-panel {
+  margin-block-start: 1.5rem;
+}
+
+.work-panel h3 {
+  overflow-wrap: anywhere;
+}
+
+.work-panel > * + * {
+  margin-block-start: 0.75rem;
+}
+
+.work-date,
+.work-meta {
+  margin-block-start: 0.5rem;
+}
+
+.work-panel .sheet-links {
+  margin-block-end: 0;
+}
+
+/* Client work with no code: an empty drawing frame, title block filled in at the corner. */
+.drawing-frame {
+  margin: 1rem 0 0;
+  min-height: 9rem;
+  border: 1px solid var(--blue-ink);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.drawing-frame figcaption {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 1px solid var(--blue-ink);
+  border-block-start: 1px solid var(--blue-ink);
+  max-width: 24rem;
+  font-size: var(--text-small);
+}
+
+/* --- Tables (revision table, cv) ------------------------------------------------------- */
+.revision-table,
+.cv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+  line-height: 1.4;
+}
+
+.revision-table caption {
+  caption-side: top;
+  text-align: start;
+  padding-block-end: 1rem;
+}
+
+.revision-table th,
+.revision-table td,
+.cv-table th,
+.cv-table td {
+  text-align: start;
+  vertical-align: top;
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-block-start: 1px solid var(--hairline);
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+
+.revision-table thead th {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border-block-start: 0;
+  border-block-end: 1px solid var(--blue-ink);
+}
+
+/* Repo, dates and counts are data: mono, tabular. */
+.revision-table tbody th,
+.revision-table td:last-child,
+.revision-table tfoot td,
+.cv-table th {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.revision-table td:last-child {
+  white-space: nowrap;
+}
+
+.revision-table tfoot td {
+  padding-block-start: 1rem;
+}
+
+.revision-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.cv-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .revision-table td:last-child {
+    white-space: normal;
+  }
+  .cv-table th {
+    white-space: normal;
+  }
+}
+
+/* --- Writing ---------------------------------------------------------------------------- */
+.writing-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.writing-list li {
+  display: grid;
+  gap: 0.25rem;
+  padding-block: 0.75rem;
+  border-block-start: 1px solid var(--hairline);
+}
+
+.writing-list li:first-child {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+.writing-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.sheet-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

@@ -1,0 +1,30 @@
+---
+import type { Post } from '../content/schema';
+import { getCopy } from '../content';
+
+/** Posts as a plain list: date, linked title, one line. Then the link to the full list. */
+interface Props {
+  posts: Post[];
+}
+const { posts } = Astro.props;
+const { writing } = getCopy();
+---
+
+<ul class="writing-list">
+  {posts.map((p) => (
+    <li>
+      <time class="label" datetime={p.date}>
+        {p.date}
+      </time>
+      <a class="writing-title" href={p.href} rel="noopener">
+        {p.title}
+      </a>
+      <span class="small">{p.summary}</span>
+    </li>
+  ))}
+</ul>
+<p class="label">
+  <a class="sheet-link" href={writing.allHref} rel="noopener">
+    {writing.all}
+  </a>
+</p>
