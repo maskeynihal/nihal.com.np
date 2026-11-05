@@ -36,7 +36,11 @@ const { date, rest } = splitDateLine(item.dateLine);
   />
   <h3 id={headingId}>{item.title}</h3>
   <p class="label work-date">
-    {date ? <time datetime={date.datetime}>{date.text}</time> : null}
+    {date ? (
+      <time datetime={date.datetime} data-date-line>
+        {date.text}
+      </time>
+    ) : null}
     {rest}
   </p>
   <p class="label work-meta">{item.meta}</p>

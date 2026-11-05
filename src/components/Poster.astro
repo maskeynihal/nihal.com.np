@@ -55,6 +55,13 @@ const svg = posterSvg
 </div>
 
 <script>
+  import {
+    CALLOUT_EVENT,
+    dateLineOf,
+    flyLabel,
+    type FlightLabel,
+  } from '../lib/shared-callout';
+
   const frame = document.querySelector<HTMLElement>('[data-poster]');
   const figure = frame?.closest<HTMLElement>('[data-desk]');
   if (frame && figure) {
@@ -70,8 +77,16 @@ const svg = posterSvg
 
   // A drawn object was tapped: scroll to its section and put focus on the section's heading.
   // Smooth only when motion is on; no global `scroll-behavior` (it would fight the sheet index).
+  // The tapped object's callout label is announced just before (`nihal:callout`) and flies to the
+  // section's date line (C-03); this handler stays the only thing that scrolls.
+  let pending: FlightLabel | null = null;
+  window.addEventListener(CALLOUT_EVENT, (e) => {
+    pending = (e as CustomEvent<FlightLabel>).detail;
+  });
   window.addEventListener('nihal:navigate', (e) => {
     const target = (e as CustomEvent<unknown>).detail;
+    const label = pending?.target === target ? pending : null;
+    pending = null;
     if (typeof target !== 'string' || !/^#[\w-]+$/.test(target)) return;
     const section = document.querySelector<HTMLElement>(target);
     if (!section) return;
@@ -83,5 +98,7 @@ const svg = posterSvg
     const heading = section.querySelector<HTMLElement>('h1, h2, h3') ?? section;
     if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
     heading.focus({ preventScroll: true });
+    // Reduced motion: a plain jump, no copy of the label.
+    if (label && smooth) void flyLabel(label, dateLineOf(section));
   });
 </script>

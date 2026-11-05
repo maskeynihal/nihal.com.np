@@ -17,6 +17,7 @@ import { activity } from './activity';
 import { physicsBridge } from './physics-bridge';
 import { setInteractionProbe } from './scene-hooks';
 import { armSound } from '../../lib/sound';
+import { CALLOUT_EVENT, type FlightLabel } from '../../lib/shared-callout';
 
 /** Height of the plane the pointer is projected onto while dragging, metres. */
 const PLANE_Y = 0.03;
@@ -127,6 +128,26 @@ export function Interaction() {
 
     const navigate = (id: string) => {
       const target = registry.get(id)?.def.target;
+      // The label that flies to the section (C-03); the navigate handler picks it up.
+      const label = figure?.querySelector<HTMLElement>(
+        `[data-callout="${id}"]`,
+      );
+      const rect = label?.getBoundingClientRect();
+      if (target && label?.textContent && rect && rect.width > 0)
+        window.dispatchEvent(
+          new CustomEvent<FlightLabel>(CALLOUT_EVENT, {
+            detail: {
+              target,
+              text: label.textContent,
+              rect: {
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+              },
+            },
+          }),
+        );
       if (target)
         window.dispatchEvent(
           new CustomEvent('nihal:navigate', { detail: target }),

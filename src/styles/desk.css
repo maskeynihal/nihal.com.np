@@ -268,3 +268,20 @@
     opacity: 0;
   }
 }
+
+/* Object-tap shared callout (C-03): a copy of the tapped label travels to the section's date line.
+   A fixed layer above the page, never interactive, removed on arrival. */
+.callout-flight {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.callout-flight-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  will-change: transform;
+}
