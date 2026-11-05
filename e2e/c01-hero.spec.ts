@@ -71,7 +71,7 @@ test.describe('hero wipe and enters @C-01', () => {
         .getAnimations()
         .filter((a) => {
           const n = (a as CSSAnimation).animationName;
-          return n === 'name-wipe' || n === 'title-fade';
+          return n === 'name-wipe';
         })
         .map((a) => (a as CSSAnimation).animationName),
     );
