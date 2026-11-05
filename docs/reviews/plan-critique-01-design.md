@@ -1,0 +1,33 @@
+# Plan critique 01: design (jury lens), 2026-11-05
+
+Reviewer: independent critic subagent. Target: `specs/01-design-spec.md` v1. Verdict: build **with changes**, not as-is.
+
+## Blockers
+1. **Four ideas stapled**: blueprint rendering, desk toy, street-scene footer (bus/stop/cat/bench/lamp), lahin paper stack. Bus-stop sign on the desk is the tell. Decision: the idea is *blueprint*. Hero slip → engineering **title block** (name, title, date, rev, scale, drawn-by). Nav → **sheet index / revision table** in the margin. OSS ledger → revision history frame. Lift an object → **dimension lines and callouts** (DOM text). Cut: coffee cup, pencil, paper stack, bus-stop sign, bench, lamp, bus, "bus departs" egg, lahin question.
+2. **Line rendering unbuildable as written**: WebGL `LineSegments` width clamps to 1 device px; "1.5 px" impossible. `EdgesGeometry(20°)` on low-poly cylinders (16-seg = 22.5°) → striped barrels that strobe when rolling; Arduino pin headers → hairball. Fix A (recommended): **author lines in Blender** (Freestyle / line-art modifier → LINES primitive in the GLB), render with `Line2`/`LineSegments2` + `LineMaterial` (`worldUnits:false`, CSS px width, `resolution` on resize, built-in AA, `alphaToCoverage`). Occluder in `--blue-deep` for silhouette separation; "same pixel as page" gives premultiplied-alpha fringe. Note three color management: set `renderer.outputColorSpace = SRGBColorSpace`, no tone mapping, else two-shade blue. Line opacity 1.0 structural, 0.5 secondary; never 0.85.
+3. **Phone hero hides what hiring managers need**: 70vh desk first, then captions, then the sentence/email. Fix: name + title block first, desk `clamp(320px, 48vh, 420px)`, labels list third. Or overlay title block bottom-left of canvas. Landscape cap 50vh.
+4. **Touch model blocks scrolling**: canvas taking touchstart + `touch-action:none` = can't scroll past the desk; `pan-y` = drags scroll instead. Fix: `touch-action: pan-y`; grab requires press-and-hold ~180 ms on an object hit, then gesture takes over with preventDefault. Taps navigate, pans scroll. Don't hide the nav while dragging; dim to 40%.
+5. **Hero name as stroked SVG outline**: not text (semantics, Cmd+F), Fraunces WONK overlapping contours draw double lines. Fix: real `<h1>`, reveal with `clip-path: inset()` wipe (a drafting pen rules, it does not trace glyphs), 600 ms.
+
+## Major
+6. **Bruno Simon desk variant risk**: car with rolling wheels + physics + pointer-following mascot + easter eggs = Simon 2019 + Heffernan 2022 palette swap. Fix: blueprint behaviours nobody shipped: (a) dimension callouts on lift; (b) **exploded view** on first-viewport scroll (objects separate along one axis with leader lines, then paper takes over) instead of camera tilt; (c) drop pointer-following ghost idle ("motion with no state meaning").
+7. **`#now` duplicates `#work`**. Delete `#now`; mono date line on each work panel. 8 stops → 6.
+8. **Generic maker desk; wrong hero object**. Hero = **Arduino + live OLED** (real, moving, his code, his blog). Second = **three clocks** (same clock source as everything). Replace paper stack with a **Bikram Sambat desk calendar** showing today's Nepali date with holidays, from his own spatie/holidays data. Land Cruiser only if confirmed; no "generic 4x4" fallback (that is filler). Ghost static on the board. Cut cup, pencil.
+9. **Fraunces + JetBrains Mono + Inter = 2023-25 indie default**; three families heavy. Fix: two families. Body in Fraunces at small optical size (opsz 9-14, SOFT 0); labels/numbers JetBrains Mono; delete Inter. Partial-instance the variable font to used axis ranges. `size-adjust` fallback for the 128 px name. Cut the "set in ..." colophon.
+10. **Draw-in on everything** (name, every panel drawing, route fill, fade-up 24 px staggers = AOS 2016). Fix: one draw-in (hero). Panel drawings already drawn. Panels opacity-only. Spend motion on: ledger row hover/focus (leader line extends to link, 160 ms) and **object-tap transition** (tapped object's callout label travels with the scroll as a shared element, 600 ms, becomes the section heading).
+11. **Slop gate misses in-spec tells**: "41 merged... 18 that were not. Those taught me more." (zinger + "Not X. Y."); "made with ♥..." (2019 footer meme); "the desk is real. pick things up." (captioning the toy); pointer ghost; idle steam. Add to gate: custom cursors / cursor followers; "01 / 02" mono numerals; "scroll ↓" indicators; stroke draw-in on >1 element; fade-up default entrance; lowercase body copy; "made with" footers; colophon font lists; Fraunces+Mono+Inter trio; decorative `<span lang>` glyphs.
+12. **終点 is borrowed signage** for a Nepali engineer with no Japan link. If bus stop stays: Devanagari + English (e.g. "अन्तिम बिसौनी · last stop", owner confirms wording). Kathmandu bus culture (Sajha Yatayat) can carry it honestly. Cat: keep only if owner says it means something. If nav becomes a sheet index, the bus stop has no route; end the page with the title block border instead.
+13. **Budgets don't add up**: 120 + 450 + 600 KB + 3 fonts (~350) + models exceeds 1.5 MB if physics loads on idle. Fix: physics on first pointerdown only; two fonts; cap bodies at 6; consider Rapier in a worker; budget stated "before physics".
+
+## Minor
+14. Scrubbed camera on native scroll is not scrolljacking; exploded view better. `requestIdleCallback` absent in Safari; timeout covers it.
+15. Hover-only labels = hover-only disclosure. Labels at rest 0.5 opacity → 1.0 on hover; makes the screenshot legible (what the jury sees first).
+16. Rubric details: document why `sandbox` is safe only because the game is cross-origin on github.io; Formspree no-JS needs `_next` to an on-brand `/sent` page; `deviceMemory` Chrome-only; hidden object list and phone list must be one DOM node; define single scroll owner on object tap (no `scroll-behavior: smooth` + ScrollTrigger + custom scroll); 404 → "sheet not found" empty title block.
+17. One live time is a fact, three places is a widget: keep rail time + contact clocks; drop from slip. Trayt panel = empty drawing frame with filled title block ("Client work, so no code to show").
+18. Hero depends on unconfirmed objects (Land Cruiser, lahin, footer). Resolve before modelling.
+
+## Three ceiling-raisers
+1. Dimension callouts on lift. 2. Exploded-view scroll. 3. Bikram Sambat calendar wired to his holiday data; OLED, clocks and calendar on one clock source.
+
+## Verdict (quoted)
+"Done that way, this is a Site of the Day candidate with a real shot at the Developer award; built as written it is an Honorable Mention with a mobile usability note and a 'nice Bruno Simon' comment in the jury thread."

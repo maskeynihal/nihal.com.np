@@ -1,0 +1,580 @@
+<title>Blueprint Sneak Peek</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one blue sheet with a drawn border; sheet index in the left margin; title block sits on the drawing. Single deliberate theme (blueprint). */
+:root{
+  --blue:#1F3FE0; --blue-deep:#142FB8; --ink-on-paper:#0A1C6B; --paper:#F6F5F1; --white:#fff;
+  --line-2:#DED9FA; --mist:rgb(255 255 255/.12); --mist-strong:rgb(255 255 255/.30);
+  --ok:#9BF6C4; --warn:#FFD56B;
+  --display:"Fraunces",Georgia,serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --margin:56px; --inset:24px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:auto}
+body{margin:0;background:var(--blue);color:var(--white);font-family:var(--display);font-variation-settings:"opsz" 14,"SOFT" 0,"WONK" 0;font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:hidden}
+a{color:inherit}
+h1,h2,h3{font-family:var(--display);font-weight:500;text-transform:lowercase;letter-spacing:-.01em;margin:0;text-wrap:balance;font-variation-settings:"opsz" 72,"SOFT" 0,"WONK" 0}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums}
+.sheet{position:relative;max-width:1280px;margin:0 auto;border:1px solid var(--white);min-height:100svh;padding:0 0 var(--inset) 0}
+.sheet::after{content:"";position:absolute;inset:8px;border:1px solid var(--mist-strong);pointer-events:none}
+/* index */
+.index{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:0;height:100svh;width:var(--margin);display:flex;flex-direction:column;justify-content:center;gap:4px;z-index:5;padding-left:18px}
+.index .rule{position:absolute;left:8px;top:12%;bottom:12%;width:1px;background:var(--mist)}
+.index .rule i{position:absolute;left:0;top:0;width:1px;height:100%;background:var(--white);transform-origin:top;transform:scaleY(var(--progress,0))}
+.index a{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:lowercase;text-decoration:none;padding:6px 0;opacity:.6;position:relative}
+.index a::before{content:"";position:absolute;left:-14px;top:50%;width:5px;height:5px;margin-top:-2.5px;border:1px solid var(--white);background:transparent}
+.index a[aria-current="true"]{opacity:1}.index a[aria-current="true"]::before{background:var(--white)}
+.index a:hover,.index a:focus-visible{opacity:1;outline:none}
+.index a:focus-visible::after{content:"";position:absolute;inset:0 -6px;border:2px solid var(--mist-strong)}
+.index.dim{opacity:.4}
+/* hero */
+.hero{position:relative;min-height:100svh;display:grid;grid-template-columns:1fr;grid-template-rows:1fr auto}
+#stage{position:relative;height:100svh;max-height:900px;overflow:hidden}
+#stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;outline:none}
+#stage canvas:focus-visible{box-shadow:inset 0 0 0 2px var(--mist-strong)}
+.poster{position:absolute;inset:0;display:grid;place-items:center;opacity:1;transition:opacity .3s}
+.poster.gone{opacity:0;pointer-events:none}
+.callouts{position:absolute;inset:0;pointer-events:none}
+.callout{position:absolute;transform:translate(-50%,-100%);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;opacity:0;transition:opacity .16s;padding:2px 6px;border:1px solid var(--line-2);background:var(--blue)}
+.callout.on{opacity:1}
+.label{position:absolute;transform:translate(-50%,0);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:lowercase;white-space:nowrap;opacity:.5;transition:opacity .16s;pointer-events:none}
+.label.hot{opacity:1}
+.titleblock{position:absolute;left:calc(var(--margin) + 24px);bottom:48px;width:min(520px,calc(100% - var(--margin) - 48px));background:var(--paper);color:var(--ink-on-paper);border:1px solid rgb(10 28 107/.14);border-radius:6px;padding:20px 22px 16px;z-index:3}
+.titleblock h1{font-size:clamp(44px,6vw,88px);line-height:.95;font-variation-settings:"opsz" 144,"SOFT" 0,"WONK" 1;clip-path:inset(0 100% 0 0);animation:wipe .6s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes wipe{to{clip-path:inset(0 0 0 0)}}
+.titleblock p{margin:14px 0 14px;max-width:46ch;font-size:16px}
+.tb-rows{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;border-top:1px solid rgb(10 28 107/.14);padding-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:lowercase;font-variant-numeric:tabular-nums}
+.tb-rows span.k{opacity:.6;display:block;font-size:10px}
+.tb-rows button{all:unset;cursor:pointer;border-bottom:1px solid currentColor;font:inherit}
+.tb-rows button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.underdesk{position:absolute;right:24px;bottom:48px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.underdesk .mono{opacity:.7;text-transform:lowercase;font-size:11px}
+.btn{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:lowercase;padding:8px 12px;border:1px solid var(--mist-strong)}
+.btn:hover{background:var(--mist)}.btn:focus-visible{outline:2px solid var(--mist-strong);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--white);color:var(--blue)}
+.objlist{list-style:none;margin:0;padding:0;display:flex;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.objlist a{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:lowercase;text-decoration:none;border-bottom:1px solid var(--mist-strong);padding:10px 0;display:inline-block}
+.objlist a:focus-visible{outline:2px solid var(--mist-strong);outline-offset:2px}
+/* sections */
+section{padding:160px 24px 0 calc(var(--margin) + 24px);scroll-margin-top:24px}
+section h2{font-size:40px;margin-bottom:32px;font-variation-settings:"opsz" 72,"SOFT" 0,"WONK" 0}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:24px}
+.panel{background:var(--paper);color:var(--ink-on-paper);border:1px solid rgb(10 28 107/.14);border-radius:6px;padding:28px 28px 24px;grid-column:2/9;min-width:0;opacity:0;transition:opacity .32s}
+.panel.in{opacity:1}
+.panel .date{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:lowercase;color:rgb(10 28 107/.65);display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.panel h3{font-size:28px;margin-bottom:12px}
+.panel p{margin:0 0 12px;max-width:62ch}
+.panel .links{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+.panel .links a{text-decoration:none;border-bottom:1px solid currentColor}
+.mark{grid-column:9/12;align-self:start}
+.mark svg{width:100%;height:auto;max-width:100%}
+.frame{grid-column:2/12;border:1px solid var(--white);min-height:240px;position:relative;padding:24px}
+.frame .tb{position:absolute;right:-1px;bottom:-1px;background:var(--paper);color:var(--ink-on-paper);padding:12px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:lowercase;display:grid;grid-template-columns:auto auto;gap:4px 18px;border:1px solid var(--white);border-radius:6px 0 0 0}
+/* revision table */
+.rev{grid-column:2/12;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12px;letter-spacing:.02em;font-variant-numeric:tabular-nums;min-width:640px}
+caption{text-align:left;font-family:var(--display);font-size:17px;margin-bottom:12px;color:var(--white)}
+th{text-align:left;font-weight:500;text-transform:uppercase;font-size:10px;letter-spacing:.1em;opacity:.6;padding:0 12px 10px 0;border-bottom:1px solid var(--mist-strong)}
+td{padding:12px 12px 12px 0;border-bottom:1px solid var(--mist);vertical-align:top}
+tr{position:relative}
+td.what{position:relative}
+td.what::before{content:"";position:absolute;left:-16px;top:50%;height:1px;width:0;background:var(--white);transition:width .16s}
+tr:hover td.what::before,tr:focus-within td.what::before{width:12px}
+td a{text-decoration:none;border-bottom:1px solid var(--mist-strong)}
+td a:focus-visible{outline:2px solid var(--mist-strong);outline-offset:2px}
+.colophon{padding:160px 24px 24px calc(var(--margin) + 24px);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:lowercase;opacity:.7;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.skip{position:absolute;left:-9999px;top:8px;background:var(--paper);color:var(--ink-on-paper);padding:8px 12px;z-index:9}
+.skip:focus{left:calc(var(--margin) + 24px)}
+.note{grid-column:2/12;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:lowercase;opacity:.6;margin-top:24px}
+@media (max-width:1279px){
+  .hero{grid-template-rows:auto auto auto;min-height:auto}
+  .titleblock{position:static;width:auto;max-width:560px;margin:24px 24px 0 calc(var(--margin) + 24px);order:1}
+  #stage{order:2;margin-top:16px;height:min(72svh,720px)}
+  .underdesk{position:static;order:3;align-items:flex-start;padding:16px 24px 0 calc(var(--margin) + 24px)}
+  .objlist{justify-content:flex-start}
+}
+@media (max-width:1023px){
+  :root{--margin:0px}
+  .index{position:fixed;left:0;right:0;top:auto;bottom:0;height:auto;width:auto;flex-direction:row;justify-content:space-around;padding:10px max(16px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px));background:var(--blue-deep);border-top:1px solid var(--mist-strong)}
+  .index .rule{display:none}.index a::before{display:none}.index a{padding:6px 2px;font-size:10px}
+  .label{font-size:10px}
+  .titleblock{margin:24px 16px 0}
+  #stage{height:clamp(320px,48svh,420px)}
+  .underdesk{padding:16px 16px 0}
+  section{padding:96px 16px 0}
+  .panel,.mark,.frame,.rev,.note{grid-column:1/-1}
+  .colophon{padding:96px 16px 72px}
+  .sheet{min-height:auto}
+}
+@media (orientation:landscape) and (max-width:1023px){#stage{height:50svh}}
+@media (hover:none){.label{display:none}}
+@media (prefers-reduced-motion:reduce){.titleblock h1{animation:none;clip-path:none}.panel{transition:none;opacity:1}.callout,.label,td.what::before{transition:none}}
+html[data-motion="reduce"] .titleblock h1{animation:none;clip-path:none}
+html[data-motion="reduce"] .panel{opacity:1}
+</style>
+
+<a class="skip" href="#work">skip the 3D desk</a>
+<nav class="index" aria-label="sheet index">
+  <span class="rule" aria-hidden="true"><i></i></span>
+  <a href="#desk" aria-current="true">desk</a><a href="#work">work</a><a href="#open-source">open source</a><a href="#cv">cv</a><a href="#contact">contact</a><a href="#colophon">colophon</a>
+</nav>
+
+<div class="sheet">
+<header class="hero" id="desk">
+  <div id="stage">
+    <div class="poster" id="poster" role="img" aria-label="Line drawing of an Arduino board with a small OLED screen, three desk clocks, a Nepali desk calendar and a Pac-Man ghost laid out on blueprint paper.">
+      <svg viewBox="0 0 800 440" width="70%" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="60" y="80" width="680" height="300" stroke="#DED9FA" stroke-width="1"/>
+        <rect x="330" y="200" width="150" height="100" transform="skewX(-10)"/><rect x="390" y="190" width="36" height="24" transform="skewX(-10)"/>
+        <ellipse cx="180" cy="180" rx="44" ry="30"/><ellipse cx="180" cy="245" rx="44" ry="30"/><ellipse cx="180" cy="310" rx="44" ry="30"/>
+        <rect x="560" y="160" width="100" height="120"/><path d="M620 330 a35 35 0 0 1 70 0 v40 l-12 -10 -12 10 -11 -10 -12 10 -11 -10 -12 10z"/>
+        <text x="60" y="60" font-family="JetBrains Mono" font-size="12" fill="#fff" stroke="none" letter-spacing="1">LOADING THE DRAWING</text>
+      </svg>
+    </div>
+    <canvas id="c" tabindex="0" aria-hidden="true"></canvas>
+    <div class="callouts" id="labels" aria-hidden="true"></div>
+    <div class="callouts" id="callouts" aria-hidden="true"></div>
+  </div>
+  <div class="titleblock" aria-label="title block">
+    <h1>nihal maskey</h1>
+    <p>I'm a software engineer in Kathmandu. I lead a team at Leapfrog Technology that builds healthcare software on AWS, and I make tools I needed and could not find.</p>
+    <div class="tb-rows">
+      <div><span class="k">email</span><button id="copy" type="button">contact@nihal.com.np</button></div>
+      <div><span class="k">local time</span><span id="ktm">--:--</span> kathmandu · utc+5:45</div>
+      <div><span class="k">rev</span>2026.11 · sheet 1 of 1</div>
+      <div><span class="k">scale</span>1:1 · drawn by nm</div>
+    </div>
+  </div>
+  <div class="underdesk">
+    <span class="mono">drag things around. tap one to jump to its section.</span>
+    <ul class="objlist" id="objlist"></ul>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="reset" type="button">reset the desk</button>
+      <button class="btn" id="motion" type="button" aria-pressed="false">reduce motion</button>
+    </div>
+  </div>
+</header>
+
+<section id="work">
+  <h2>work</h2>
+  <div class="grid">
+    <article class="panel">
+      <div class="date"><span>nov 2026</span><span>0.8.1 in the chrome web store and firefox add-ons</span></div>
+      <h3>tz converter</h3>
+      <p>A browser extension, TypeScript, Manifest V3. Select a time on a page and a popover shows it in the zones you've chosen. It also has a full converter, an epoch converter, right-click convert, custom date formats, and a world clock. I built it because the people I work with are in Nepal, Australia and the US.</p>
+      <div class="links"><a href="https://tz.nihal.com.np/">tz.nihal.com.np</a><a href="https://github.com/maskeynihal/tz-extension">github</a></div>
+    </article>
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 300 220" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"><circle cx="80" cy="110" r="60"/><circle cx="220" cy="110" r="60"/><path d="M80 110 V62 M80 110 L112 128"/><path d="M220 110 V62 M220 110 L190 86"/><path d="M140 110 H160" stroke="#DED9FA" stroke-width="1"/><path d="M20 190 H280" stroke="#DED9FA" stroke-width="1"/><path d="M20 185 L24 195 M280 185 L284 195" stroke="#DED9FA" stroke-width="1"/><text x="150" y="208" font-family="JetBrains Mono" font-size="10" fill="#DED9FA" stroke="none" text-anchor="middle" letter-spacing="1">+5:45 → +11:00</text></svg>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:48px">
+    <div class="frame" aria-label="trayt health, client work">
+      <span class="mono" style="opacity:.6;text-transform:lowercase">client work, so there is no code to link. ask me about it.</span>
+      <div class="tb"><span>title</span><span>trayt health</span><span>role</span><span>lead engineer, jan 2025 →</span><span>stack</span><span>aws · sqs · eventbridge · step functions</span><span>sheet</span><span>1 of 1</span></div>
+    </div>
+    <p class="note">prototype: one panel and one empty frame shown. the real site has five panels.</p>
+  </div>
+</section>
+
+<section id="open-source">
+  <h2>open source</h2>
+  <div class="grid">
+    <div class="rev">
+      <table>
+        <caption>Pull requests merged into other people's repositories. Counts come from the GitHub API at build time.</caption>
+        <thead><tr><th>repo</th><th>what</th><th>merged</th></tr></thead>
+        <tbody>
+          <tr><td>digitalocean/nginxconfig.io</td><td class="what"><a href="https://github.com/digitalocean/nginxconfig.io/pull/433">independent scrolling in split-column mode</a></td><td>2023-06</td></tr>
+          <tr><td>digitalocean/nginxconfig.io</td><td class="what"><a href="https://github.com/digitalocean/nginxconfig.io/commits?author=maskeynihal">prettier via lint-staged</a></td><td>2023-10</td></tr>
+          <tr><td>spatie/holidays</td><td class="what"><a href="https://github.com/spatie/holidays/pull/247">nepal holiday calendar, with tests</a></td><td>2024-10</td></tr>
+          <tr><td>kritish-dhaubanjar/dynamodb-dashboard</td><td class="what"><a href="https://github.com/kritish-dhaubanjar/dynamodb-dashboard">18 commits: validation, download, search fixes</a></td><td>2023 → 2026</td></tr>
+          <tr><td>benawad/dogehouse</td><td class="what"><a href="https://github.com/benawad/dogehouse">nepali translation, persist language</a></td><td>2021</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="cv"><h2>cv</h2><div class="grid"><p class="note" style="margin:0">prototype: table omitted here.</p></div></section>
+<section id="contact"><h2>contact</h2><div class="grid"><p class="note" style="margin:0">prototype: clocks and form omitted here.</p></div></section>
+<footer class="colophon" id="colophon"><span>© 2026 nihal maskey</span><span>prototype · grey-box objects · not final models</span></footer>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+
+const BLUE = '#1F3FE0', LINE2 = '#DED9FA';
+const html = document.documentElement;
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let reduce = mq.matches; let userReduce = false;
+try { userReduce = localStorage.getItem('nihal:motion') === 'reduce'; } catch {}
+if (userReduce) reduce = true;
+html.dataset.motion = reduce ? 'reduce' : 'full';
+const motionBtn = document.getElementById('motion');
+motionBtn.setAttribute('aria-pressed', String(reduce));
+
+// ---- clock
+const ktm = document.getElementById('ktm');
+const fmt = new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kathmandu'});
+const tick = () => { ktm.textContent = fmt.format(new Date()); };
+tick(); setInterval(tick, 15000);
+
+// ---- copy email
+const copyBtn = document.getElementById('copy');
+copyBtn.addEventListener('click', async () => {
+  const addr = 'contact@nihal.com.np'; const prev = copyBtn.textContent;
+  try { await navigator.clipboard.writeText(addr); copyBtn.textContent = 'copied'; }
+  catch { const r = document.createRange(); r.selectNodeContents(copyBtn); getSelection().removeAllRanges(); getSelection().addRange(r); }
+  setTimeout(() => { copyBtn.textContent = prev; }, 1600);
+});
+
+// ---- sheet index progress + current
+const idx = document.querySelector('.index');
+const idxLinks = [...idx.querySelectorAll('a')];
+const sections = idxLinks.map(a => document.querySelector(a.getAttribute('href')));
+function onScroll() {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  idx.style.setProperty('--progress', String(max > 0 ? Math.min(1, scrollY / max) : 0));
+  const mid = innerHeight / 2; let cur = 0;
+  sections.forEach((s, i) => { const r = s.getBoundingClientRect(); if (r.top <= mid) cur = i; });
+  idxLinks.forEach((a, i) => { if (i === cur) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+  explodeTarget = Math.min(1, Math.max(0, scrollY / (innerHeight * 0.6)));
+  invalidate();
+}
+addEventListener('scroll', onScroll, { passive: true });
+idxLinks.forEach(a => a.addEventListener('click', e => { e.preventDefault(); goTo(a.getAttribute('href')); }));
+function goTo(sel) {
+  const el = document.querySelector(sel); if (!el) return;
+  el.scrollIntoView({ behavior: html.dataset.motion === 'full' ? 'smooth' : 'auto', block: 'start' });
+  const h = el.querySelector('h2,h1'); if (h) { h.setAttribute('tabindex','-1'); h.focus({ preventScroll: true }); }
+}
+
+// ---- panel enters
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.2 });
+document.querySelectorAll('.panel').forEach(p => io.observe(p));
+
+// ================= THREE =================
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('c');
+const poster = document.getElementById('poster');
+const labelsEl = document.getElementById('labels');
+const calloutsEl = document.getElementById('callouts');
+const objlist = document.getElementById('objlist');
+
+const DESK = { hx: 0.78, hz: 0.46 };
+const defs = [
+  { id: 'arduino', label: 'arduino water monitor', target: '#work', home: [0, 0, 0.02], r: 0.17, mass: 1.2, explode: [0, 0.42, 0], callouts: [['68.6 mm · uno r4', [0.16, 0.02, 0]], ['1.3" oled · demo', [-0.02, 0.05, -0.08]]] },
+  { id: 'clock-ktm', label: 'clock · ktm', target: '#contact', home: [-0.55, 0, -0.3], r: 0.1, mass: 0.6, explode: [-0.22, 0.26, -0.16], callouts: [['ø 72 mm · ktm +5:45', [0, 0.03, -0.1]]] },
+  { id: 'clock-2', label: 'clock · city 2', target: '#contact', home: [-0.55, 0, 0.02], r: 0.1, mass: 0.6, explode: [-0.26, 0.3, 0], callouts: [['ø 72 mm · city 2', [0, 0.03, -0.1]]] },
+  { id: 'clock-3', label: 'clock · city 3', target: '#contact', home: [-0.55, 0, 0.34], r: 0.1, mass: 0.6, explode: [-0.22, 0.34, 0.16], callouts: [['ø 72 mm · city 3', [0, 0.03, -0.1]]] },
+  { id: 'calendar', label: 'calendar · bikram sambat', target: '#open-source', home: [0.5, 0, -0.24], r: 0.14, mass: 0.8, explode: [0.22, 0.36, -0.14], callouts: [['२०८३ · demo', [0, 0.04, -0.14]], ['180 × 120 mm', [0.12, 0.02, 0.06]]] },
+  { id: 'ghost', label: 'pac-man ghost', target: '#work', home: [0.46, 0, 0.3], r: 0.09, mass: 0.5, explode: [0.2, 0.44, 0.16], callouts: [['canvas · 2020', [0.08, 0.1, 0]]] },
+];
+
+let renderer, scene, camera, world, lineMats = [];
+const hullU = { uPx: { value: 1.5 }, uRes: { value: new THREE.Vector2(1, 1) } };
+let objects = new Map(); let needs = true, running = false;
+let explodeTarget = 0, explode = 0;
+let grabbed = null, hover = null;
+const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2(); const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+const hit = new THREE.Vector3(); const tmp = new THREE.Vector3();
+let leader;      // explode leader lines
+let calloutLines; // callout leader lines
+let dpr = 1;
+
+function invalidate(){ needs = true; if (!running) { running = true; requestAnimationFrame(loop); } }
+
+function makeMaterials() {
+  const occ = new THREE.MeshBasicMaterial({ color: BLUE, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, toneMapped: false });
+  const hull = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.BackSide, toneMapped: false });
+  hull.onBeforeCompile = (s) => {
+    s.uniforms.uPx = hullU.uPx; s.uniforms.uRes = hullU.uRes;
+    s.vertexShader = 'uniform float uPx; uniform vec2 uRes;\n' + s.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>
+       vec4 cp = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+       float w = 2.0 * uPx * cp.w / (uRes.y * projectionMatrix[1][1]);
+       transformed += normal * w;`);
+  };
+  return { occ, hull };
+}
+function lineMat(color, width) {
+  const m = new LineMaterial({ color, linewidth: width, worldUnits: false, alphaToCoverage: true, toneMapped: false });
+  lineMats.push(m); return m;
+}
+let mats, whiteLine, softLine;
+
+// line-art object: occluder + hull + crease lines (EdgesGeometry 40° stands in for authored creases in the grey-box)
+function lineArt(geo, threshold = 40, opts = {}) {
+  const g = new THREE.Group();
+  const occ = new THREE.Mesh(geo, mats.occ); occ.userData.pick = true; g.add(occ);
+  if (!opts.noHull) { const h = new THREE.Mesh(geo, mats.hull); h.raycast = () => {}; g.add(h); }
+  const eg = new THREE.EdgesGeometry(geo, threshold);
+  const lg = new LineSegmentsGeometry().fromEdgesGeometry(eg);
+  const ls = new LineSegments2(lg, whiteLine); ls.raycast = () => {}; ls.computeLineDistances(); g.add(ls);
+  return g;
+}
+
+function oledTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64; const x = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+  let n = 0;
+  const frame = () => {
+    x.fillStyle = '#0a1c6b'; x.fillRect(0,0,128,64);
+    x.fillStyle = '#fff'; x.font = '10px "JetBrains Mono", monospace'; x.textBaseline = 'top';
+    const w = (18.2 + Math.sin(n/7)*0.3).toFixed(1), a = (21.0 + Math.cos(n/11)*0.4).toFixed(1), rh = Math.round(54 + Math.sin(n/5)*2);
+    x.fillText(`WATER ${w}C`, 4, 4); x.fillText(`AIR   ${a}C`, 4, 18); x.fillText(`RH    ${rh}%`, 4, 32);
+    // truck sprite
+    const tx = 70 + ((n*3) % 60); x.fillRect(tx, 48, 22, 7); x.fillRect(tx+14, 42, 8, 6); x.fillRect(tx+3, 55, 4, 4); x.fillRect(tx+16, 55, 4, 4);
+    x.fillRect(4, 46, (n % 40) * 1.2, 1);
+    n++; tex.needsUpdate = true;
+  };
+  frame(); return { tex, frame };
+}
+
+function build() {
+  mats = makeMaterials(); whiteLine = lineMat('#ffffff', 1.5); softLine = lineMat(LINE2, 1);
+  scene = new THREE.Scene(); world = new THREE.Group(); scene.add(world);
+  camera = new THREE.PerspectiveCamera(35, 1, 0.5, 8);
+  camera.position.set(0, 2.05, 1.55); camera.lookAt(0, 0, -0.05);
+
+  // sheet border + grid (secondary strokes)
+  const pts = [];
+  const bx = DESK.hx + 0.06, bz = DESK.hz + 0.06;
+  pts.push(-bx,0,-bz, bx,0,-bz, bx,0,-bz, bx,0,bz, bx,0,bz, -bx,0,bz, -bx,0,bz, -bx,0,-bz);
+  for (let x = -0.6; x <= 0.61; x += 0.2) pts.push(x,0,-bz, x,0,bz);
+  for (let z = -0.4; z <= 0.41; z += 0.2) pts.push(-bx,0,z, bx,0,z);
+  const gg = new LineSegmentsGeometry(); gg.setPositions(pts);
+  const grid = new LineSegments2(gg, softLine); grid.raycast = () => {}; world.add(grid);
+
+  // objects
+  const oled = oledTexture();
+  for (const d of defs) {
+    let g;
+    if (d.id === 'arduino') {
+      g = new THREE.Group();
+      g.add(lineArt(new THREE.BoxGeometry(0.30, 0.018, 0.21)));
+      const bb = lineArt(new THREE.BoxGeometry(0.11, 0.022, 0.07)); bb.position.set(0.07, 0.02, 0.05); g.add(bb);
+      const ol = lineArt(new THREE.BoxGeometry(0.075, 0.03, 0.045)); ol.position.set(-0.07, 0.024, -0.05); g.add(ol);
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.064, 0.032), new THREE.MeshBasicMaterial({ map: oled.tex, toneMapped: false }));
+      screen.rotation.x = -Math.PI/2; screen.position.set(-0.07, 0.0401, -0.05); screen.raycast = () => {}; g.add(screen);
+      for (let i = 0; i < 6; i++) { const pin = lineArt(new THREE.BoxGeometry(0.012, 0.03, 0.012), 40, { noHull: true }); pin.position.set(-0.13 + i*0.03, 0.02, 0.085); g.add(pin); }
+      g.userData.oled = oled;
+    } else if (d.id.startsWith('clock')) {
+      g = new THREE.Group();
+      const body = lineArt(new THREE.CylinderGeometry(0.09, 0.09, 0.03, 32), 80); g.add(body);
+      const rim = lineArt(new THREE.TorusGeometry(0.085, 0.004, 8, 48), 90, { noHull: true }); rim.rotation.x = Math.PI/2; rim.position.y = 0.016; g.add(rim);
+      const hands = new LineSegments2(new LineSegmentsGeometry().setPositions([0,0,0, 0,0,0.05, 0,0,0, 0.04,0,0]), whiteLine); hands.position.y = 0.018; hands.raycast = () => {}; g.add(hands);
+      g.userData.hands = hands; g.userData.tz = d.id === 'clock-ktm' ? 'Asia/Kathmandu' : d.id === 'clock-2' ? 'Australia/Sydney' : 'America/Los_Angeles';
+      const ticks = []; for (let i = 0; i < 12; i++) { const a = i/12*Math.PI*2; ticks.push(Math.sin(a)*0.07,0,Math.cos(a)*0.07, Math.sin(a)*0.08,0,Math.cos(a)*0.08); }
+      const tk = new LineSegments2(new LineSegmentsGeometry().setPositions(ticks), softLine); tk.position.y = 0.018; tk.raycast = () => {}; g.add(tk);
+    } else if (d.id === 'calendar') {
+      g = new THREE.Group();
+      const base = lineArt(new THREE.BoxGeometry(0.2, 0.012, 0.26)); g.add(base);
+      const stand = lineArt(new THREE.BoxGeometry(0.2, 0.09, 0.02)); stand.position.set(0, 0.05, -0.12); stand.rotation.x = 0.35; g.add(stand);
+      const sheetG = new THREE.PlaneGeometry(0.17, 0.2);
+      const c = document.createElement('canvas'); c.width = 256; c.height = 300; const x = c.getContext('2d');
+      x.fillStyle = BLUE; x.fillRect(0,0,256,300); x.strokeStyle = LINE2; x.lineWidth = 2; x.strokeRect(8,8,240,284);
+      x.fillStyle = '#fff'; x.font = '20px "JetBrains Mono", monospace'; x.textAlign = 'center'; x.fillText('कात्तिक २०८३', 128, 50);
+      x.font = '600 110px "Fraunces", Georgia, serif'; x.fillText('१९', 128, 190);
+      x.font = '16px "JetBrains Mono", monospace'; x.fillText('DEMO · THU', 128, 250);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      const page = new THREE.Mesh(sheetG, new THREE.MeshBasicMaterial({ map: t, toneMapped: false })); page.rotation.x = -Math.PI/2; page.position.set(0, 0.0071, 0.02); page.raycast = () => {}; g.add(page);
+    } else if (d.id === 'ghost') {
+      g = new THREE.Group();
+      const body = lineArt(new THREE.CylinderGeometry(0.08, 0.08, 0.1, 24), 80); body.position.y = 0.05; g.add(body);
+      const head = lineArt(new THREE.SphereGeometry(0.08, 24, 12, 0, Math.PI*2, 0, Math.PI/2), 80); head.position.y = 0.1; g.add(head);
+      const eyeG = new THREE.CircleGeometry(0.014, 12);
+      for (const sx of [-0.03, 0.03]) { const e = new THREE.Mesh(eyeG, new THREE.MeshBasicMaterial({ color: '#fff', toneMapped: false })); e.position.set(sx, 0.11, 0.086); e.raycast = () => {}; g.add(e); }
+      const skirt = []; for (let i = 0; i < 6; i++) { const a0 = i/6*Math.PI*2, a1 = (i+0.5)/6*Math.PI*2, a2 = (i+1)/6*Math.PI*2; skirt.push(Math.sin(a0)*0.08,0,Math.cos(a0)*0.08, Math.sin(a1)*0.08,0.03,Math.cos(a1)*0.08, Math.sin(a1)*0.08,0.03,Math.cos(a1)*0.08, Math.sin(a2)*0.08,0,Math.cos(a2)*0.08); }
+      const sk = new LineSegments2(new LineSegmentsGeometry().setPositions(skirt), whiteLine); sk.raycast = () => {}; g.add(sk);
+    }
+    g.traverse(o => { if (o.userData.pick) o.userData.id = d.id; });
+    g.position.set(...d.home);
+    world.add(g);
+    const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = d.label; labelsEl.appendChild(lab);
+    const cos = d.callouts.map(([text]) => { const c = document.createElement('div'); c.className = 'callout'; c.textContent = text; calloutsEl.appendChild(c); return c; });
+    objects.set(d.id, { d, g, lab, cos, pos: new THREE.Vector3(...d.home), vel: new THREE.Vector3(), yaw: 0, yawV: 0, lift: 0, liftT: 0 });
+    const li = document.createElement('li'); const a = document.createElement('a'); a.href = d.target; a.textContent = d.label + ' →'; a.addEventListener('click', e => { e.preventDefault(); goTo(d.target); }); li.appendChild(a); objlist.appendChild(li);
+  }
+  leader = new LineSegments2(new LineSegmentsGeometry().setPositions(new Array(defs.length*6).fill(0)), softLine); leader.raycast = () => {}; leader.visible = false; world.add(leader);
+  calloutLines = new LineSegments2(new LineSegmentsGeometry().setPositions(new Array(12).fill(0)), softLine); calloutLines.raycast = () => {}; calloutLines.visible = false; world.add(calloutLines);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'low-power' });
+  renderer.toneMapping = THREE.NoToneMapping; renderer.setClearColor(BLUE);
+  dpr = (navigator.hardwareConcurrency ?? 4) <= 4 || matchMedia('(pointer: coarse)').matches ? 1 : Math.min(1.5, devicePixelRatio);
+  renderer.setPixelRatio(dpr);
+  resize();
+  poster.classList.add('gone'); poster.inert = true; setTimeout(() => { poster.hidden = true; }, 320);
+  setInterval(() => { updateClocks(); invalidate(); }, 1000);
+  setInterval(() => { if (document.hidden || html.dataset.motion !== 'full') return; oled.frame(); invalidate(); }, 500);
+  updateClocks(); invalidate();
+}
+
+function resize() {
+  if (!renderer) return;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  const portrait = w / h < 1;
+  world.rotation.y = portrait ? Math.PI / 2 : 0;
+  camera.fov = portrait ? 50 : 35;
+  camera.position.set(0, portrait ? 1.85 : 2.05, portrait ? 1.3 : 1.55); camera.lookAt(0, 0, portrait ? 0.02 : -0.05);
+  camera.updateProjectionMatrix();
+  for (const m of lineMats) m.resolution.set(w, h);
+  hullU.uRes.value.set(w, h);
+  invalidate();
+}
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 200); });
+
+function updateClocks() {
+  const now = new Date();
+  for (const o of objects.values()) {
+    if (!o.g.userData.hands) continue;
+    const parts = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false, timeZone: o.g.userData.tz }).formatToParts(now);
+    const h = +parts.find(p => p.type === 'hour').value % 12, m = +parts.find(p => p.type === 'minute').value;
+    const ha = (h + m/60) / 12 * Math.PI*2, ma = m / 60 * Math.PI*2;
+    o.g.userData.hands.geometry.setPositions([0,0,0, Math.sin(ha)*0.045,0,Math.cos(ha)*0.045, 0,0,0, Math.sin(ma)*0.068,0,Math.cos(ma)*0.068]);
+  }
+}
+
+// ---- input
+let down = null, holdTimer = null, ring = [];
+function setPointer(e) { const r = canvas.getBoundingClientRect(); pointer.set(((e.clientX - r.left)/r.width)*2-1, -((e.clientY - r.top)/r.height)*2+1); }
+function pick() {
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(scene.children, true).filter(h => h.object.userData.pick);
+  return hits.length ? objects.get(hits[0].object.userData.id) : null;
+}
+function planePoint() { raycaster.setFromCamera(pointer, camera); raycaster.ray.intersectPlane(plane, hit); world.worldToLocal(hit); return hit; }
+
+canvas.addEventListener('pointerdown', e => {
+  setPointer(e); const o = pick(); if (!o) return;
+  down = { o, x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+  if (e.pointerType === 'touch') { holdTimer = setTimeout(() => beginGrab(e), 180); }
+  else beginGrab(e);
+});
+function beginGrab(e) {
+  if (!down) return; grabbed = down.o; canvas.setPointerCapture(down.id);
+  grabbed.vel.set(0,0,0); ring = []; idx.classList.add('dim');
+  grabbed.cos.forEach(c => c.classList.add('on')); calloutLines.visible = true;
+  invalidate();
+}
+canvas.addEventListener('touchmove', e => { if (grabbed) e.preventDefault(); }, { passive: false });
+canvas.addEventListener('pointermove', e => {
+  setPointer(e);
+  if (down && !grabbed && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) { clearTimeout(holdTimer); if (e.pointerType === 'touch') down = null; }
+  if (grabbed) {
+    const p = planePoint(); grabbed.target = p.clone();
+    ring.push({ x: p.x, z: p.z, t: performance.now() }); if (ring.length > 5) ring.shift();
+    invalidate(); return;
+  }
+  if (!matchMedia('(hover: hover)').matches) return;
+  const o = pick(); if (o !== hover) { if (hover) { hover.lab.classList.remove('hot'); hover.liftT = 0; } hover = o; if (hover) { hover.lab.classList.add('hot'); hover.liftT = 0.004; } canvas.style.cursor = hover ? 'grab' : ''; invalidate(); }
+});
+function endGrab(e) {
+  clearTimeout(holdTimer);
+  if (down && !grabbed && e && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6 && performance.now() - down.t < 250) { goTo(down.o.d.target); }
+  if (grabbed) {
+    const o = grabbed; o.target = null;
+    if (ring.length >= 2) { const a = ring[0], b = ring[ring.length-1]; const dt = Math.max(16, b.t - a.t) / 1000; const v = new THREE.Vector3((b.x - a.x)/dt, 0, (b.z - a.z)/dt); if (v.length() > 4) v.setLength(4); o.vel.copy(v); o.yawV = (Math.random()-0.5) * v.length() * 2; }
+    o.cos.forEach(c => c.classList.remove('on')); calloutLines.visible = false; idx.classList.remove('dim');
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6 && performance.now() - down.t < 250) goTo(o.d.target);
+    grabbed = null;
+  }
+  down = null; invalidate();
+}
+canvas.addEventListener('pointerup', endGrab); canvas.addEventListener('pointercancel', endGrab);
+canvas.addEventListener('keydown', e => { if (e.key === 'r' || e.key === 'R') resetDesk(); });
+document.getElementById('reset').addEventListener('click', resetDesk);
+function resetDesk() { for (const o of objects.values()) { o.pos.set(...o.d.home); o.vel.set(0,0,0); o.yaw = 0; o.yawV = 0; } invalidate(); }
+motionBtn.addEventListener('click', () => {
+  const now = html.dataset.motion === 'full' ? 'reduce' : 'full'; html.dataset.motion = now; motionBtn.setAttribute('aria-pressed', String(now === 'reduce'));
+  try { localStorage.setItem('nihal:motion', now); } catch {}
+  if (now === 'reduce') { explodeTarget = 0; } invalidate();
+});
+
+// ---- sim + render
+let last = performance.now();
+function loop(now) {
+  if (!renderer) { running = false; return; }
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  let moving = false;
+  const full = html.dataset.motion === 'full';
+  // explode
+  const et = full ? explodeTarget : 0;
+  if (Math.abs(explode - et) > 1e-3) { explode += (et - explode) * 0.12; moving = true; } else explode = et;
+  const lp = [];
+  for (const o of objects.values()) {
+    // grabbed follow
+    if (o === grabbed && o.target) { o.pos.x += (o.target.x - o.pos.x) * 0.25; o.pos.z += (o.target.z - o.pos.z) * 0.25; moving = true; }
+    else if (o.vel.lengthSq() > 1e-6 || Math.abs(o.yawV) > 1e-3) {
+      o.pos.addScaledVector(o.vel, dt); o.vel.multiplyScalar(Math.exp(-3.2 * dt)); o.yaw += o.yawV * dt; o.yawV *= Math.exp(-3 * dt);
+      if (o.vel.lengthSq() < 1e-6) o.vel.set(0,0,0);
+      moving = true;
+    }
+    // walls
+    const mx = DESK.hx - o.d.r, mz = DESK.hz - o.d.r;
+    if (o.pos.x > mx) { o.pos.x = mx; o.vel.x = -Math.abs(o.vel.x) * 0.4; } if (o.pos.x < -mx) { o.pos.x = -mx; o.vel.x = Math.abs(o.vel.x) * 0.4; }
+    if (o.pos.z > mz) { o.pos.z = mz; o.vel.z = -Math.abs(o.vel.z) * 0.4; } if (o.pos.z < -mz) { o.pos.z = -mz; o.vel.z = Math.abs(o.vel.z) * 0.4; }
+    // lift lerp
+    if (Math.abs(o.lift - o.liftT) > 1e-4) { o.lift += (o.liftT - o.lift) * 0.2; moving = true; } else o.lift = o.liftT;
+  }
+  // object-object push
+  const arr = [...objects.values()];
+  for (let i = 0; i < arr.length; i++) for (let j = i+1; j < arr.length; j++) {
+    const a = arr[i], b = arr[j]; const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z; const d = Math.hypot(dx, dz), min = a.d.r + b.d.r;
+    if (d < min && d > 1e-4) { const push = (min - d) / 2, nx = dx/d, nz = dz/d; const ma = a === grabbed ? 0 : 1, mb = b === grabbed ? 0 : 1; const s = ma + mb || 1;
+      a.pos.x -= nx*push*2*ma/s; a.pos.z -= nz*push*2*ma/s; b.pos.x += nx*push*2*mb/s; b.pos.z += nz*push*2*mb/s;
+      const rel = (b.vel.x - a.vel.x)*nx + (b.vel.z - a.vel.z)*nz; if (rel < 0) { const imp = -rel * 0.8; if (ma) { a.vel.x -= nx*imp*(mb? .5:1); a.vel.z -= nz*imp*(mb? .5:1); } if (mb) { b.vel.x += nx*imp*(ma? .5:1); b.vel.z += nz*imp*(ma? .5:1); } }
+      moving = true; }
+  }
+  // apply transforms
+  for (const o of objects.values()) {
+    const e = o.d.explode; const resting = o !== grabbed && o.vel.lengthSq() < 1e-6;
+    const ex = resting ? explode : 0;
+    o.g.position.set(o.pos.x + e[0]*ex, o.lift + e[1]*ex + (o === grabbed ? 0.03 : 0), o.pos.z + e[2]*ex);
+    o.g.rotation.y = o.yaw;
+    lp.push(o.pos.x, 0.001, o.pos.z, o.g.position.x, o.g.position.y, o.g.position.z);
+  }
+  leader.visible = explode > 0.02; if (leader.visible) leader.geometry.setPositions(lp);
+  // labels + callouts
+  const r = canvas.getBoundingClientRect();
+  const toScreen = (v) => { tmp.copy(v); world.localToWorld(tmp); tmp.project(camera); return [ (tmp.x+1)/2*r.width, (1-tmp.y)/2*r.height ]; };
+  for (const o of objects.values()) {
+    const [sx, sy] = toScreen(new THREE.Vector3(o.g.position.x, o.g.position.y, o.g.position.z + o.d.r + 0.03));
+    o.lab.style.left = sx + 'px'; o.lab.style.top = sy + 'px';
+    o.lab.style.opacity = (o === grabbed) ? 0 : '';
+  }
+  if (grabbed) {
+    const cp = []; grabbed.cos.forEach((c, i) => {
+      const [, off] = grabbed.d.callouts[i]; const anchor = new THREE.Vector3(grabbed.g.position.x + off[0], grabbed.g.position.y + off[1], grabbed.g.position.z + off[2]);
+      const end = anchor.clone().add(new THREE.Vector3(i ? -0.22 : 0.22, 0.12, -0.12));
+      cp.push(anchor.x, anchor.y, anchor.z, end.x, end.y, end.z);
+      const [sx, sy] = toScreen(end); c.style.left = sx + 'px'; c.style.top = (sy - 4) + 'px';
+    });
+    while (cp.length < 12) cp.push(0,0,0);
+    calloutLines.geometry.setPositions(cp);
+  }
+  if (needs || moving) { renderer.render(scene, camera); needs = false; }
+  if (moving || grabbed) requestAnimationFrame(loop); else running = false;
+}
+
+// ---- boot: poster first, then the drawing when idle
+function canRun3D() {
+  if (html.dataset.motion !== 'full' || innerWidth < 360) return false;
+  try { const gl = document.createElement('canvas').getContext('webgl2'); const ok = !!gl; if (!ok) console.warn('no webgl2'); gl?.getExtension('WEBGL_lose_context')?.loseContext(); return ok; } catch { return false; }
+}
+const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+if (canRun3D()) { idle(() => { try { build(); onScroll(); } catch (err) { console.error(err); poster.querySelector('text').textContent = '3D IS OFF ON THIS DEVICE. EVERYTHING STILL WORKS.'; } }, { timeout: 1500 }); }
+else { poster.querySelector('text').textContent = '3D IS OFF ON THIS DEVICE. EVERYTHING STILL WORKS.'; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) invalidate(); });
+console.log('%chi. this is a prototype of the blueprint. press R with the desk focused to reset it.', 'font-family: monospace; color: #1F3FE0');
+</script>
