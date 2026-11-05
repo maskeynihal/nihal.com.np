@@ -5,7 +5,7 @@
  * Outputs:
  *   public/fonts/<name>-<hash8>.woff2   subset + axis-limited woff2
  *   src/styles/fonts.generated.css      @font-face rules + metric fallbacks
- *   src/styles/fonts.manifest.json      file names / sizes for <link rel=preload>
+ *   src/styles/fonts.manifest.json      file names / sizes (no font preload; see spec 03 §8)
  *
  * Deterministic: no timestamps, outputs are named by content hash and stale
  * files are removed. WONK is kept as a 0-1 range in the single Fraunces file

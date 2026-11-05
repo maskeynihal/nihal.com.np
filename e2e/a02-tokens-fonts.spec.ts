@@ -32,32 +32,11 @@ test.describe('tokens and fonts @A-02', () => {
     expect(html).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
   });
 
-  test('both font files are preloaded (crossorigin except in WebKit) @A-13', async ({
+  test('no font preload links (engines disagree on crossorigin) @A-13', async ({
     page,
-    browserName,
-    javaScriptEnabled,
   }) => {
     await page.goto('/');
-    const links = await page
-      .locator('link[rel="preload"][as="font"]')
-      .evaluateAll((els) =>
-        els.map((e) => ({
-          href: e.getAttribute('href'),
-          type: e.getAttribute('type'),
-          cross: e.hasAttribute('crossorigin'),
-        })),
-      );
-    expect(links).toHaveLength(2);
-    expect(links.map((l) => l.href).join()).toMatch(
-      /fraunces-.*jetbrains-mono-/,
-    );
-    for (const l of links) {
-      expect(l.type).toBe('font/woff2');
-      // WebKit fetches same-origin @font-face files without CORS; see Base.astro.
-      expect(l.cross).toBe(
-        javaScriptEnabled && browserName === 'webkit' ? false : true,
-      );
-    }
+    await expect(page.locator('link[rel="preload"][as="font"]')).toHaveCount(0);
   });
 
   test('Fraunces and JetBrains Mono load', async ({
