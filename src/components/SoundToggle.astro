@@ -1,0 +1,35 @@
+---
+import { copy } from '../content/copy';
+---
+
+<button
+  type="button"
+  class="label pref-toggle"
+  data-sound-toggle
+  aria-pressed="false"
+>
+  <span>{copy.prefs.sound}</span>
+  <span data-sound-state aria-hidden="true">
+    {copy.prefs.off}
+  </span>
+</button>
+
+<script>
+  import { getSound, setSound, subscribeSound } from '../lib/prefs';
+  import { copy } from '../content/copy';
+
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-sound-toggle]')
+    .forEach((btn) => {
+      const state = btn.querySelector<HTMLElement>('[data-sound-state]');
+      const sync = (s: 'on' | 'off') => {
+        btn.setAttribute('aria-pressed', String(s === 'on'));
+        if (state) state.textContent = copy.prefs[s];
+      };
+      sync(getSound());
+      subscribeSound(sync);
+      btn.addEventListener('click', () =>
+        setSound(getSound() === 'on' ? 'off' : 'on'),
+      );
+    });
+</script>

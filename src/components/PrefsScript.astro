@@ -1,0 +1,15 @@
+---
+import src from '../lib/prefs-inline.js?raw';
+import { minifyInline } from '../lib/minify-inline';
+
+const code = minifyInline(src);
+---
+
+<script is:inline set:html={code} />
+<noscript>
+  <style>
+    .pref-toggle {
+      display: none;
+    }
+  </style>
+</noscript>

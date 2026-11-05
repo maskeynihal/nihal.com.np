@@ -1,12 +1,18 @@
 ---
 import Base from '../layouts/Base.astro';
 import { testHooks } from '../lib/env';
+import MotionToggle from '../components/MotionToggle.astro';
+import SoundToggle from '../components/SoundToggle.astro';
 ---
 
 <Base title="nihal maskey · lead engineer, kathmandu">
   <main class="page-main">
     <h1 class="name">nihal maskey</h1>
     <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
+    <div class="page-prefs">
+      <MotionToggle />
+      <SoundToggle />
+    </div>
     <div class="paper page-sheet">
       <p>
         I'm a software engineer in Kathmandu. I lead a team at Leapfrog
@@ -18,7 +24,11 @@ import { testHooks } from '../lib/env';
       </p>
     </div>
     {testHooks && (
-      <div id="motion-probe" class="hook-transition" aria-hidden="true" />
+      <div
+        id="motion-probe"
+        aria-hidden="true"
+        style="transition: transform 2s; margin-top: 1rem"
+      />
     )}
   </main>
 </Base>

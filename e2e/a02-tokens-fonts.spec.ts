@@ -76,8 +76,12 @@ test.describe('tokens and fonts @A-02', () => {
   }) => {
     test.skip(isMobile, 'keyboard focus is a desktop path');
     await page.goto('/');
-    await page.keyboard.press('Tab');
     const link = page.locator('a[href^="mailto:"]');
+    // The A-03 preference toggles precede the link in tab order.
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      if (await link.evaluate((el) => el === document.activeElement)) break;
+    }
     await expect(link).toBeFocused();
     const o = await link.evaluate((el) => {
       const s = getComputedStyle(el);

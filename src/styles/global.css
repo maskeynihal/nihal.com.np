@@ -179,8 +179,22 @@ a {
   margin-top: 1rem;
 }
 
-/* Test-hooks builds only: probes the reduced-motion transition cap. */
-.hook-transition {
-  transition: transform 2s;
+.page-prefs {
+  display: flex;
+  gap: 1.5rem;
   margin-top: 1rem;
+}
+
+.pref-toggle {
+  background: none;
+  border: 0;
+  padding: 0.5rem 0;
+  min-height: 44px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pref-toggle[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
 }

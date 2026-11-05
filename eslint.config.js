@@ -28,6 +28,20 @@ export default defineConfig(
       globals: { module: 'readonly' },
     },
   },
+  {
+    // Shipped inline in <head>; runs in the browser, empty catches are deliberate.
+    files: ['src/lib/prefs-inline.js'],
+    languageOptions: {
+      globals: {
+        document: 'readonly',
+        localStorage: 'readonly',
+        matchMedia: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+      },
+    },
+    rules: { 'no-empty': ['error', { allowEmptyCatch: true }] },
+  },
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,
   ...astro.configs['jsx-a11y-recommended'],

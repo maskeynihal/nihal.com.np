@@ -1,0 +1,34 @@
+---
+import { copy } from '../content/copy';
+---
+
+<button
+  type="button"
+  class="label pref-toggle"
+  data-motion-toggle
+  aria-pressed="false"
+>
+  {copy.prefs.motion}
+</button>
+
+<script>
+  import {
+    getMotion,
+    setMotion,
+    subscribeMotion,
+    initPrefs,
+  } from '../lib/prefs';
+
+  initPrefs();
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-motion-toggle]')
+    .forEach((btn) => {
+      const sync = (m: 'reduce' | 'full') =>
+        btn.setAttribute('aria-pressed', String(m === 'reduce'));
+      sync(getMotion());
+      subscribeMotion(sync);
+      btn.addEventListener('click', () =>
+        setMotion(getMotion() === 'reduce' ? 'full' : 'reduce'),
+      );
+    });
+</script>
