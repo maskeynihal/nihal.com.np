@@ -136,9 +136,14 @@ test.describe('tokens and fonts @A-02', () => {
     test.skip(!javaScriptEnabled, 'needs JS');
     test.skip(info.project.name !== 'reduced-motion', 'reduced-motion only');
     await page.goto('/');
-    const d = await page
-      .locator('#motion-probe')
-      .evaluate((el) => getComputedStyle(el).transitionDuration);
+    const probe = page.locator('#motion-probe');
+    test.skip(
+      (await probe.count()) === 0,
+      'probe exists in test-hooks builds only',
+    );
+    const d = await probe.evaluate(
+      (el) => getComputedStyle(el).transitionDuration,
+    );
     for (const part of d.split(',')) {
       expect(parseFloat(part)).toBeLessThanOrEqual(0.2);
     }

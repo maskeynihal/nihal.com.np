@@ -23,6 +23,8 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import subsetFont from 'subset-font';
+import { create } from 'fontkit';
+import { copyCodePointsFor } from './copy-chars';
 import frauncesMetrics from '@capsizecss/metrics/fraunces';
 import jetBrainsMonoMetrics from '@capsizecss/metrics/jetBrainsMono';
 import georgiaMetrics from '@capsizecss/metrics/georgia';
@@ -35,9 +37,24 @@ const manifestOut = join(root, 'src', 'styles', 'fonts.manifest.json');
 
 export const BUDGET_BYTES = 130 * 1024;
 
-/** Latin subset, shared by both families. */
+/** Latin base range; the copy-derived code points (copy-chars.ts) are added on top. */
 export const UNICODE_RANGE =
   'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215';
+
+export function toUnicodeRange(cps: Iterable<number>): string {
+  const sorted = [...new Set(cps)].sort((a, b) => a - b);
+  const parts: string[] = [];
+  const h = (n: number) => n.toString(16).toUpperCase().padStart(4, '0');
+  for (let i = 0; i < sorted.length;) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j]! + 1) j++;
+    parts.push(
+      j > i ? `U+${h(sorted[i]!)}-${h(sorted[j]!)}` : `U+${h(sorted[i]!)}`,
+    );
+    i = j + 1;
+  }
+  return parts.join(', ');
+}
 
 export function codepointsOf(range: string): number[] {
   const out: number[] = [];
@@ -99,7 +116,7 @@ interface Metrics {
 
 // Menlo is a system font and is not in the capsize collection. Values are
 // from its hhea/OS2 tables (upm 2048, monospace advance 1233).
-const menloMetrics: Metrics = {
+export const menloMetrics: Metrics = {
   ascent: 1901,
   descent: -483,
   lineGap: 0,
@@ -136,7 +153,6 @@ export function fallbackFace(
 
 async function main() {
   mkdirSync(outDir, { recursive: true });
-  const text = String.fromCodePoint(...codepointsOf(UNICODE_RANGE));
   const manifest: Record<
     string,
     { family: string; file: string; url: string; bytes: number }
@@ -147,10 +163,21 @@ async function main() {
 
   for (const f of faces) {
     const ttf = readFileSync(join(srcDir, f.source));
+    const wanted = new Set([
+      ...codepointsOf(UNICODE_RANGE),
+      ...copyCodePointsFor(f.key),
+    ]);
+    const text = String.fromCodePoint(...[...wanted].sort((a, b) => a - b));
     const woff2 = await subsetFont(ttf, text, {
       targetFormat: 'woff2',
       variationAxes: f.axes,
     });
+    // Declare exactly the code points present in the shipped file.
+    const present = (create(Buffer.from(woff2)) as { characterSet: number[] })
+      .characterSet;
+    const range = toUnicodeRange(
+      present.filter((c) => c >= 0x20 && c !== 0xffff),
+    );
     const hash = createHash('sha256').update(woff2).digest('hex').slice(0, 8);
     const file = `${f.prefix}-${hash}.woff2`;
     writeFileSync(join(outDir, file), woff2);
@@ -167,7 +194,7 @@ async function main() {
   font-weight: ${f.weight};
   font-display: swap;
   src: url('/fonts/${file}') format('woff2');
-  unicode-range: ${UNICODE_RANGE};
+  unicode-range: ${range};
 }
 
 `;
@@ -182,7 +209,7 @@ async function main() {
   css += '\n';
   css += fallbackFace(
     'JetBrains Mono Fallback',
-    "local('Menlo')",
+    "local('Menlo-Regular'), local('Menlo')",
     jetBrainsMonoMetrics,
     menloMetrics,
   ).css;

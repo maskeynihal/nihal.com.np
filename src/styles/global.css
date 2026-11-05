@@ -160,3 +160,27 @@ a {
     transition-delay: 0s !important;
   }
 }
+
+/* Placeholder page layout (A-02); replaced by the real sections. */
+.page-main {
+  padding: 24px 16px;
+}
+
+.page-rev {
+  margin-top: 1rem;
+}
+
+.page-sheet {
+  margin-top: 1.5rem;
+  max-width: 40rem;
+}
+
+.page-sheet-contact {
+  margin-top: 1rem;
+}
+
+/* Test-hooks builds only: probes the reduced-motion transition cap. */
+.hook-transition {
+  transition: transform 2s;
+  margin-top: 1rem;
+}
