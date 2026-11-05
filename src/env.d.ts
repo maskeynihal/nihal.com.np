@@ -24,6 +24,13 @@ interface DeskSceneHooks {
   /** OLED ticks so far (500 ms each, only while visible and motion is full). */
   oledTicks(): number;
   oledText(): string;
+  /** Hand angles of each clock, radians clockwise from 12. */
+  clocks(): { id: string; hour: number; minute: number }[];
+  calendar(): unknown;
+  ghostLook(x: number, z: number): void;
+  ghostRelease(): void;
+  /** `rotation.y` of the eye pivots. */
+  ghostEyes(): number[];
   /** Canvas size in CSS px. */
   size(): { width: number; height: number };
   /** Swaps the desk for one lit sphere; returns its screen circle in canvas CSS px. */

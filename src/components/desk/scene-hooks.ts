@@ -3,18 +3,28 @@ import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
 
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
-interface SceneProbe {
+export interface SceneProbe {
   frames: number;
   camera: PerspectiveCamera | null;
   oled: { ticks: number; text: () => string };
+  clocks: Map<string, { hour: () => number; minute: () => number }>;
+  calendar: { face: () => unknown };
+  ghost: {
+    look: (x: number, z: number) => void;
+    release: () => void;
+    eyes: () => number[];
+  };
   size: () => { width: number; height: number };
   probeSphere: (on: boolean) => { cx: number; cy: number; r: number } | null;
 }
 
-const probe: SceneProbe = {
+export const probe: SceneProbe = {
   frames: 0,
   camera: null,
   oled: { ticks: 0, text: () => '' },
+  clocks: new Map(),
+  calendar: { face: () => null },
+  ghost: { look: () => {}, release: () => {}, eyes: () => [] },
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
 };
@@ -32,6 +42,16 @@ export function installSceneHooks(): () => void {
     frames: () => probe.frames,
     oledTicks: () => probe.oled.ticks,
     oledText: () => probe.oled.text(),
+    clocks: () =>
+      [...probe.clocks].map(([id, c]) => ({
+        id,
+        hour: c.hour(),
+        minute: c.minute(),
+      })),
+    calendar: () => probe.calendar.face(),
+    ghostLook: (x, z) => probe.ghost.look(x, z),
+    ghostRelease: () => probe.ghost.release(),
+    ghostEyes: () => probe.ghost.eyes(),
     size: () => probe.size(),
     probeSphere: (on) => probe.probeSphere(on),
   };
@@ -41,6 +61,28 @@ export function installSceneHooks(): () => void {
 }
 
 // Plain helpers so components never assign into the shared probe object themselves.
+export function setOledProbe(tick: () => number): void {
+  probe.oled.text = () => {
+    const t = oledText(tick());
+    return `${t.label} ${t.value}`;
+  };
+}
+export function countOledTick(): void {
+  probe.oled.ticks += 1;
+}
+export function setCalendarProbe(face: unknown): void {
+  probe.calendar.face = () => face ?? null;
+}
+export function setClockProbe(
+  id: string,
+  hands: { hour: () => number; minute: () => number } | null,
+): void {
+  if (hands) probe.clocks.set(id, hands);
+  else probe.clocks.delete(id);
+}
+export function setGhostProbe(g: SceneProbe['ghost']): void {
+  probe.ghost = g;
+}
 export function countFrame(): void {
   probe.frames += 1;
 }
@@ -56,13 +98,4 @@ export function getProbeCamera(): PerspectiveCamera | null {
 }
 export function setSphereProbe(fn: SceneProbe['probeSphere']): void {
   probe.probeSphere = fn;
-}
-export function setOledProbe(tick: () => number): void {
-  probe.oled.text = () => {
-    const t = oledText(tick());
-    return `${t.label} ${t.value}`;
-  };
-}
-export function countOledTick(): void {
-  probe.oled.ticks += 1;
 }

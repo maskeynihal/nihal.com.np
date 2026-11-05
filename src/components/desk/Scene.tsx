@@ -21,8 +21,14 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { dprFor, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
 import { cameraFor, type CameraPose } from '../../lib/desk/camera';
+import { handAngles, clockZone, pivotY } from '../../lib/desk/clock';
+import { calendarFace } from '../../lib/desk/calendar';
+import { eyeYaw } from '../../lib/desk/eyes';
+import { ghostLook } from '../../lib/desk/ghost-look';
 import { OLED_TICK_MS } from '../../lib/desk/oled';
 import { readToken } from '../../lib/desk/tokens';
+import holidays from '../../content/holidays.json';
+import type { Holiday } from '../../content/schema';
 import {
   createLineArt,
   prepareLineArt,
@@ -30,7 +36,6 @@ import {
   type LineArt,
 } from './line-art';
 import { resolveModelUrls } from './models';
-import { createOledTexture } from './textures';
 import {
   ActiveContext,
   LineArtContext,
@@ -42,10 +47,14 @@ import {
   countOledTick,
   getProbeCamera,
   installSceneHooks,
+  setCalendarProbe,
   setCameraProbe,
+  setClockProbe,
+  setGhostProbe,
   setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
+import { createCalendarTexture, createOledTexture } from './textures';
 
 // R3F 9.8 builds a `THREE.Clock` for each root, and three 0.187 warns (console.warn) on every one.
 // Drop only that notice from module load until the canvas exists, so the page console stays clean.
@@ -275,6 +284,106 @@ function useOled() {
   return oled.material;
 }
 
+// ---- clocks -----------------------------------------------------------------------------------
+
+function ClockHands({ id, root }: { id: string; root: Object3D }) {
+  const { invalidate } = useThree();
+  const active = useActive();
+  useEffect(() => {
+    const hour = root.getObjectByName('hand-hour');
+    const minute = root.getObjectByName('hand-minute');
+    if (!hour || !minute) return;
+    setClockProbe(id, {
+      hour: () => -hour.rotation.y,
+      minute: () => -minute.rotation.y,
+    });
+    return () => setClockProbe(id, null);
+  }, [id, root]);
+  useEffect(() => {
+    const hour = root.getObjectByName('hand-hour');
+    const minute = root.getObjectByName('hand-minute');
+    if (!hour || !minute) return;
+    const set = () => {
+      const a = handAngles(new Date(), clockZone(id));
+      const h = pivotY(a.hour);
+      const m = pivotY(a.minute);
+      if (hour.rotation.y !== h || minute.rotation.y !== m) {
+        hour.rotation.y = h;
+        minute.rotation.y = m;
+        invalidate();
+      }
+    };
+    set();
+    if (!active) return;
+    const timer = setInterval(set, 1000);
+    return () => clearInterval(timer);
+  }, [id, root, active, invalidate]);
+  return null;
+}
+
+// ---- calendar ---------------------------------------------------------------------------------
+
+function useCalendarMaterial() {
+  const { invalidate } = useThree();
+  const active = useActive();
+  const calendar = useMemo(
+    () => createCalendarTexture(readToken('--paper'), readToken('--blue-ink')),
+    [],
+  );
+
+  useEffect(() => {
+    let last = '';
+    const refresh = (force = false) => {
+      const face = calendarFace(new Date(), holidays as Holiday[]);
+      setCalendarProbe(face);
+      const key = JSON.stringify(face ?? null);
+      if (!force && key === last) return;
+      last = key;
+      calendar.draw(face);
+      invalidate();
+    };
+    refresh(true);
+    // Web fonts may land after the first draw.
+    void document.fonts?.ready.then(() => refresh(true));
+    if (!active) return;
+    const timer = setInterval(refresh, 1000);
+    return () => clearInterval(timer);
+  }, [calendar, active, invalidate]);
+
+  useEffect(() => () => calendar.dispose(), [calendar]);
+  return calendar.material;
+}
+
+// ---- ghost ------------------------------------------------------------------------------------
+
+/** Eyes follow `ghostLook` (set by the grab in E-05); forward when it is null. No idle following. */
+function GhostEyes({ root }: { root: Object3D }) {
+  const { invalidate } = useThree();
+  useEffect(() => {
+    const eyes = ['eye-l', 'eye-r']
+      .map((n) => root.getObjectByName(n))
+      .filter((e): e is Object3D => !!e);
+    const apply = () => {
+      const target = ghostLook.get();
+      const at = new Vector3();
+      for (const eye of eyes) {
+        eye.rotation.y = target
+          ? (eye.getWorldPosition(at), eyeYaw(at.x, at.z, target.x, target.z))
+          : 0;
+      }
+      invalidate();
+    };
+    setGhostProbe({
+      look: (x, z) => ghostLook.set({ x, z }),
+      release: () => ghostLook.set(null),
+      eyes: () => eyes.map((e) => e.rotation.y),
+    });
+    apply();
+    return ghostLook.subscribe(apply);
+  }, [root, invalidate]);
+  return null;
+}
+
 // ---- the desk ---------------------------------------------------------------------------------
 
 function ObjectNode({
@@ -286,9 +395,21 @@ function ObjectNode({
   url: string;
   captionTargetRef: React.RefObject<Object3D | null>;
 }) {
-  // Clock hands, the calendar face and the ghost's eyes arrive in E-04.
   if (def.model === 'arduino')
     return <Arduino def={def} url={url} captionTargetRef={captionTargetRef} />;
+  if (def.model === 'calendar') return <Calendar def={def} url={url} />;
+  if (def.model === 'clock')
+    return (
+      <Model url={url} def={def}>
+        {(root) => <ClockHands id={def.id} root={root} />}
+      </Model>
+    );
+  if (def.model === 'ghost')
+    return (
+      <Model url={url} def={def}>
+        {(root) => <GhostEyes root={root} />}
+      </Model>
+    );
   return <Model url={url} def={def} />;
 }
 
@@ -313,6 +434,12 @@ function Arduino({
       }}
     />
   );
+}
+
+function Calendar({ def, url }: { def: ObjectDef; url: string }) {
+  const material = useCalendarMaterial();
+  const textured = useMemo(() => ({ 'face-mesh': material }), [material]);
+  return <Model url={url} def={def} textured={textured} />;
 }
 
 function Desk({
