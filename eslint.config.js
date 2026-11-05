@@ -6,8 +6,27 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
-  { ignores: ['dist', '.astro', 'docs', '.claude', 'node_modules'] },
+  {
+    ignores: [
+      'dist',
+      '.astro',
+      'docs',
+      '.claude',
+      'node_modules',
+      'playwright-report',
+      'test-results',
+      '.lighthouseci',
+      'scripts/__fixtures__',
+    ],
+  },
   js.configs.recommended,
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { module: 'readonly' },
+    },
+  },
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,
   ...astro.configs['jsx-a11y-recommended'],

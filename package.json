@@ -10,7 +10,13 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "test": "vitest run",
+    "build:e2e": "cross-env PUBLIC_TEST_HOOKS=1 astro build",
+    "check:graph": "tsx scripts/check-initial-graph.ts",
+    "review": "tsx scripts/review.ts",
+    "review:all": "tsx scripts/review.ts --all",
+    "lhci": "lhci autorun --config=lighthouserc.cjs"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.2",
@@ -23,16 +29,24 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@eslint/js": "^10.0.1",
+    "@lhci/cli": "^0.16.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "cross-env": "^10.1.0",
+    "es-module-lexer": "^3.0.4",
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^30.1.3",
     "prettier": "^3.9.10",
     "prettier-plugin-astro": "^1.1.2",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   }
 }

@@ -3,3 +3,7 @@ dist
 docs
 .claude
 pnpm-lock.yaml
+scripts/__fixtures__
+playwright-report
+test-results
+.lighthouseci
