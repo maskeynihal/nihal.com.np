@@ -35,7 +35,7 @@ Deps: A-04. `scripts/copy-gate.ts` scoped to `src/content/**`, banned list from 
 Deps: A-02, A-04. `Base.astro` (meta, OG, JSON-LD Person, theme-color, manifest, skip link); `404.astro`, `sent.astro` (noindex); robots; sitemap. Verify: Lighthouse SEO 100; structured-data validator; 404 status on preview.
 
 ### A-07 CI workflow
-Deps: A-08. `ci.yml`: lint, unit, copy-gate, build + build:e2e artifacts, check:graph, size-limit, e2e matrix, lhci, links; all required; PR comment with sizes. Verify: PR shows all checks.
+Deps: A-08. Carry-over from A-08 review: `pnpm exec playwright install --with-deps chromium webkit` in CI; e2e job runs via `pnpm review:all` (the only supported Playwright entry). `ci.yml`: lint, unit, copy-gate, build + build:e2e artifacts, check:graph, size-limit, e2e matrix, lhci, links; all required; PR comment with sizes. Verify: PR shows all checks.
 
 ### A-09 CSP generation and headers
 Deps: A-06. `write-vercel-json.ts` postbuild hashes inline scripts and writes `vercel.json` with the §9 header set incl. `wasm-unsafe-eval`, `va.vercel-scripts.com`, `form-action formspree`; analytics via bundled `inject()` behind DNT. Verify @A-09: zero CSP violations in console on preview with physics loaded (stub), form posted (mocked), game iframe opened.
