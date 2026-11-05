@@ -9,6 +9,7 @@ import { format } from 'prettier';
 import { partToGlb } from './export';
 import { bounds, triCount } from './geom';
 import { models } from './models';
+import { buildPoster } from './poster';
 
 export const OUT_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -51,6 +52,7 @@ async function main() {
   for (const [name, bytes] of out.glbs)
     writeFileSync(resolve(OUT_DIR, name), bytes);
   writeFileSync(resolve(OUT_DIR, 'lines.json'), out.linesJson);
+  writeFileSync(resolve(OUT_DIR, '../poster.svg'), buildPoster());
   for (const s of out.stats) {
     console.log(
       `${s.file.padEnd(14)} ${String(s.tris).padStart(4)} tris  ${String(s.lineSegments).padStart(4)} segs  ${String(s.bytes).padStart(6)} B`,

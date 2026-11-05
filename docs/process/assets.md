@@ -3,7 +3,7 @@
 No Blender. Models are code.
 
 ## Commands
-- `pnpm assets`: rebuilds `src/assets/models/*.glb` and `src/assets/models/lines.json`. Output is deterministic; the vitest suite in `scripts/models/models.test.ts` builds twice and compares bytes.
+- `pnpm assets`: rebuilds `src/assets/models/*.glb`, `src/assets/models/lines.json` and `src/assets/poster.svg`. Output is deterministic; the vitest suite in `scripts/models/models.test.ts` builds twice and compares bytes.
 - `pnpm exec svgo -c svgo.config.mjs <file.svg>`: optimise an SVG (multipass, 2 decimals, viewBox kept).
 - Fonts: `pnpm fonts` (see `scripts/fonts/`). The `instance-fonts.sh` named in the ticket is superseded by that script.
 
@@ -21,3 +21,9 @@ One scene, one node, one mesh with two primitives: triangles (mode 4, `POSITION`
 
 ## CI
 Add `pnpm assets && git diff --exit-code src/assets` to the CI workflow when it exists (A-07 owns it).
+
+## Poster, marks, nib (D-01)
+- `src/assets/camera.ts`: the fixed hero camera (fov 35, near 0.5, far 8, position, lookAt) and poster viewBox (1200x800). Plain numbers; E-02 imports it so the canvas and the poster frame the desk identically.
+- `scripts/models/poster.ts`: places each confirmed object at its `objects.ts` home pose, takes authored creases plus silhouette edges from the triangles, removes hidden lines by ray tests, projects through the hero camera, chains segments into two paths (sheet border 1 px `#ded9fa`; everything else 1.5 px white; `vector-effect: non-scaling-stroke`), svgo. `buildPoster({ includeUnconfirmed: true })` draws the owner-preview set.
+- `src/assets/marks/<work id>.svg`: five hand-written 64x64 marks, `stroke="currentColor"`, so the panel sets the colour.
+- `src/assets/nib.svg`: white drafting-pen nib, used by `scripts/assets/render-og.ts` for the favicons.
