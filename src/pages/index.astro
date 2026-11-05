@@ -29,7 +29,16 @@ import {
 import { site } from '../content/site';
 import { rowLabel } from '../lib/sections';
 
-const { titleBlock, headings, about, work: workCopy, writing, cv, contact, colophon } = getCopy();
+const {
+  titleBlock,
+  headings,
+  about,
+  work: workCopy,
+  writing,
+  cv,
+  contact,
+  colophon,
+} = getCopy();
 const work = getWork();
 const oss = getOss();
 const posts = getWriting();
@@ -61,11 +70,11 @@ const year = String(new Date().getFullYear());
       <p>{about.paragraphs[1]}</p>
       <p>{about.paragraphs[2]}</p>
       <p>
-        {about.daboo.before}<a
-          class="sheet-link"
-          href={about.daboo.link.href}
-          rel="noopener">{about.daboo.link.label}</a
-        >{about.daboo.after}
+        {about.daboo.before}
+        <a class="sheet-link" href={about.daboo.link.href} rel="noopener">
+          {about.daboo.link.label}
+        </a>
+        {about.daboo.after}
       </p>
       <dl class="about-facts">
         {about.facts.map((f) => (

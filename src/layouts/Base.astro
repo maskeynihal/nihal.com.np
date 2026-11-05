@@ -74,10 +74,7 @@ const ogImage = abs(site.og.image);
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     {jsonLd && (
-      <script
-        type="application/ld+json"
-        set:html={serializeLd(buildGraph())}
-      />
+      <script type="application/ld+json" set:html={serializeLd(buildGraph())} />
     )}
     <link rel="stylesheet" href={printCss} media="print" />
   </head>

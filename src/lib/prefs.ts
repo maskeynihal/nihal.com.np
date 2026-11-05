@@ -176,7 +176,9 @@ export function setSound(s: Sound): void {
 
 export function getTheme(): Theme {
   if (!hasWindow()) return 'blue';
-  return document.documentElement.dataset['theme'] === 'paper' ? 'paper' : 'blue';
+  return document.documentElement.dataset['theme'] === 'paper'
+    ? 'paper'
+    : 'blue';
 }
 
 function applyTheme(t: Theme): void {

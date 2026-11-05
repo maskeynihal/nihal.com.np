@@ -193,7 +193,12 @@ export const Copy = z.strictObject({
     footer: text,
   }),
   writing: z.strictObject({ intro: text, all: text, allHref: url }),
-  cv: z.strictObject({ note: text, intro: text, skillsLabel: text, skills: text }),
+  cv: z.strictObject({
+    note: text,
+    intro: text,
+    skillsLabel: text,
+    skills: text,
+  }),
   contact: z.strictObject({
     lead: text,
     copied: text,
