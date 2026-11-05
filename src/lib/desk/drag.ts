@@ -3,8 +3,8 @@
  * (x right, z toward the viewer); time is milliseconds. No three.js, no DOM.
  */
 
-/** Throw speed cap, m/s. */
-export const MAX_THROW = 4;
+/** Throw speed cap, m/s (the screen is about two metres wide). */
+export const MAX_THROW = 6;
 /** A press that moves less than this (px) and ends within TAP_MS is a tap. */
 export const TAP_SLOP_PX = 6;
 export const TAP_MS = 250;

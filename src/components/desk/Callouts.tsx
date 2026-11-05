@@ -80,6 +80,13 @@ function updateCallouts(
     if (f.value !== f.to) moving = true;
     // The label sits at the far end of the leader, in canvas CSS px.
     _b.project(camera);
+    // Off screen (the table scrolled away): hide the label; the line is clipped by the canvas.
+    const px = ((_b.x + 1) / 2) * size.width;
+    const py = ((1 - _b.y) / 2) * size.height;
+    const hidden =
+      px < -60 || px > size.width + 60 || py < -40 || py > size.height + 40;
+    it.el.style.visibility = hidden ? 'hidden' : '';
+    if (hidden) continue;
     const x = keepInside(
       ((_b.x + 1) / 2) * size.width,
       it.tx,

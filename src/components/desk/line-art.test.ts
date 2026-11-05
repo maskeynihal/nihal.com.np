@@ -179,9 +179,10 @@ describe('createLineArt', () => {
     art.dispose();
   });
 
-  it('blue is the --blue token', () => {
+  it('draws lines in the --stroke token and the occluder writes no colour', () => {
     const art = createLineArt();
-    expect(art.blue.getHexString()).toBe('1f3fe0');
+    expect(art.line.color.getHexString()).toBe('ffffff');
+    expect(art.occluder.colorWrite).toBe(false);
     art.dispose();
   });
 });

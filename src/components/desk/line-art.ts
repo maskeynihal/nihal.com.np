@@ -17,7 +17,8 @@ import { readToken } from '../../lib/desk/tokens';
 
 /**
  * The line-art look (design 4.2), three passes per object, no lights:
- *  1. occluder: the blue fill, pushed back a little so lines sit cleanly on it;
+ *  1. occluder: depth only (no colour), pushed back a little so lines sit cleanly on it; the
+ *     canvas is transparent, so the page shows through and only hidden lines are removed;
  *  2. silhouette: the same geometry, back faces only, pushed out along the normal by a constant
  *     number of screen pixels (inverted hull), so curved surfaces get an outline;
  *  3. creases: the authored LINES primitive from the GLB drawn as thick `LineSegments2`.
@@ -25,14 +26,18 @@ import { readToken } from '../../lib/desk/tokens';
  */
 export const LINE_PX = 1.5;
 export const SECONDARY_LINE_PX = 1;
+export const SECONDARY_OPACITY = 0.55;
 
 export interface LineArt {
   occluder: MeshBasicMaterial;
   hull: ShaderMaterial;
   line: LineMaterial;
-  /** The sheet border: --line-2, 1 px. */
+  /** The sheet border and callout leaders: the stroke colour at reduced opacity, 1 px. */
   lineSecondary: LineMaterial;
-  blue: Color;
+  /** Draws nothing and writes no depth: the table sheet must never hide an object. */
+  sheetOccluder: MeshBasicMaterial;
+  /** Re-reads --stroke (and friends) after a theme change. */
+  recolor(): void;
   /** Pass the canvas size in CSS px (the unit LINE_PX is in). */
   setResolution(width: number, height: number): void;
   dispose(): void;
@@ -46,7 +51,9 @@ const HULL_VERTEX = /* glsl */ `
     vec3 n = normalize(normalMatrix * normal);
     // View-space size of one pixel at this depth, so the outline is the same width on every
     // mesh whatever its node scale.
-    float perPx = 2.0 * -mv.z / (projectionMatrix[1][1] * uResY);
+    float perPx = projectionMatrix[3][3] > 0.5
+      ? 2.0 / (projectionMatrix[1][1] * uResY)
+      : 2.0 * -mv.z / (projectionMatrix[1][1] * uResY);
     mv.xyz += n * perPx * uPx;
     gl_Position = projectionMatrix * mv;
   }
@@ -57,10 +64,9 @@ const HULL_FRAGMENT = /* glsl */ `
 `;
 
 export function createLineArt(): LineArt {
-  const blue = new Color(readToken('--blue'));
-  const white = new Color(readToken('--white'));
+  const stroke = new Color(readToken('--stroke'));
   const occluder = new MeshBasicMaterial({
-    color: blue,
+    colorWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: 1,
     polygonOffsetUnits: 1,
@@ -72,7 +78,7 @@ export function createLineArt(): LineArt {
     uniforms: {
       uPx: { value: LINE_PX },
       uResY: { value: 1 },
-      uColor: { value: white },
+      uColor: { value: stroke.clone() },
     },
     vertexShader: HULL_VERTEX,
     fragmentShader: HULL_FRAGMENT,
@@ -88,17 +94,28 @@ export function createLineArt(): LineArt {
     m.resolution.set(1, 1);
     return m;
   };
-  const line = make(white, LINE_PX);
-  const lineSecondary = make(
-    new Color(readToken('--line-2')),
-    SECONDARY_LINE_PX,
-  );
+  const line = make(stroke, LINE_PX);
+  const lineSecondary = make(stroke.clone(), SECONDARY_LINE_PX);
+  lineSecondary.transparent = true;
+  lineSecondary.opacity = SECONDARY_OPACITY;
+  lineSecondary.alphaToCoverage = false;
+  const sheetOccluder = new MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   return {
     occluder,
     hull,
     line,
     lineSecondary,
-    blue,
+    sheetOccluder,
+    recolor() {
+      const c = new Color(readToken('--stroke'));
+      line.color.copy(c);
+      lineSecondary.color.copy(c);
+      (hull.uniforms['uColor'] as { value: Color }).value.copy(c);
+    },
     setResolution(width, height) {
       const r = new Vector2(width, height);
       line.resolution.copy(r);
@@ -106,7 +123,8 @@ export function createLineArt(): LineArt {
       (hull.uniforms['uResY'] as { value: number }).value = height;
     },
     dispose() {
-      for (const m of [occluder, hull, line, lineSecondary]) m.dispose();
+      for (const m of [occluder, hull, line, lineSecondary, sheetOccluder])
+        m.dispose();
     },
   };
 }
@@ -186,7 +204,8 @@ export function prepareLineArt(
 
   for (const mesh of meshes) {
     const textured = options.textured?.[mesh.name];
-    mesh.material = textured ?? art.occluder;
+    mesh.material =
+      textured ?? (options.sheet ? art.sheetOccluder : art.occluder);
     if (textured) continue;
     if (options.sheet) {
       const outline = new LineSegments2(

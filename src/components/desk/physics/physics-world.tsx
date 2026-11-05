@@ -1,44 +1,31 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import {
-  BallCollider,
-  CapsuleCollider,
-  CuboidCollider,
   Physics,
-  RigidBody,
   useAfterPhysicsStep,
   useBeforePhysicsStep,
   useRapier,
+  type RapierCollider,
   type RapierRigidBody,
 } from '@react-three/rapier';
-import { Euler, Quaternion, Vector3, type Group } from 'three';
-import {
-  DESK_HALF,
-  FOLLOW,
-  LIFT,
-  clampToDesk,
-  outOfBounds,
-  tiltFor,
-} from '../../../lib/desk/drag';
-import type { ObjectDef } from '../../../lib/desk/object-def';
+import { Quaternion, Vector3 } from 'three';
+import { FOLLOW, clamp } from '../../../lib/desk/drag';
+import { atDepthZero, worldBounds } from '../../../lib/desk/view';
 import { registry, type RegistryEntry } from '../registry';
+import { detach, reattach, table, tableEvents } from '../table';
 import { playImpact } from '../../../lib/sound';
 import { physicsBridge, type PhysicsApi } from '../physics-bridge';
 
 /**
  * The physics layer: this file is the only place that imports `@react-three/rapier`, and the
  * Scene reaches it through a dynamic import on the first grab, so the engine (about 600 KB
- * brotli, wasm inlined) is a chunk of its own. Objects are not created here: the registry holds
- * the Object3D instances the Scene already drew, and each body takes its object into its group
- * in a layout effect (same pose, same commit, so nothing flashes) and gives it back on unmount.
- * Every body starts asleep, so an untouched desk costs no frames.
+ * brotli, wasm inlined) is a chunk of its own.
+ *
+ * The world is the screen. The camera is orthographic and tilted, bodies are locked on depth
+ * (z = 0), so it is a 2D fall in screen space while models still turn in 3D. The room is a floor,
+ * two walls and a ceiling at the viewport edges, plus a kinematic collider that follows the table.
+ * An object gets a body only once it is grabbed (it leaves the table group then and lives in world
+ * coordinates); "put everything back" removes the bodies and returns the objects to the table.
  */
 
 // rapier3d-compat 0.19 calls its wasm-bindgen `init` with the old positional argument and
@@ -56,394 +43,326 @@ const restoreWarn = () => {
 };
 setTimeout(restoreWarn, 15_000);
 
-/** Seconds out of bounds before a body is put back at its home pose (the verify line is 2 s). */
-const WATCHDOG_MS = 1200;
 const STEP = 1 / 60;
-const THICK = 0.25;
-const WALL_H = 0.5;
-const CEILING = 0.9;
-
 const FRICTION = 0.7;
-const RESTITUTION = 0.12;
+const RESTITUTION = 0.25;
 
-type BodyKind = 'dynamic' | 'kinematicPosition';
-const startType = (def: ObjectDef): BodyKind =>
-  def.kinematicWhenIdle ? 'kinematicPosition' : 'dynamic';
+/** Table collider: half width and thickness, metres (the sheet is 1.6 m wide). */
+const TABLE_HALF_W = 0.8;
+const TABLE_THICK = 0.04;
+/** The table collider is off when its top is this close to the floor or the ceiling. */
+const TABLE_FLOOR_GAP = 0.25;
+const TABLE_CEILING_GAP = 0.45;
+/** The floor sits this far above the viewport's bottom edge so a resting object is fully on screen. */
+const FLOOR_LIFT = 0.05;
 
-function Colliders({ def }: { def: ObjectDef }) {
-  const c = def.collider;
-  const common = {
-    position: c.offset,
-    mass: def.mass,
-    friction: FRICTION,
-    restitution: RESTITUTION,
-  };
-  if (c.kind === 'ball')
-    return <BallCollider args={[c.args[0] ?? 0.05]} {...common} />;
-  if (c.kind === 'capsule')
-    return (
-      <CapsuleCollider
-        args={[c.args[0] ?? 0.05, c.args[1] ?? 0.03]}
-        {...common}
-      />
-    );
-  return (
-    <CuboidCollider
-      args={[c.args[0] ?? 0.05, c.args[1] ?? 0.05, c.args[2] ?? 0.05]}
-      {...common}
-    />
-  );
-}
-
-/** Floor, four walls and a ceiling, thick enough that a 4 m/s throw cannot tunnel through. */
-function Room(): ReactNode {
-  const w = DESK_HALF.x;
-  const d = DESK_HALF.z;
-  const common = { friction: FRICTION, restitution: RESTITUTION };
-  return (
-    <>
-      <CuboidCollider
-        args={[w + 2 * THICK, THICK, d + 2 * THICK]}
-        position={[0, -THICK, 0]}
-        {...common}
-      />
-      <CuboidCollider
-        args={[THICK, WALL_H, d + 2 * THICK]}
-        position={[-(w + THICK), WALL_H, 0]}
-        {...common}
-      />
-      <CuboidCollider
-        args={[THICK, WALL_H, d + 2 * THICK]}
-        position={[w + THICK, WALL_H, 0]}
-        {...common}
-      />
-      <CuboidCollider
-        args={[w + 2 * THICK, WALL_H, THICK]}
-        position={[0, WALL_H, -(d + THICK)]}
-        {...common}
-      />
-      <CuboidCollider
-        args={[w + 2 * THICK, WALL_H, THICK]}
-        position={[0, WALL_H, d + THICK]}
-        {...common}
-      />
-      <CuboidCollider
-        args={[w + 2 * THICK, THICK, d + 2 * THICK]}
-        position={[0, CEILING + THICK, 0]}
-        {...common}
-      />
-    </>
-  );
-}
-
-function Body({
-  entry,
-  onBody,
-}: {
-  entry: RegistryEntry;
-  onBody: (id: string, rb: RapierRigidBody) => void;
-}) {
-  const slot = useRef<Group>(null);
-  const def = entry.def;
-
-  // Take the drawn object into this body's group. The group is created at the home pose, the
-  // object keeps only its local offset (an explode offset, if the page is mid-scroll), so the
-  // world pose is unchanged and nothing flashes.
-  useLayoutEffect(() => {
-    const host = slot.current;
-    if (!host) return;
-    const { obj } = entry;
-    const offset = new Vector3(...obj.position).sub(new Vector3(...def.p));
-    host.add(obj);
-    obj.position.copy(offset);
-    obj.quaternion.identity();
-    registry.setBodyGroup(entry.id, host.parent);
-    return () => {
-      registry.setBodyGroup(entry.id, null);
-      entry.parent?.add(obj);
-      obj.position.set(...def.p);
-      obj.quaternion.set(...def.q);
-    };
-  }, [entry, def]);
-
-  return (
-    <RigidBody
-      ref={(rb) => {
-        if (rb) onBody(def.id, rb);
-      }}
-      onCollisionEnter={({ target, other }) => {
-        // Peak of the last few velocity samples: the body's velocity now is already the
-        // bounced one. Sound is off unless a press armed it, so this is a no-op by default.
-        const speed = Math.max(
-          speeds.get(target.rigidBody?.handle ?? -1) ?? 0,
-          speeds.get(other.rigidBody?.handle ?? -1) ?? 0,
-        );
-        playImpact(speed);
-      }}
-      type={startType(def)}
-      colliders={false}
-      position={def.p}
-      quaternion={def.q}
-      linearDamping={0.6}
-      angularDamping={0.8}
-      ccd
-    >
-      <group ref={slot} />
-      <Colliders def={def} />
-    </RigidBody>
-  );
-}
-
-interface Grab {
+interface Held {
   id: string;
   rb: RapierRigidBody;
   tx: number;
-  tz: number;
+  ty: number;
   ox: number;
-  oz: number;
-  vx: number;
-  vz: number;
+  oy: number;
 }
-
-/**
- * Peak speed of each body (by handle) over the steps of the current frame, m/s. The engine
- * runs every step of a frame, then reports that frame's contacts, so a hard fall that ends in the
- * same frame has already lost its speed by then; the peak is what the tap is scaled by.
- */
-const speeds = new Map<number, number>();
-
-let lastStepAt = 0;
-const FRAME_GAP_MS = 8;
 
 const _v = new Vector3();
 const _q = new Quaternion();
-const _tilt = new Quaternion();
-const _e = new Euler();
 
-function World({ entries }: { entries: RegistryEntry[] }) {
+function World() {
   const { invalidate } = useThree();
-  const { rapier } = useRapier();
+  const { rapier, world } = useRapier();
   const bodies = useRef(new Map<string, RapierRigidBody>());
-  const grab = useRef<Grab | null>(null);
-  const outSince = useRef(new Map<string, number>());
-  const settle = useRef(new Set<string>());
+  const held = useRef<Held | null>(null);
+  const room = useRef<
+    { body: RapierRigidBody; colliders: RapierCollider[] } | undefined
+  >(undefined);
+  const tableBody = useRef<
+    { body: RapierRigidBody; collider: RapierCollider } | undefined
+  >(undefined);
+  const speeds = useRef(new Map<string, number>());
 
-  const onBody = useCallback((id: string, rb: RapierRigidBody) => {
-    bodies.current.set(id, rb);
-  }, []);
-
-  const type = useCallback(
-    (kind: BodyKind) =>
-      kind === 'dynamic'
-        ? rapier.RigidBodyType.Dynamic
-        : rapier.RigidBodyType.KinematicPositionBased,
-    [rapier],
-  );
-
-  /** Back to the home pose, still, asleep, in its starting body type. */
-  const respawn = useCallback(
-    (entry: RegistryEntry) => {
-      const rb = bodies.current.get(entry.id);
-      if (!rb) return;
-      const def = entry.def;
-      if (grab.current?.id === entry.id) grab.current = null;
-      settle.current.delete(entry.id);
-      outSince.current.delete(entry.id);
-      rb.setBodyType(type(startType(def)), false);
-      rb.setTranslation({ x: def.p[0], y: def.p[1], z: def.p[2] }, false);
-      rb.setRotation(
-        { x: def.q[0], y: def.q[1], z: def.q[2], w: def.q[3] },
-        false,
-      );
-      rb.setLinvel({ x: 0, y: 0, z: 0 }, false);
-      rb.setAngvel({ x: 0, y: 0, z: 0 }, false);
-      rb.sleep();
-      // A sleeping body is not synced by the world, so put its group there by hand.
-      entry.bodyGroup?.position.set(...def.p);
-      entry.bodyGroup?.quaternion.set(...def.q);
-      entry.obj.position.set(0, 0, 0);
-      entry.obj.quaternion.identity();
-    },
-    [type],
-  );
-
-  useEffect(() => restoreWarn(), []);
-
-  // Everything starts asleep. This effect belongs to the parent of every body, so it runs after
-  // theirs (the body's own options effect wakes it once while it applies the type).
+  // The fixed room and the kinematic table collider, built once; the room follows the viewport.
   useEffect(() => {
-    for (const rb of bodies.current.values()) rb.sleep();
-  }, []);
+    const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
+    room.current = { body, colliders: [] };
+    const tb = world.createRigidBody(
+      rapier.RigidBodyDesc.kinematicPositionBased(),
+    );
+    const tc = world.createCollider(
+      rapier.ColliderDesc.cuboid(TABLE_HALF_W, TABLE_THICK, 0.6)
+        .setFriction(FRICTION)
+        .setRestitution(0.1),
+      tb,
+    );
+    tableBody.current = { body: tb, collider: tc };
+    return () => {
+      world.removeRigidBody(body);
+      world.removeRigidBody(tb);
+      room.current = undefined;
+      tableBody.current = undefined;
+    };
+  }, [rapier, world]);
+
+  useEffect(() => {
+    const build = () => {
+      const r = room.current;
+      if (!r) return;
+      for (const c of r.colliders) world.removeCollider(c, false);
+      const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
+      const make = (hx: number, hy: number, x: number, y: number) =>
+        world.createCollider(
+          rapier.ColliderDesc.cuboid(hx, hy, 1)
+            .setTranslation(x, y, 0)
+            .setFriction(FRICTION)
+            .setRestitution(RESTITUTION),
+          r.body,
+        );
+      const T = 0.5;
+      r.colliders = [
+        make(halfW + 2 * T, T, 0, -halfH + FLOOR_LIFT - T), // floor
+        make(halfW + 2 * T, T, 0, halfH + T), // ceiling
+        make(T, halfH + 2 * T, -halfW - T, 0), // left wall
+        make(T, halfH + 2 * T, halfW + T, 0), // right wall
+      ];
+    };
+    build();
+    return tableEvents.subscribe(() => {
+      build();
+      // The table moved or the screen resized: let resting objects feel it.
+      for (const rb of bodies.current.values()) rb.wakeUp();
+      invalidate();
+    });
+  }, [rapier, world, invalidate]);
+
+  const remove = (id: string) => {
+    const rb = bodies.current.get(id);
+    if (rb) world.removeRigidBody(rb);
+    bodies.current.delete(id);
+    speeds.current.delete(id);
+  };
+
+  const sendHome = (entry: RegistryEntry) => {
+    if (held.current?.id === entry.id) held.current = null;
+    remove(entry.id);
+    reattach(entry);
+  };
+
+  const create = (entry: RegistryEntry): RapierRigidBody => {
+    detach(entry);
+    const { def, obj } = entry;
+    obj.getWorldPosition(_v);
+    obj.getWorldQuaternion(_q);
+    const s = obj.scale.x;
+    const z0 = atDepthZero(_v.x, _v.y, _v.z);
+    obj.position.set(z0.x, z0.y, 0);
+    const rb = world.createRigidBody(
+      rapier.RigidBodyDesc.dynamic()
+        .setTranslation(z0.x, z0.y, 0)
+        .setRotation({ x: _q.x, y: _q.y, z: _q.z, w: _q.w })
+        .enabledTranslations(true, true, false)
+        .setLinearDamping(0.25)
+        .setAngularDamping(0.7)
+        .setCcdEnabled(true),
+    );
+    const c = def.collider;
+    const a = c.args;
+    const desc =
+      c.kind === 'ball'
+        ? rapier.ColliderDesc.ball((a[0] ?? 0.05) * s)
+        : c.kind === 'capsule'
+          ? rapier.ColliderDesc.capsule((a[0] ?? 0.05) * s, (a[1] ?? 0.03) * s)
+          : rapier.ColliderDesc.cuboid(
+              (a[0] ?? 0.05) * s,
+              (a[1] ?? 0.05) * s,
+              (a[2] ?? 0.05) * s,
+            );
+    world.createCollider(
+      desc
+        .setTranslation(c.offset[0] * s, c.offset[1] * s, c.offset[2] * s)
+        .setMass(def.mass)
+        .setFriction(FRICTION)
+        .setRestitution(RESTITUTION),
+      rb,
+    );
+    bodies.current.set(entry.id, rb);
+    return rb;
+  };
+
+  // Copy every free body's pose onto its drawn object.
+  const sync = () => {
+    for (const entry of registry.all()) {
+      if (!entry.free) continue;
+      const rb = bodies.current.get(entry.id);
+      if (!rb) continue;
+      const t = rb.translation();
+      const r = rb.rotation();
+      entry.obj.position.set(t.x, t.y, t.z);
+      entry.obj.quaternion.set(r.x, r.y, r.z, r.w);
+    }
+  };
 
   useBeforePhysicsStep(() => {
-    const g = grab.current;
-    if (!g) return;
-    const t = g.rb.translation();
-    const nx = t.x + (g.tx - t.x) * FOLLOW;
-    const nz = t.z + (g.tz - t.z) * FOLLOW;
-    const ny = t.y + (LIFT - t.y) * FOLLOW;
-    g.vx += ((nx - t.x) / STEP - g.vx) * 0.3;
-    g.vz += ((nz - t.z) / STEP - g.vz) * 0.3;
-    const tilt = tiltFor(g.vx, g.vz);
-    const entry = registry.get(g.id);
-    const home = entry?.def.q ?? [0, 0, 0, 1];
-    _tilt.setFromEuler(_e.set(tilt.pitch, 0, tilt.roll));
-    _q.set(home[0], home[1], home[2], home[3]).premultiply(_tilt);
-    g.rb.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
-    g.rb.setNextKinematicRotation({ x: _q.x, y: _q.y, z: _q.z, w: _q.w });
-    const moving =
-      Math.abs(g.tx - nx) > 1e-4 ||
-      Math.abs(g.tz - nz) > 1e-4 ||
-      Math.abs(LIFT - ny) > 1e-4 ||
-      Math.hypot(g.vx, g.vz) > 1e-3;
-    if (moving) invalidate();
+    const tb = tableBody.current;
+    if (tb) {
+      const { halfH } = worldBounds(table.viewport, table.layout.ppm);
+      const top = table.world.y;
+      const on =
+        table.visible &&
+        top > -halfH + FLOOR_LIFT + TABLE_FLOOR_GAP &&
+        top < halfH - TABLE_CEILING_GAP;
+      tb.collider.setEnabled(on);
+      tb.body.setNextKinematicTranslation({
+        x: table.world.x,
+        y: top - TABLE_THICK,
+        z: 0,
+      });
+    }
+    const h = held.current;
+    if (!h) return;
+    const t = h.rb.translation();
+    const nx = t.x + (h.tx - t.x) * FOLLOW * 3;
+    const ny = t.y + (h.ty - t.y) * FOLLOW * 3;
+    h.rb.setNextKinematicTranslation({ x: nx, y: ny, z: 0 });
+    if (Math.abs(h.tx - nx) > 1e-4 || Math.abs(h.ty - ny) > 1e-4) invalidate();
   });
 
   useAfterPhysicsStep(() => {
-    const now = performance.now();
-    // A pause of a few ms since the last step means a new frame: forget the last frame's peaks.
-    if (now - lastStepAt > FRAME_GAP_MS) speeds.clear();
-    lastStepAt = now;
-    for (const entry of entries) {
+    const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
+    for (const entry of registry.all()) {
+      if (!entry.free) continue;
       const rb = bodies.current.get(entry.id);
       if (!rb) continue;
-      // A thrown kinematic-when-idle body (the ghost) goes back to kinematic once it sleeps.
-      if (settle.current.has(entry.id) && rb.isSleeping()) {
-        settle.current.delete(entry.id);
-        rb.setBodyType(type('kinematicPosition'), false);
-      }
-      const held = grab.current?.id === entry.id ? grab.current : null;
-      const lv = rb.linvel();
-      const now1 = held
-        ? Math.hypot(held.vx, held.vz)
-        : Math.hypot(lv.x, lv.y, lv.z);
-      speeds.set(rb.handle, Math.max(speeds.get(rb.handle) ?? 0, now1));
       const p = rb.translation();
-      if (outOfBounds(p)) {
-        const since = outSince.current.get(entry.id);
-        if (since === undefined) outSince.current.set(entry.id, now);
-        else if (now - since >= WATCHDOG_MS) {
-          respawn(entry);
-          invalidate();
-        }
-      } else outSince.current.delete(entry.id);
+      // Watchdog: a body that escaped the room (or went NaN) goes back on the table.
+      if (
+        !Number.isFinite(p.x + p.y) ||
+        Math.abs(p.x) > halfW + 1 ||
+        p.y < -halfH - 1 ||
+        p.y > halfH + 1.5
+      ) {
+        sendHome(entry);
+        continue;
+      }
+      // A hard stop reads as an impact. Sound is off unless a press armed it.
+      const lv = rb.linvel();
+      const speed = Math.hypot(lv.x, lv.y);
+      const prev = speeds.current.get(entry.id) ?? 0;
+      if (prev - speed > 1.2 && held.current?.id !== entry.id) playImpact(prev);
+      speeds.current.set(entry.id, speed);
     }
+    sync();
   });
 
   useEffect(() => {
-    const dropHeld = (vx: number, vz: number) => {
-      const g = grab.current;
-      if (!g) return;
-      grab.current = null;
-      g.rb.setBodyType(type('dynamic'), true);
-      g.rb.setLinvel({ x: vx, y: 0, z: vz }, true);
-      g.rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      if (registry.get(g.id)?.def.kinematicWhenIdle) settle.current.add(g.id);
+    const dropHeld = (vx: number, vy: number) => {
+      const h = held.current;
+      if (!h) return;
+      held.current = null;
+      h.rb.setBodyType(rapier.RigidBodyType.Dynamic, true);
+      h.rb.setLinvel({ x: vx, y: vy, z: 0 }, true);
+      h.rb.setAngvel({ x: 0, y: 0, z: -vx * 0.4 }, true);
       invalidate();
     };
     const api: PhysicsApi = {
-      grab(id, x, z) {
-        const rb = bodies.current.get(id);
+      grab(id, x, y) {
         const entry = registry.get(id);
-        if (!rb || !entry) return false;
+        if (!entry) return false;
         dropHeld(0, 0);
-        // Start from where the object is drawn (an explode offset included), without a jump.
-        entry.obj.updateWorldMatrix(true, false);
-        entry.obj.getWorldPosition(_v);
-        rb.setBodyType(type('kinematicPosition'), true);
-        rb.setTranslation({ x: _v.x, y: _v.y, z: _v.z }, true);
-        rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
-        entry.bodyGroup?.position.copy(_v);
-        entry.obj.position.set(0, 0, 0);
-        settle.current.delete(id);
-        outSince.current.delete(id);
-        grab.current = {
+        const rb = bodies.current.get(id) ?? create(entry);
+        const t = rb.translation();
+        rb.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
+        speeds.current.set(id, 0);
+        held.current = {
           id,
           rb,
-          tx: _v.x,
-          tz: _v.z,
-          ox: _v.x - x,
-          oz: _v.z - z,
-          vx: 0,
-          vz: 0,
+          tx: t.x,
+          ty: t.y,
+          ox: t.x - x,
+          oy: t.y - y,
         };
+        sync();
         invalidate();
         return true;
       },
-      move(x, z) {
-        const g = grab.current;
-        if (!g) return;
-        const t = clampToDesk(x + g.ox, z + g.oz);
-        g.tx = t.x;
-        g.tz = t.z;
+      move(x, y) {
+        const h = held.current;
+        if (!h) return;
+        const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
+        h.tx = clamp(x + h.ox, -halfW + 0.05, halfW - 0.05);
+        h.ty = clamp(y + h.oy, -halfH + FLOOR_LIFT, halfH - 0.3);
         invalidate();
       },
-      release: (vx, vz) => dropHeld(vx, vz),
+      release: (vx, vy) => dropHeld(vx, vy),
       drop: () => dropHeld(0, 0),
       reset() {
-        grab.current = null;
-        for (const e of entries) respawn(e);
+        held.current = null;
+        for (const entry of registry.all()) if (entry.free) sendHome(entry);
         invalidate();
       },
-      grabbed: () => grab.current?.id ?? null,
+      jolt(dy) {
+        const dv = clamp(dy * 0.012, -1, 1);
+        for (const [id, rb] of bodies.current) {
+          if (held.current?.id === id || rb.isKinematic()) continue;
+          if (Math.abs(rb.linvel().y) > 1.5) continue;
+          rb.applyImpulse({ x: 0, y: dv * rb.mass(), z: 0 }, true);
+          rb.applyTorqueImpulse(
+            { x: 0, y: 0, z: (Math.random() - 0.5) * rb.mass() * 0.02 },
+            true,
+          );
+        }
+        invalidate();
+      },
+      grabbed: () => held.current?.id ?? null,
       awake: (id) => {
         const rb = bodies.current.get(id);
-        return !!rb && (grab.current?.id === id || !rb.isSleeping());
+        return !!rb && (held.current?.id === id || !rb.isSleeping());
       },
       bodies: () =>
-        entries.flatMap((e) => {
-          const rb = bodies.current.get(e.id);
-          if (!rb) return [];
+        [...bodies.current].map(([id, rb]) => {
           const p = rb.translation();
-          return [
-            {
-              id: e.id,
-              asleep: rb.isSleeping(),
-              type: rb.isDynamic()
-                ? ('dynamic' as const)
-                : ('kinematic' as const),
-              p: [p.x, p.y, p.z] as [number, number, number],
-            },
-          ];
+          return {
+            id,
+            asleep: rb.isSleeping(),
+            type: rb.isDynamic()
+              ? ('dynamic' as const)
+              : ('kinematic' as const),
+            p: [p.x, p.y, p.z] as [number, number, number],
+          };
         }),
       teleport(id, x, y, z) {
-        const rb = bodies.current.get(id);
-        if (!rb) return false;
-        grab.current = grab.current?.id === id ? null : grab.current;
-        rb.setBodyType(type('dynamic'), true);
-        rb.setTranslation({ x, y, z }, true);
+        const entry = registry.get(id);
+        if (!entry) return false;
+        const rb = bodies.current.get(id) ?? create(entry);
+        const at = atDepthZero(x, y, z);
+        if (held.current?.id === id) held.current = null;
+        rb.setBodyType(rapier.RigidBodyType.Dynamic, true);
+        rb.setTranslation({ x: at.x, y: at.y, z: 0 }, true);
         rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        if (registry.get(id)?.def.kinematicWhenIdle) settle.current.add(id);
+        sync();
         invalidate();
         return true;
       },
     };
     physicsBridge.provide(api);
     invalidate();
-    return () => physicsBridge.provide(null);
-  }, [entries, invalidate, respawn, type]);
+    return () => {
+      physicsBridge.provide(null);
+      held.current = null;
+      for (const entry of registry.all()) if (entry.free) sendHome(entry);
+    };
+    // `create` and `sendHome` close over refs only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rapier, world, invalidate]);
 
-  return (
-    <>
-      <Room />
-      {entries.map((entry) => (
-        <Body key={entry.id} entry={entry} onBody={onBody} />
-      ))}
-    </>
-  );
+  useEffect(() => restoreWarn(), []);
+  return null;
 }
 
 export default function PhysicsWorld({ paused }: { paused: boolean }) {
-  const entries = useMemo(() => registry.all(), []);
+  const gravity = useMemo(() => [0, -9.81, 0] as [number, number, number], []);
   return (
-    <Physics
-      timeStep={STEP}
-      interpolate
-      paused={paused}
-      gravity={[0, -9.81, 0]}
-    >
-      <World entries={entries} />
+    <Physics timeStep={STEP} paused={paused} gravity={gravity}>
+      <World />
     </Physics>
   );
 }

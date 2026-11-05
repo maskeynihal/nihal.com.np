@@ -14,7 +14,7 @@ import {
   SphereGeometry,
   Vector3,
   type Group,
-  type PerspectiveCamera,
+  type OrthographicCamera,
   type Material,
   type Mesh,
   type Object3D,
@@ -24,7 +24,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { dprFor, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
-import { cameraFor, type CameraPose } from '../../lib/desk/camera';
+import { COS, SIN, objectScale, worldBounds } from '../../lib/desk/view';
 import { handAngles, clockZone, pivotY } from '../../lib/desk/clock';
 import { calendarFace } from '../../lib/desk/calendar';
 import { eyeYaw } from '../../lib/desk/eyes';
@@ -32,7 +32,7 @@ import { ghostLook } from '../../lib/desk/ghost-look';
 import { OLED_TICK_MS } from '../../lib/desk/oled';
 import { playTick } from '../../lib/sound';
 import { parseObjects, type ObjectDef } from '../../lib/desk/object-def';
-import { readToken } from '../../lib/desk/tokens';
+import { THEME_EVENT, readToken } from '../../lib/desk/tokens';
 import holidays from '../../content/holidays.json';
 import type { Holiday } from '../../content/schema';
 import {
@@ -65,11 +65,11 @@ import {
 import { Callouts } from './Callouts';
 import { disposedProbe } from './disposed-probe';
 import { createContextPolicy, type ContextEvent } from './context-loss';
-import { Explode } from './Explode';
 import { Interaction } from './Interaction';
 import { IslandBoundary } from './IslandBoundary';
 import { physicsBridge } from './physics-bridge';
 import { registry } from './registry';
+import { syncTable, table } from './table';
 import { createCalendarTexture, createOledTexture } from './textures';
 
 // R3F 9.8 builds a `THREE.Clock` for each root, and three 0.187 warns (console.warn) on every one.
@@ -110,27 +110,19 @@ const SHEET_DEF: ObjectDef = {
   collider: { kind: 'cuboid', args: [0.8, 0.01, 0.6], offset: [0, 0, 0] },
   mass: 1,
   callouts: [],
-  target: '#desk',
-  explode: [0, 0, 0],
 };
 
 // The physics layer is its own chunk: requested on the first grab, never with the Scene.
 const PhysicsWorld = lazy(() => import('./physics/physics-world'));
 
-function applyPose(cam: PerspectiveCamera, pose: CameraPose): void {
-  cam.fov = pose.fov;
-  cam.near = pose.near;
-  cam.far = pose.far;
-  cam.position.set(...pose.position);
-  cam.lookAt(...pose.lookAt);
-  cam.updateProjectionMatrix();
-  cam.updateMatrixWorld();
-}
-
 // ---- visibility -------------------------------------------------------------------------
 
-/** On screen (within one viewport) and the tab is showing. Pauses the loop and every timer. */
-function useActiveState(host: React.RefObject<HTMLElement | null>): boolean {
+/**
+ * `near`: the poster frame is within a viewport of the screen (the table is drawn there, so its
+ * clocks and screens need their timers). `shown`: the tab is showing. Free objects keep falling
+ * whatever `near` says; only a hidden tab pauses the world.
+ */
+function useActiveState(): { active: boolean; shown: boolean } {
   const [near, setNear] = useState(true);
   const [shown, setShown] = useState(
     typeof document === 'undefined' ? true : !document.hidden,
@@ -141,7 +133,7 @@ function useActiveState(host: React.RefObject<HTMLElement | null>): boolean {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
   useEffect(() => {
-    const el = host.current;
+    const el = document.querySelector('[data-poster]');
     if (!el || typeof IntersectionObserver !== 'function') return;
     const io = new IntersectionObserver(
       (entries) => setNear(entries.some((e) => e.isIntersecting)),
@@ -149,8 +141,8 @@ function useActiveState(host: React.RefObject<HTMLElement | null>): boolean {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [host]);
-  return near && shown;
+  }, []);
+  return { active: near && shown, shown };
 }
 
 function useMotionFull(): boolean {
@@ -161,14 +153,59 @@ function useMotionFull(): boolean {
 
 // ---- camera, resolution, ready ------------------------------------------------------------
 
+/** The fixed tilt: the camera sits on the viewer's side, above, and looks at the world origin. */
+function initCamera(cam: OrthographicCamera): void {
+  // R3F must not re-fit an orthographic frustum to the canvas size: the Rig does it.
+  (cam as unknown as { manual: boolean }).manual = true;
+  cam.near = 0.1;
+  cam.far = 60;
+  cam.zoom = 1;
+  cam.position.set(0, 10 * SIN, 10 * COS);
+  cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld();
+}
+
+function fitCamera(cam: OrthographicCamera, halfW: number, up: number): void {
+  if (cam.right === halfW && cam.top === up) return;
+  cam.left = -halfW;
+  cam.right = halfW;
+  cam.top = up;
+  cam.bottom = -up;
+  cam.updateProjectionMatrix();
+}
+
+/**
+ * The fixed orthographic camera and the table. The camera looks at the middle of the viewport
+ * from the tilt in `assets/camera.ts`; one metre on the z = 0 plane is `ppm` pixels, where `ppm`
+ * follows the width of the poster frame. Every drawn frame the poster frame is measured and the
+ * table group moves to sit under it, so the table scrolls with the page.
+ */
 function Rig({ art }: { art: LineArt }) {
-  const { camera, size, invalidate, gl } = useThree();
+  const { camera, size, invalidate, gl, scene } = useThree();
+
+  const frame = useCallback(() => {
+    const cam = camera as OrthographicCamera;
+    syncTable({ width: size.width, height: size.height });
+    const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
+    // Screen-up metres: the world y span is halfH * cos(tilt).
+    const up = halfH * COS;
+    fitCamera(cam, halfW, up);
+  }, [camera, size]);
+
   useLayoutEffect(() => {
-    applyPose(camera as PerspectiveCamera, cameraFor(window.innerWidth));
+    const cam = camera as OrthographicCamera;
+    initCamera(cam);
+    table.root = scene;
+    frame();
     art.setResolution(size.width, size.height);
-    setCameraProbe(camera as PerspectiveCamera, size);
+    setCameraProbe(cam, size);
     invalidate();
-  }, [camera, size, art, invalidate]);
+    return () => {
+      table.root = null;
+    };
+  }, [camera, size, art, invalidate, scene, frame]);
+
+  useFrame(frame);
   useEffect(() => {
     gl.domElement.setAttribute('aria-hidden', 'true');
   }, [gl]);
@@ -206,7 +243,12 @@ function OledCaption({ target }: { target: React.RefObject<Object3D | null> }) {
     at.project(camera);
     const x = ((at.x + 1) / 2) * size.width;
     const y = ((1 - at.y) / 2) * size.height;
-    const t = `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
+    // Off screen (the table scrolled away): park it out of sight.
+    const off =
+      x < -40 || x > size.width + 40 || y < -40 || y > size.height + 40;
+    const t = off
+      ? 'translate(-9999px, 0)'
+      : `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
     if (t === last.current) return;
     last.current = t;
     el.style.transform = t;
@@ -283,6 +325,7 @@ function Model({
       userData={sheet ? {} : { deskId: def.id }}
       position={def.p}
       quaternion={def.q}
+      scale={sheet ? 1 : objectScale(window.innerWidth)}
     >
       <primitive object={root} />
       {children?.(root)}
@@ -507,10 +550,18 @@ function Desk({
   onReady: () => void;
 }) {
   const captionTargetRef = useRef<Object3D | null>(null);
+  const tableRef = useRef<Group>(null);
   const sheetUrl = urls['sheet'];
+  // The table group is where the sheet and every object that is on the table live; the Rig moves it.
+  useLayoutEffect(() => {
+    table.group = tableRef.current;
+    return () => {
+      table.group = null;
+    };
+  }, []);
   return (
     <>
-      <group visible={!probeOn}>
+      <group ref={tableRef} name="table" visible={!probeOn}>
         {sheetUrl ? <Model url={sheetUrl} def={SHEET_DEF} sheet /> : null}
         {objects.map((def) => {
           const url = urls[def.model];
@@ -606,6 +657,65 @@ function ContextGuard({
   return null;
 }
 
+/**
+ * Page scroll and the free flag. A scroll draws a frame while the table is on or near the screen
+ * (and once more as it leaves, so the labels park), and hops the free objects the other way.
+ * `data-desk-free` on the figure shows the "put everything back" button.
+ */
+function TableWatch() {
+  const { invalidate } = useThree();
+  useEffect(() => {
+    const frame = document.querySelector<HTMLElement>('[data-poster]');
+    const figure = document.querySelector<HTMLElement>('[data-desk]');
+    let lastY = window.scrollY;
+    let wasNear = true;
+    let lastJolt = 0;
+    const near = () => {
+      const r = frame?.getBoundingClientRect();
+      return !!r && r.bottom > -120 && r.top < window.innerHeight + 120;
+    };
+    const onScroll = () => {
+      const y = window.scrollY;
+      const dy = y - lastY;
+      lastY = y;
+      const now = performance.now();
+      if (registry.anyFree() && now - lastJolt > 90 && Math.abs(dy) > 2) {
+        lastJolt = now;
+        physicsBridge.api()?.jolt(dy);
+      }
+      const isNear = near();
+      if (isNear || wasNear) invalidate();
+      wasNear = isNear;
+    };
+    const flag = () => {
+      if (figure) figure.dataset['deskFree'] = String(registry.anyFree());
+    };
+    flag();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const off = registry.subscribe(flag);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      off();
+      if (figure) delete figure.dataset['deskFree'];
+    };
+  }, [invalidate]);
+  return null;
+}
+
+/** The theme toggle sets `data-theme` and dispatches `nihal:theme`: re-read the colours. */
+function ThemeWatch({ art }: { art: LineArt }) {
+  const { invalidate } = useThree();
+  useEffect(() => {
+    const repaint = () => {
+      art.recolor();
+      invalidate();
+    };
+    window.addEventListener(THEME_EVENT, repaint);
+    return () => window.removeEventListener(THEME_EVENT, repaint);
+  }, [art, invalidate]);
+  return null;
+}
+
 export default function Scene({
   onReady,
   onContext,
@@ -620,7 +730,7 @@ export default function Scene({
     return restoreWarn;
   }, []);
   const hostRef = useRef<HTMLDivElement>(null);
-  const active = useActiveState(hostRef);
+  const { active, shown } = useActiveState();
   const art = useMemo(() => createLineArt(), []);
   const objects = useMemo(() => readObjects(), []);
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
@@ -682,24 +792,26 @@ export default function Scene({
       <ActiveContext.Provider value={active}>
         <LineArtContext.Provider value={art}>
           <Canvas
-            frameloop={active && !lost ? 'demand' : 'never'}
+            orthographic
+            frameloop={shown && !lost ? 'demand' : 'never'}
             flat
             dpr={dprFor()}
             gl={{
-              alpha: false,
+              alpha: true,
               antialias: true,
               powerPreference: 'low-power',
               depth: true,
             }}
-            camera={{ fov: 35, near: 0.5, far: 8 }}
+            camera={{ near: 0.1, far: 60, zoom: 1 }}
             resize={{ debounce: 200, scroll: false }}
             onCreated={({ gl }) => {
-              gl.setClearColor(art.blue, 1);
+              gl.setClearColor(0x000000, 0);
             }}
           >
             <ContextGuard onContext={onContext ?? noContext} onLost={setLost} />
             <Rig art={art} />
-            <Explode />
+            <TableWatch />
+            <ThemeWatch art={art} />
             <Interaction />
             <Callouts />
             {physicsOn ? (
@@ -709,7 +821,7 @@ export default function Scene({
                 onError={() => physicsBridge.fail()}
               >
                 <Suspense fallback={null}>
-                  <PhysicsWorld paused={!active} />
+                  <PhysicsWorld paused={!shown} />
                 </Suspense>
               </IslandBoundary>
             ) : null}

@@ -39,14 +39,15 @@ test.describe('work, open source, writing, cv @B-04', () => {
     page,
   }) => {
     await page.goto('/');
-    const shown = objects.filter((o) => o.confirmed);
+    const shown = objects.filter((o) => o.confirmed && o.target);
     const links = page.locator('[data-object-list] a');
     await expect(links).toHaveCount(shown.length);
     for (const [i, o] of shown.entries()) {
-      await expect(links.nth(i)).toHaveAttribute('href', o.target);
-      await expect(page.locator(o.target)).toHaveCount(1);
+      const target = o.target ?? '';
+      await expect(links.nth(i)).toHaveAttribute('href', target);
+      await expect(page.locator(target)).toHaveCount(1);
       await links.nth(i).click();
-      await expect(page.locator(o.target)).toBeInViewport();
+      await expect(page.locator(target)).toBeInViewport();
       await page.evaluate(() => window.scrollTo(0, 0));
     }
   });
