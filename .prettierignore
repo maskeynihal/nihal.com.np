@@ -7,3 +7,5 @@ scripts/__fixtures__
 playwright-report
 test-results
 .lighthouseci
+src/styles/fonts.generated.css
+src/styles/fonts.manifest.json

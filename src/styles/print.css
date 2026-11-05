@@ -1,0 +1,16 @@
+/* Print: paper everywhere, ink text, interactive/3D chrome hidden. */
+@media print {
+  html,
+  body {
+    background: var(--paper) !important;
+    color: var(--blue-ink) !important;
+  }
+
+  .paper {
+    border-color: var(--hairline);
+  }
+
+  [data-print='hide'] {
+    display: none !important;
+  }
+}

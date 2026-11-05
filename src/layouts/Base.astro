@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import printCss from '../styles/print.css?url';
+import fonts from '../styles/fonts.manifest.json';
 
 interface Props {
   title: string;
@@ -17,12 +19,16 @@ const { title } = Astro.props;
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=JetBrains+Mono:wght@400..600&display=swap"
-    />
+    {[fonts.fraunces, fonts.jetbrainsMono].map((f) => (
+      <link
+        rel="preload"
+        as="font"
+        type="font/woff2"
+        href={f.url}
+        crossorigin
+      />
+    ))}
+    <link rel="stylesheet" href={printCss} media="print" />
   </head>
   <body>
     <slot />

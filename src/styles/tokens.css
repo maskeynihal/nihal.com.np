@@ -1,3 +1,5 @@
+/* Single source of design tokens (design spec 2.1, 2.2). global.css exposes
+   them to Tailwind via @theme inline; never repeat these values elsewhere. */
 :root {
   --blue: #1f3fe0;
   --blue-deep: #142fb8;
@@ -10,4 +12,15 @@
   --ok: #9bf6c4;
   --warn: #ffd56b;
   --bad: #ff8a8a;
+
+  --radius: 6px;
+  /* Paper panel hairline: --blue-ink at 14% */
+  --hairline: color-mix(in srgb, var(--blue-ink) 14%, transparent);
+
+  --font-display:
+    'Fraunces', 'Fraunces Fallback', Georgia, 'Times New Roman', serif;
+  --font-body:
+    'Fraunces', 'Fraunces Fallback', Georgia, 'Times New Roman', serif;
+  --font-mono:
+    'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace, Menlo, monospace;
 }
