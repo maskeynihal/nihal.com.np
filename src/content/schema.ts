@@ -95,6 +95,17 @@ export const BodyDef = z.strictObject({
     'calendar',
     'ghost',
     'cruiser',
+    'laptop',
+    'ball-s',
+    'ball-m',
+    'ball-l',
+    'pacman-1',
+    'pacman-2',
+    'letter-n',
+    'letter-i',
+    'letter-h',
+    'letter-a',
+    'letter-l',
   ]),
   model: text,
   home: z.strictObject({
@@ -109,8 +120,11 @@ export const BodyDef = z.strictObject({
   mass: z.number().positive(),
   kinematicWhenIdle: z.boolean().optional(),
   callouts: z.array(z.strictObject({ anchor: vec3, text })),
-  target: z.string().regex(SECTION_TARGET, 'target must be a section id'),
-  explode: vec3,
+  /** Section id a tap goes to. Decorative objects (balls, letters) have none. */
+  target: z
+    .string()
+    .regex(SECTION_TARGET, 'target must be a section id')
+    .optional(),
   label: text,
   confirmed: z.boolean(),
 });

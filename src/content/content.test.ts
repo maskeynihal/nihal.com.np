@@ -108,7 +108,7 @@ describe('content files', () => {
   it('cross-reference: every #work-<id> target names a work item', () => {
     const ids = new Set(work.map((w) => w.id));
     for (const o of objects) {
-      const m = /^#work-(.+)$/.exec(o.target);
+      const m = /^#work-(.+)$/.exec(o.target ?? '');
       if (m) expect(ids.has(m[1] as (typeof work)[number]['id'])).toBe(true);
     }
   });
@@ -137,7 +137,7 @@ describe('content files', () => {
     it('plain build: confirmed objects only, no cruiser, one clock', () => {
       const alt = buildPosterAlt(getObjects());
       expect(alt).toBe(
-        'Line drawing of an Arduino board with a small OLED screen, a desk clock, a Nepali desk calendar and a Pac-Man ghost laid out on blueprint paper.',
+        'Line drawing of an Arduino board with a small OLED screen, a desk clock, a Nepali desk calendar, an open laptop, a Pac-Man ghost, two Pac-Man figures, three balls and the letters N, I, H, A and L laid out on blueprint paper.',
       );
       expect(alt).not.toMatch(/cruiser/i);
     });

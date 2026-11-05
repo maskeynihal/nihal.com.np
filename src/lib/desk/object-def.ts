@@ -19,11 +19,9 @@ export interface ObjectDef {
   q: [number, number, number, number];
   collider: ColliderDef;
   mass: number;
-  kinematicWhenIdle?: boolean;
   callouts: { anchor: Vec3; text: string }[];
-  /** Section id such as `#work-car-sensors`. */
-  target: string;
-  explode: Vec3;
+  /** Section id such as `#work-car-sensors`. Decorative objects have none. */
+  target?: string;
 }
 
 const isNums = (v: unknown, n: number): v is number[] =>
@@ -50,9 +48,8 @@ function valid(o: unknown): o is ObjectDef {
     d.callouts.every(
       (k) => typeof k?.text === 'string' && isNums(k?.anchor, 3),
     ) &&
-    typeof d.target === 'string' &&
-    d.target.startsWith('#') &&
-    isNums(d.explode, 3)
+    (d.target === undefined ||
+      (typeof d.target === 'string' && d.target.startsWith('#')))
   );
 }
 

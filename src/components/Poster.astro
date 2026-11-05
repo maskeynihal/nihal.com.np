@@ -14,7 +14,7 @@ import { buildPosterAlt } from '../content/poster-alt';
  * moves) until `data-desk-state="live"`: the drag hint, the reset button and the OLED caption.
  * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
  * so the shown objects are handed to it as `data-objects`: the confirmed ones only, with their
- * pose, collider, mass, callouts, target and explode offset (everything the physics needs).
+ * pose, collider, mass, callouts and target (everything the physics needs).
  * The script below also owns `nihal:navigate`: the one scroll owner (design 5, impl spec 4).
  */
 const { titleBlock } = getCopy();
@@ -26,10 +26,8 @@ const objects = JSON.stringify(
     q: o.home.q,
     collider: o.collider,
     mass: o.mass,
-    ...(o.kinematicWhenIdle ? { kinematicWhenIdle: true } : {}),
     callouts: o.callouts,
-    target: o.target,
-    explode: o.explode,
+    ...(o.target ? { target: o.target } : {}),
   })),
 );
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');

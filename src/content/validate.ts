@@ -47,13 +47,13 @@ function fail(file: string, lines: string[]): never {
 /** Cross-file references: object targets and pending keys must name real rows. */
 function crossCheck(
   workRows: { id: string }[],
-  objectRows: { id: string; target: string }[],
+  objectRows: { id: string; target?: string | undefined }[],
   cvRows: { when: string; role: string }[],
 ) {
   const workIds = new Set(workRows.map((w) => w.id));
   const bad: string[] = [];
   for (const o of objectRows) {
-    const m = /^#work-(.+)$/.exec(o.target);
+    const m = /^#work-(.+)$/.exec(o.target ?? '');
     if (m && !workIds.has(m[1] ?? ''))
       bad.push(`${o.id}.target: ${o.target} names no work item`);
   }

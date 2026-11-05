@@ -118,7 +118,7 @@ describe('BodyDef', () => {
   it('rejects a wrong collider kind', () =>
     rejects(BodyDef, { ...o, collider: { ...o.collider, kind: 'mesh' } }));
   it('rejects a short vector', () =>
-    rejects(BodyDef, { ...o, explode: [0, 1] }));
+    rejects(BodyDef, { ...o, home: { ...o.home, p: [0, 1] } }));
   it('rejects an unknown key', () => rejects(BodyDef, { ...o, extra: true }));
   it('rejects a missing field', () => {
     rejects(BodyDef, omit(o, 'mass'));

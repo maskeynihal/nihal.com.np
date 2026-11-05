@@ -8,7 +8,14 @@ import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
-import { heroCamera } from '../../src/assets/camera';
+/** The retired perspective hero camera (the desk is orthographic now); the spike viewer still wants one. */
+const heroCamera = {
+  fov: 35,
+  near: 0.5,
+  far: 8,
+  position: [0, 2.05, 1.55],
+  lookAt: [0, 0, -0.05],
+} as const;
 import { objects } from '../../src/content/objects';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
