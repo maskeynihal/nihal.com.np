@@ -1,6 +1,6 @@
 ---
 import posterSvg from '../assets/poster.svg?raw';
-import { getObjects } from '../content';
+import { getCopy, getObjects } from '../content';
 import { buildPosterAlt } from '../content/poster-alt';
 
 /**
@@ -9,7 +9,29 @@ import { buildPosterAlt } from '../content/poster-alt';
  * from the objects actually shown. It is also the fallback for every no-3D path; the Desk island
  * only sets `data-desk-state` on the wrapping figure. The script below makes the poster `inert`
  * while the canvas is live (the object list is the keyboard path) and restores it otherwise.
+ *
+ * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
+ * moves) until `data-desk-state="live"`: the drag hint, the reset button and the OLED caption.
+ * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
+ * so the shown objects are handed to it as `data-objects`: the confirmed ones only, with their
+ * pose, collider, mass, callouts, target and explode offset (everything the physics needs).
+ * The script below also owns `nihal:navigate`: the one scroll owner (design 5, impl spec 4).
  */
+const { titleBlock } = getCopy();
+const objects = JSON.stringify(
+  getObjects().map((o) => ({
+    id: o.id,
+    model: o.model.replace(/\.glb$/, ''),
+    p: o.home.p,
+    q: o.home.q,
+    collider: o.collider,
+    mass: o.mass,
+    ...(o.kinematicWhenIdle ? { kinematicWhenIdle: true } : {}),
+    callouts: o.callouts,
+    target: o.target,
+    explode: o.explode,
+  })),
+);
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
 const svg = posterSvg
   .trim()
@@ -19,7 +41,18 @@ const svg = posterSvg
   );
 ---
 
-<div class="poster-frame" data-poster set:html={svg} />
+<div class="poster-frame" data-poster data-objects={objects} set:html={svg} />
+<div class="desk-overlay" aria-hidden="true">
+  <span class="label oled-caption" data-oled-caption>
+    {titleBlock.oledCaption}
+  </span>
+</div>
+<div class="desk-controls" data-desk-controls>
+  <p class="label desk-hint">{titleBlock.dragHint}</p>
+  <button type="button" class="label desk-reset" data-desk-reset>
+    {titleBlock.reset}
+  </button>
+</div>
 
 <script>
   const frame = document.querySelector<HTMLElement>('[data-poster]');
@@ -34,4 +67,21 @@ const svg = posterSvg
       attributeFilter: ['data-desk-state'],
     });
   }
+
+  // A drawn object was tapped: scroll to its section and put focus on the section's heading.
+  // Smooth only when motion is on; no global `scroll-behavior` (it would fight the sheet index).
+  window.addEventListener('nihal:navigate', (e) => {
+    const target = (e as CustomEvent<unknown>).detail;
+    if (typeof target !== 'string' || !/^#[\w-]+$/.test(target)) return;
+    const section = document.querySelector<HTMLElement>(target);
+    if (!section) return;
+    const smooth = document.documentElement.dataset['motion'] === 'full';
+    section.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      block: 'start',
+    });
+    const heading = section.querySelector<HTMLElement>('h1, h2, h3') ?? section;
+    if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  });
 </script>

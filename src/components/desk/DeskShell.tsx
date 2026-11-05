@@ -3,10 +3,11 @@ import {
   lazy,
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ComponentType,
 } from 'react';
-import { onIdle, canRun3D } from '../../lib/prefs';
+import { onIdle, canRun3D, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
 import { IslandBoundary, useIslandFailure } from './IslandBoundary';
 import { registerDeskHooks } from './desk-hooks';
@@ -44,10 +45,60 @@ function DeskContent({
   const [crash, setCrash] = useState<Error | null>(null);
   const failAsync = useIslandFailure();
 
-  // Poster first; the Scene chunk is requested only when the device can run it and is idle.
+  // Poster first. The Scene chunk is requested only when the device can run it, the hero is in
+  // view and the browser is idle. Switching motion off while live goes back to the poster (and
+  // frees the Scene); switching it on again starts the same path.
+  const hostRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (canRun3D()) onIdle(() => setWantScene(true));
-  }, []);
+    let cancelled = false;
+    let visible = false;
+    let idle = false;
+    let observer: IntersectionObserver | undefined;
+    const settle = () => {
+      if (!cancelled && visible && idle) setWantScene(true);
+    };
+    const start = () => {
+      if (!canRun3D()) return;
+      const figure = hostRef.current?.closest('[data-desk]');
+      if (figure && typeof IntersectionObserver === 'function') {
+        observer = new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            visible = true;
+            observer?.disconnect();
+            settle();
+          }
+        });
+        observer.observe(figure);
+      } else {
+        visible = true;
+      }
+      onIdle(() => {
+        idle = true;
+        settle();
+      });
+    };
+    const stop = () => {
+      cancelled = true;
+      observer?.disconnect();
+    };
+    if (getMotion() === 'full') start();
+    const unsubscribe = subscribeMotion((m) => {
+      stop();
+      if (m === 'reduce') {
+        setWantScene(false);
+        onStatus('poster');
+      } else {
+        cancelled = false;
+        visible = false;
+        idle = false;
+        start();
+      }
+    });
+    return () => {
+      stop();
+      unsubscribe();
+    };
+  }, [onStatus]);
 
   useEffect(() => {
     if (testHooks)
@@ -63,11 +114,15 @@ function DeskContent({
   if (crash) throw crash;
 
   const Active: SceneComponent | null = override ?? (wantScene ? Scene : null);
-  return Active ? (
-    <IslandBoundary island="scene" fallback={() => null} onError={onFail}>
-      <Suspense fallback={null}>
-        <Active onReady={ready} />
-      </Suspense>
-    </IslandBoundary>
-  ) : null;
+  return (
+    <div ref={hostRef} className="desk-canvas" aria-hidden="true">
+      {Active ? (
+        <IslandBoundary island="scene" fallback={() => null} onError={onFail}>
+          <Suspense fallback={null}>
+            <Active onReady={ready} />
+          </Suspense>
+        </IslandBoundary>
+      ) : null}
+    </div>
+  );
 }

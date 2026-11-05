@@ -18,7 +18,61 @@ interface ErrorRecord {
 
 type DeskFailKind = 'scene' | 'shell' | 'chunk' | 'async';
 
+interface DeskSceneHooks {
+  /** Frames the canvas has rendered. */
+  frames(): number;
+  /** OLED ticks so far (500 ms each, only while visible and motion is full). */
+  oledTicks(): number;
+  oledText(): string;
+  /** Hand angles of each clock, radians clockwise from 12. */
+  clocks(): { id: string; hour: number; minute: number }[];
+  calendar(): unknown;
+  ghostLook(x: number, z: number): void;
+  ghostRelease(): void;
+  /** `rotation.y` of the eye pivots. */
+  ghostEyes(): number[];
+  /** Canvas size in CSS px. */
+  size(): { width: number; height: number };
+  /** Swaps the desk for one lit sphere; returns its screen circle in canvas CSS px. */
+  probeSphere(on: boolean): { cx: number; cy: number; r: number } | null;
+  /** The physics layer: 'idle' until the first grab, then 'loading', 'ready' or 'failed'. */
+  physics(): {
+    state: 'idle' | 'loading' | 'ready' | 'failed';
+    grabbed: string | null;
+    bodies: {
+      id: string;
+      asleep: boolean;
+      type: 'dynamic' | 'kinematic';
+      p: [number, number, number];
+    }[];
+  };
+  /** Asks for the physics chunk as a first grab would. */
+  requestPhysics(): void;
+  /** Moves a body (waking it); false while physics is not loaded. */
+  teleport(id: string, x: number, y: number, z: number): boolean;
+  /** Canvas CSS px of a point inside the object, or null. */
+  pick(id: string): { x: number; y: number } | null;
+  hovered(): string | null;
+  /** Hover lift of the model root, metres. */
+  hoverLift(id: string): number;
+  /** Exploded view: scroll target, shown (lerped) factor and the range in px it is read over. */
+  explode(): { target: number; factor: number; range: number };
+  /** Offset applied to an object by the exploded view, metres (zero while it is awake). */
+  explodeOffset(id: string): [number, number, number];
+  explodeLeaders(): { id: string; visible: boolean; opacity: number }[];
+  /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
+  callouts(): {
+    id: string;
+    text: string;
+    active: boolean;
+    lineOpacity: number;
+  }[];
+  /** Idle timers (OLED, clocks, calendar) stop requesting frames while on. */
+  quiet(on: boolean): void;
+}
+
 interface DeskHooks {
+  scene?: DeskSceneHooks;
   /** Triggers one failure path on purpose; the resulting error is marked intentional. */
   fail(kind: DeskFailKind): void;
   /** 'poster' (default), 'live' (Scene mounted) or 'failed'. */
@@ -34,4 +88,9 @@ interface TestHooks {
 
 interface Window {
   __hooks?: TestHooks;
+}
+
+declare module '*.glb?url&no-inline' {
+  const url: string;
+  export default url;
 }

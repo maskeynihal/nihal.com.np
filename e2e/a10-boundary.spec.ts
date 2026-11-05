@@ -49,7 +49,10 @@ test.describe('error boundary and island isolation @A-10', () => {
     await expect(poster(page)).toBeVisible();
     await expect(note(page)).toHaveText('');
     if (info.project.name === 'desktop-chromium') {
-      await expect(figure(page)).toHaveAttribute('data-desk-state', 'live');
+      // The Scene chunk is about 1 MB; under load it takes longer than the default 5 s.
+      await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
+        timeout: 20_000,
+      });
     } else if (
       info.project.name === 'reduced-motion' ||
       info.project.name === 'no-webgl'

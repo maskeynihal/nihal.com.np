@@ -4,8 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { init, parse } from 'es-module-lexer';
 
 // Scene is the lazy 3D chunk (A-10): reaching it statically defeats the island split.
-const FORBIDDEN_NAME = /desk-vendor|physics|(?:^|\/)Scene[.-]/;
-const FORBIDDEN_CONTENT = /REVISION|rapier/;
+const FORBIDDEN_NAME = /desk-vendor|physics|rapier|(?:^|\/)Scene[.-]/i;
+// `REVISION` can be mangled out of a minified three; `__THREE__` (the window.__THREE__ duplicate check) survives.
+const FORBIDDEN_CONTENT = /REVISION|__THREE__|rapier/;
+
+// The physics engine (rapier + @react-three/rapier) is its own chunk, requested on the first grab.
+// Its wasm is inlined as base64 and its classes keep their names, so these two mark it.
+const PHYSICS_MARKER = /AGFzbQ[A-Za-z0-9+/]{20}|RigidBodyDesc/;
+const SCENE_NAME = /(?:^|\/)Scene[.-]/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -53,6 +59,37 @@ function htmlEntries(html: string): { urls: string[]; inline: string[] } {
     if (m[1]) out.push(m[1]);
   }
   return { urls: out, inline };
+}
+
+/**
+ * Beyond the initial graph: the Scene chunk (itself lazy) must not hold the engine, and no chunk
+ * that lacks it may import one that has it statically. Only a dynamic `import()` may reach it.
+ */
+export function checkPhysicsIsolation(dist: string): string[] {
+  const failures: string[] = [];
+  const rel = (f: string) => relative(dist, f);
+  const js = walk(dist).filter((f) => /\.m?js$/.test(f));
+  const code = new Map(js.map((f) => [f, readFileSync(f, 'utf8')]));
+  const physics = new Set(
+    js.filter((f) => PHYSICS_MARKER.test(code.get(f) ?? '')),
+  );
+  for (const f of physics)
+    if (SCENE_NAME.test(rel(f)))
+      failures.push(`physics engine inside the Scene chunk: ${rel(f)}`);
+  for (const f of js) {
+    if (physics.has(f)) continue;
+    const [imports] = parse(code.get(f) ?? '');
+    for (const imp of imports) {
+      if (imp.type !== 'static' && imp.type !== 'reexport-star') continue;
+      if (!imp.specifier) continue;
+      const next = resolveUrl(dist, f, imp.specifier, false);
+      if (next && physics.has(next))
+        failures.push(
+          `physics chunk imported statically: ${rel(f)} -> ${rel(next)}`,
+        );
+    }
+  }
+  return failures;
 }
 
 export async function checkGraph(
@@ -107,6 +144,8 @@ export async function checkGraph(
       enqueueImports(code, file, chain);
     }
   }
+
+  failures.push(...checkPhysicsIsolation(dist));
 
   if (opts.expectNoHooks) {
     for (const f of walk(dist)) {

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Ports can be overridden so two checkouts can run e2e side by side. Defaults are unchanged.
+const PORT = process.env['E2E_PORT'] ?? '4321';
+const HEADER_PORT = process.env['E2E_HEADER_PORT'] ?? '4391';
+const DEFAULT_HEADER_PORT = '4391';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -9,7 +14,7 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ],
-  use: { baseURL: 'http://localhost:4321', trace: 'retain-on-failure' },
+  use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   projects: [
     {
       name: 'desktop-chromium',
@@ -56,17 +61,23 @@ export default defineConfig({
   // with test hooks first); running `playwright test` directly is unsupported.
   webServer: [
     {
-      command: 'pnpm preview --port 4321 --ignore-lock',
-      url: 'http://localhost:4321',
+      command: `pnpm preview --port ${PORT} --ignore-lock`,
+      url: `http://localhost:${PORT}`,
       reuseExistingServer: !process.env['CI'],
       timeout: 60_000,
     },
     // Same dist with the production response headers (CSP) applied; used by @A-09 specs.
-    {
-      command: 'pnpm exec tsx e2e/header-server.ts',
-      url: 'http://localhost:4391',
-      reuseExistingServer: !process.env['CI'],
-      timeout: 60_000,
-    },
+    // e2e/header-server.ts listens on 4391 only, so with an overridden port it is not started
+    // (the @A-09 specs then cannot run; use the default port for them).
+    ...(HEADER_PORT === DEFAULT_HEADER_PORT
+      ? [
+          {
+            command: 'pnpm exec tsx e2e/header-server.ts',
+            url: `http://localhost:${HEADER_PORT}`,
+            reuseExistingServer: !process.env['CI'],
+            timeout: 60_000,
+          },
+        ]
+      : []),
   ],
 });
