@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { format } from 'prettier';
-import { partToGlb } from './export';
+import { modelToGlb } from './export';
 import { bounds, triCount } from './geom';
 import { models } from './models';
 import { buildPoster } from './poster';
@@ -29,7 +29,7 @@ export async function buildAssets(): Promise<BuiltAssets> {
   const stats: BuiltAssets['stats'] = [];
   for (const m of models) {
     const part = m.build();
-    const glb = await partToGlb(m.name, part);
+    const glb = await modelToGlb(m.name, m.parts());
     glbs.set(`${m.file}.glb`, glb);
     lines[m.file] = part.lines;
     stats.push({
