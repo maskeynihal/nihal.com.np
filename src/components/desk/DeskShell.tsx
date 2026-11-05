@@ -11,9 +11,14 @@ import { onIdle, canRun3D, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
 import { IslandBoundary, useIslandFailure } from './IslandBoundary';
 import { registerDeskHooks } from './desk-hooks';
+import type { ContextEvent } from './context-loss';
 
-export type DeskStatus = 'poster' | 'live' | 'failed';
-type SceneComponent = ComponentType<{ onReady: () => void }>;
+/** `paused` is a lost WebGL context waiting for its one restore: the poster and the note show. */
+export type DeskStatus = 'poster' | 'live' | 'paused' | 'failed';
+type SceneComponent = ComponentType<{
+  onReady: () => void;
+  onContext?: (e: ContextEvent) => void;
+}>;
 
 // The only reference to Scene is this dynamic import, so it gets its own chunk.
 const Scene = lazy(() => import('./Scene'));
@@ -43,6 +48,9 @@ function DeskContent({
   const [wantScene, setWantScene] = useState(false);
   const [override, setOverride] = useState<SceneComponent | null>(null);
   const [crash, setCrash] = useState<Error | null>(null);
+  // A context lost for good ends the Scene for the session (poster, note, GPU memory freed).
+  const [gone, setGone] = useState(false);
+  const goneRef = useRef(false);
   const failAsync = useIslandFailure();
 
   // Poster first. The Scene chunk is requested only when the device can run it, the hero is in
@@ -55,7 +63,7 @@ function DeskContent({
     let idle = false;
     let observer: IntersectionObserver | undefined;
     const settle = () => {
-      if (!cancelled && visible && idle) setWantScene(true);
+      if (!cancelled && !goneRef.current && visible && idle) setWantScene(true);
     };
     const start = () => {
       if (!canRun3D()) return;
@@ -86,8 +94,8 @@ function DeskContent({
       stop();
       if (m === 'reduce') {
         setWantScene(false);
-        onStatus('poster');
-      } else {
+        if (!goneRef.current) onStatus('poster');
+      } else if (!goneRef.current) {
         cancelled = false;
         visible = false;
         idle = false;
@@ -110,16 +118,31 @@ function DeskContent({
   }, [failAsync]);
 
   const ready = useCallback(() => onStatus('live'), [onStatus]);
+  const onContext = useCallback(
+    (e: ContextEvent) => {
+      if (e === 'lost') onStatus('paused');
+      else if (e === 'restored') onStatus('live');
+      else {
+        goneRef.current = true;
+        setGone(true);
+        setWantScene(false);
+        onStatus('failed');
+      }
+    },
+    [onStatus],
+  );
 
   if (crash) throw crash;
 
-  const Active: SceneComponent | null = override ?? (wantScene ? Scene : null);
+  const Active: SceneComponent | null = gone
+    ? null
+    : (override ?? (wantScene ? Scene : null));
   return (
     <div ref={hostRef} className="desk-canvas" aria-hidden="true">
       {Active ? (
         <IslandBoundary island="scene" fallback={() => null} onError={onFail}>
           <Suspense fallback={null}>
-            <Active onReady={ready} />
+            <Active onReady={ready} onContext={onContext} />
           </Suspense>
         </IslandBoundary>
       ) : null}

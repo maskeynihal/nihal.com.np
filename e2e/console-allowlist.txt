@@ -18,3 +18,7 @@
 # canvas is composited, whatever the context options. It is the "SwiftShader ReadPixels stall" the
 # implementation spec section 11 expects here; it says nothing about the page.
 ^\[\.WebGL-[0-9a-fx]+\]GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): GPU stall due to ReadPixels
+
+# E-09: three logs this when the desk is torn down after its WebGL context was lost for good
+# (the extension cannot be reached on a lost context). Only the context-loss tests get here.
+^THREE\.WebGLRenderer: WEBGL_lose_context extension not supported\.$

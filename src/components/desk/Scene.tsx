@@ -1,6 +1,7 @@
 import {
   Suspense,
   lazy,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -15,7 +16,9 @@ import {
   type Group,
   type PerspectiveCamera,
   type Material,
+  type Mesh,
   type Object3D,
+  type Texture,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -55,10 +58,13 @@ import {
   setCameraProbe,
   setClockProbe,
   setGhostProbe,
+  setGlProbe,
   setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
 import { Callouts } from './Callouts';
+import { disposedProbe } from './disposed-probe';
+import { createContextPolicy, type ContextEvent } from './context-loss';
 import { Explode } from './Explode';
 import { Interaction } from './Interaction';
 import { IslandBoundary } from './IslandBoundary';
@@ -67,18 +73,20 @@ import { registry } from './registry';
 import { createCalendarTexture, createOledTexture } from './textures';
 
 // R3F 9.8 builds a `THREE.Clock` for each root, and three 0.187 warns (console.warn) on every one.
-// Drop only that notice from module load until the canvas exists, so the page console stays clean.
-// Remove with the next R3F that uses THREE.Timer.
+// Drop only that notice while a Scene is mounted (every mount creates a root), so the page console
+// stays clean; every other warning passes through. Remove with the next R3F that uses THREE.Timer.
 const clockNotice = /^THREE\.Clock: This module has been deprecated/;
 const nativeWarn = console.warn;
-console.warn = (...args: unknown[]) => {
+const filteredWarn = (...args: unknown[]) => {
   if (typeof args[0] === 'string' && clockNotice.test(args[0])) return;
   nativeWarn.apply(console, args);
 };
-const restoreWarn = () => {
-  if (console.warn !== nativeWarn) console.warn = nativeWarn;
+const muteClockNotice = () => {
+  if (console.warn === nativeWarn) console.warn = filteredWarn;
 };
-setTimeout(restoreWarn, 10_000);
+const restoreWarn = () => {
+  if (console.warn === filteredWarn) console.warn = nativeWarn;
+};
 
 /**
  * The 3D desk (loaded lazily by DeskShell; never imported statically, `pnpm check:graph`).
@@ -534,7 +542,83 @@ function SphereProbe({ on }: { on: boolean }) {
   return on ? <primitive object={group} position={[0, 0.2, 0]} /> : null;
 }
 
-export default function Scene({ onReady }: { onReady: () => void }) {
+/** Frees what a material holds on the GPU: its textures, then the material itself. */
+function disposeMaterial(material: Material): void {
+  for (const value of Object.values(material)) {
+    if (value && (value as { isTexture?: boolean }).isTexture)
+      (value as Texture).dispose();
+  }
+  material.dispose();
+}
+
+/**
+ * Context loss (design 4.8) and disposal. `webglcontextlost` is cancelled so the browser may
+ * restore it; the policy allows one restore, then the shell shows the poster for the session.
+ * On unmount every geometry, material and texture the scene holds is disposed and the renderer's
+ * memory counters are recorded, so remounting leaves nothing behind.
+ */
+function ContextGuard({
+  onContext,
+  onLost,
+}: {
+  onContext: (e: ContextEvent) => void;
+  onLost: (lost: boolean) => void;
+}) {
+  const { gl, scene, invalidate } = useThree();
+  // A layout effect: its cleanup must run before React removes the drawn objects from the scene.
+  useLayoutEffect(() => {
+    setGlProbe(gl);
+    const el = gl.domElement;
+    const policy = createContextPolicy((e) => {
+      onContext(e);
+      if (e === 'restored') {
+        onLost(false);
+        invalidate();
+      }
+    });
+    const lost = (ev: Event) => {
+      ev.preventDefault();
+      onLost(true);
+      policy.lost();
+    };
+    const restored = () => policy.restored();
+    el.addEventListener('webglcontextlost', lost);
+    el.addEventListener('webglcontextrestored', restored);
+    return () => {
+      el.removeEventListener('webglcontextlost', lost);
+      el.removeEventListener('webglcontextrestored', restored);
+      policy.dispose();
+      scene.traverse((node) => {
+        const mesh = node as Mesh;
+        mesh.geometry?.dispose();
+        const m = mesh.material as Material | Material[] | undefined;
+        if (Array.isArray(m)) m.forEach(disposeMaterial);
+        else if (m) disposeMaterial(m);
+      });
+      if (testHooks)
+        disposedProbe.set({
+          geometries: gl.info.memory.geometries,
+          textures: gl.info.memory.textures,
+        });
+      setGlProbe(null);
+    };
+  }, [gl, scene, invalidate, onContext, onLost]);
+  return null;
+}
+
+export default function Scene({
+  onReady,
+  onContext,
+}: {
+  onReady: () => void;
+  onContext?: (e: ContextEvent) => void;
+}) {
+  // Once per mount, before the canvas (and its THREE.Clock) exists.
+  useState(muteClockNotice);
+  useEffect(() => {
+    muteClockNotice();
+    return restoreWarn;
+  }, []);
   const hostRef = useRef<HTMLDivElement>(null);
   const active = useActiveState(hostRef);
   const art = useMemo(() => createLineArt(), []);
@@ -542,6 +626,8 @@ export default function Scene({ onReady }: { onReady: () => void }) {
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
   const [probeOn, setProbeOn] = useState(false);
   const [physicsOn, setPhysicsOn] = useState(false);
+  const [lost, setLost] = useState(false);
+  const noContext = useCallback(() => {}, []);
 
   useEffect(() => () => art.dispose(), [art]);
 
@@ -596,7 +682,7 @@ export default function Scene({ onReady }: { onReady: () => void }) {
       <ActiveContext.Provider value={active}>
         <LineArtContext.Provider value={art}>
           <Canvas
-            frameloop={active ? 'demand' : 'never'}
+            frameloop={active && !lost ? 'demand' : 'never'}
             flat
             dpr={dprFor()}
             gl={{
@@ -608,10 +694,10 @@ export default function Scene({ onReady }: { onReady: () => void }) {
             camera={{ fov: 35, near: 0.5, far: 8 }}
             resize={{ debounce: 200, scroll: false }}
             onCreated={({ gl }) => {
-              restoreWarn();
               gl.setClearColor(art.blue, 1);
             }}
           >
+            <ContextGuard onContext={onContext ?? noContext} onLost={setLost} />
             <Rig art={art} />
             <Explode />
             <Interaction />

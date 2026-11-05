@@ -14,6 +14,7 @@ import { installGlobalErrorReporting } from './island-errors';
  * and writes the note into a persistent `role="status"` element (an element that already
  * exists announces more reliably than one inserted with its text). Only a positive
  * state (`live`, E-01) may ever hide the poster; `failed` always shows it.
+ * `paused` (a lost WebGL context with its one restore pending) is `poster` plus the note.
  *
  * The canvas layer (`.desk-live`) overlays the poster; CSS crossfades them on `data-desk-state`.
  * The drag hint, the reset button and the OLED caption are Astro markup in `Poster.astro`
@@ -32,7 +33,9 @@ export default function Desk() {
 
   useEffect(() => {
     const figure = wrapRef.current?.closest<HTMLElement>('[data-desk]');
-    if (figure) figure.dataset['deskState'] = status;
+    // `paused` (context lost, one restore pending) shows the poster like `poster` does.
+    if (figure)
+      figure.dataset['deskState'] = status === 'paused' ? 'poster' : status;
   }, [status]);
 
   // "reset the desk" lives in Poster.astro; the Scene (E-05) listens for the event.
@@ -57,7 +60,7 @@ export default function Desk() {
         <DeskShell onStatus={onStatus} />
       </IslandRoot>
       <p role="status" className="label desk-note">
-        {status === 'failed' ? deskNote.lost : ''}
+        {status === 'failed' || status === 'paused' ? deskNote.lost : ''}
       </p>
     </div>
   );

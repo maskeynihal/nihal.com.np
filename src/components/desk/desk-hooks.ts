@@ -1,6 +1,7 @@
 import { lazy, type ComponentType } from 'react';
 import { testHooks } from '../../lib/env';
 import { markIntentional } from '../../lib/report-error';
+import { disposedProbe } from './disposed-probe';
 
 export interface DeskHookControls {
   /** Replaces the lazy Scene with another component (or restores it with null). */
@@ -53,6 +54,7 @@ export function registerDeskHooks(controls: DeskHookControls): void {
           break;
       }
     },
+    disposed: () => disposedProbe.get(),
     state() {
       return (
         document.querySelector<HTMLElement>('[data-desk]')?.dataset[

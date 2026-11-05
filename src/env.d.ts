@@ -69,6 +69,12 @@ interface DeskSceneHooks {
   }[];
   /** `null` while sound is off or no press has armed it; else the context state and clips started. */
   audio(): { state: string; played: { clip: string; gain: number }[] } | null;
+  /** `renderer.info.memory` of the live canvas, or null. */
+  memory(): { geometries: number; textures: number } | null;
+  /** Forces a WebGL context loss / restore through WEBGL_lose_context. */
+  loseContext(): void;
+  restoreContext(): void;
+  contextLost(): boolean;
   /** Idle timers (OLED, clocks, calendar) stop requesting frames while on. */
   quiet(on: boolean): void;
 }
@@ -79,6 +85,8 @@ interface DeskHooks {
   fail(kind: DeskFailKind): void;
   /** 'poster' (default), 'live' (Scene mounted) or 'failed'. */
   state(): string;
+  /** What the renderer still held after the last Scene unmount freed everything; null before one. */
+  disposed(): { geometries: number; textures: number } | null;
 }
 
 interface TestHooks {

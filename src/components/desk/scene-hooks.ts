@@ -1,4 +1,4 @@
-import type { PerspectiveCamera } from 'three';
+import type { PerspectiveCamera, WebGLRenderer } from 'three';
 import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
 import { physicsBridge } from './physics-bridge';
@@ -35,6 +35,8 @@ export interface SceneProbe {
     active: boolean;
     lineOpacity: number;
   }[];
+  /** The live renderer, for context and memory hooks. */
+  gl: WebGLRenderer | null;
   /** While true the 1 s / 500 ms timers keep running but stop requesting frames (tests only). */
   quiet: boolean;
 }
@@ -55,11 +57,14 @@ export const probe: SceneProbe = {
     leaders: () => [],
   },
   callouts: () => [],
+  gl: null,
   quiet: false,
 };
 
 /** True when a test asked for the idle timers to stay off the frame counter. Always false in a plain build. */
 export const isQuiet = (): boolean => testHooks && probe.quiet;
+
+let loseExt: WEBGL_lose_context | null | undefined;
 
 /** Merges the probe into `__hooks.desk.scene`. A plain build drops this (testHooks is a constant). */
 export function installSceneHooks(): () => void {
@@ -69,6 +74,7 @@ export function installSceneHooks(): () => void {
   const desk = (hooks.desk ??= {
     fail() {},
     state: () => '',
+    disposed: () => null,
   });
   desk.scene = {
     frames: () => probe.frames,
@@ -102,6 +108,17 @@ export function installSceneHooks(): () => void {
     explodeLeaders: () => probe.explode.leaders(),
     callouts: () => probe.callouts(),
     audio: () => audioProbe(),
+    memory: () => {
+      const m = probe.gl?.info.memory;
+      return m ? { geometries: m.geometries, textures: m.textures } : null;
+    },
+    loseContext: () => {
+      // A lost context no longer hands the extension out, so keep it for restoreContext.
+      loseExt = probe.gl?.getContext().getExtension('WEBGL_lose_context');
+      loseExt?.loseContext();
+    },
+    restoreContext: () => loseExt?.restoreContext(),
+    contextLost: () => probe.gl?.getContext().isContextLost() ?? false,
     quiet: (on) => {
       probe.quiet = on;
     },
@@ -133,6 +150,9 @@ export function setClockProbe(
 }
 export function setGhostProbe(g: SceneProbe['ghost']): void {
   probe.ghost = g;
+}
+export function setGlProbe(gl: WebGLRenderer | null): void {
+  probe.gl = gl;
 }
 export function countFrame(): void {
   probe.frames += 1;
