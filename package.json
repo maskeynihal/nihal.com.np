@@ -24,6 +24,9 @@
     "review": "tsx scripts/review.ts",
     "review:all": "tsx scripts/review.ts --all",
     "fonts": "tsx scripts/fonts/build-fonts.ts",
+    "assets": "tsx scripts/models/build.ts",
+    "sounds": "tsx scripts/assets/sounds.ts",
+    "og": "tsx scripts/assets/render-og.ts",
     "lhci": "lhci autorun --config=lighthouserc.cjs"
   },
   "dependencies": {
