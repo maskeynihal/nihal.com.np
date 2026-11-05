@@ -5,6 +5,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { format } from 'prettier';
 import { partToGlb } from './export';
 import { bounds, triCount } from './geom';
 import { models } from './models';
@@ -37,7 +38,8 @@ export async function buildAssets(): Promise<BuiltAssets> {
       lineSegments: part.lines.length / 6,
     });
   }
-  const linesJson = `${JSON.stringify(lines)}\n`;
+  // formatted so `prettier --check .` accepts the committed file
+  const linesJson = await format(JSON.stringify(lines), { parser: 'json' });
   return { glbs, linesJson, stats };
 }
 
