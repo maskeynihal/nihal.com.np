@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { NodeIO } from '@gltf-transform/core';
+import { NodeIO, type Node } from '@gltf-transform/core';
 import {
   EXTMeshoptCompression,
   KHRMeshQuantization,
@@ -38,35 +38,135 @@ describe('asset pipeline', () => {
     for (const o of objects) expect(built.glbs.has(o.model), o.id).toBe(true);
   });
 
-  it('keeps grey-box objects at 300 triangles or fewer', () => {
+  it('keeps every model within its triangle, total and byte budgets', () => {
     for (const s of built.stats)
-      expect(s.tris, s.file).toBeLessThanOrEqual(300);
+      expect(s.tris, s.file).toBeLessThanOrEqual(1200);
+    // the sheet is the drawing surface, not an object: budgets count the objects
+    const objs = built.stats.filter((s) => s.file !== 'sheet.glb');
+    expect(objs.reduce((n, s) => n + s.tris, 0)).toBeLessThanOrEqual(8000);
+    expect(built.stats.reduce((n, s) => n + s.bytes, 0)).toBeLessThanOrEqual(
+      150 * 1024,
+    );
   });
 
-  it('each GLB has a triangle primitive and a LINES primitive that match the line data', async () => {
+  it('winds every triangle to agree with its normals', () => {
+    for (const m of models) {
+      const p = m.build();
+      const v = (k: number) =>
+        new Vector3(
+          p.positions[k * 3]!,
+          p.positions[k * 3 + 1]!,
+          p.positions[k * 3 + 2]!,
+        );
+      const nv = (k: number) =>
+        new Vector3(
+          p.normals[k * 3]!,
+          p.normals[k * 3 + 1]!,
+          p.normals[k * 3 + 2]!,
+        );
+      let bad = 0;
+      for (let i = 0; i < p.indices.length; i += 3) {
+        const [a, b, c] = [p.indices[i]!, p.indices[i + 1]!, p.indices[i + 2]!];
+        const n = v(b)
+          .sub(v(a))
+          .cross(v(c).sub(v(a)));
+        if (n.lengthSq() < 1e-14) continue; // degenerate pole triangle
+        if (n.dot(nv(a).add(nv(b)).add(nv(c))) <= 0) bad++;
+      }
+      expect(bad, m.file).toBe(0);
+    }
+  });
+
+  it('exposes the named nodes the runtime needs, as pivots with a mesh child', async () => {
+    await MeshoptDecoder.ready;
+    const want: Record<string, string[]> = {
+      clock: ['hand-hour', 'hand-minute'],
+      calendar: ['face'],
+      ghost: ['eye-l', 'eye-r'],
+      arduino: ['screen'],
+      cruiser: [],
+      sheet: [],
+    };
+    for (const [file, names] of Object.entries(want)) {
+      const doc = await io().readBinary(built.glbs.get(`${file}.glb`)!);
+      const root = doc.getRoot().listScenes()[0]!.listChildren()[0]!;
+      expect(root.getName(), file).toBe(file);
+      expect(root.getMesh(), file).toBeNull();
+      expect(
+        root.listChildren().map((n) => n.getName()),
+        file,
+      ).toEqual(['body', ...names]);
+      for (const n of root.listChildren().slice(1)) {
+        // pivot: no mesh of its own, so rotating it never fights quantization
+        expect(n.getMesh(), n.getName()).toBeNull();
+        expect(n.listChildren().map((c) => c.getName())).toEqual([
+          `${n.getName()}-mesh`,
+        ]);
+      }
+    }
+    const clock = await io().readBinary(built.glbs.get('clock.glb')!);
+    for (const n of ['hand-hour', 'hand-minute']) {
+      const node = clock
+        .getRoot()
+        .listNodes()
+        .find((x) => x.getName() === n)!;
+      const t = node.getTranslation();
+      expect(t[0]).toBeCloseTo(0, 5);
+      expect(t[2]).toBeCloseTo(0, 5);
+      expect(node.getRotation()).toEqual([0, 0, 0, 1]);
+    }
+    for (const [file, n] of [
+      ['calendar', 'face-mesh'],
+      ['arduino', 'screen-mesh'],
+    ] as const) {
+      const doc = await io().readBinary(built.glbs.get(`${file}.glb`)!);
+      const node = doc
+        .getRoot()
+        .listNodes()
+        .find((x) => x.getName() === n)!;
+      expect(
+        node.getMesh()!.listPrimitives()[0]!.getAttribute('TEXCOORD_0'),
+        file,
+      ).not.toBeNull();
+    }
+  });
+
+  it('each GLB has triangle and LINES primitives that match the line data', async () => {
     await MeshoptDecoder.ready;
     const lines = JSON.parse(built.linesJson) as Record<string, number[]>;
     for (const m of models) {
       const doc = await io().readBinary(built.glbs.get(`${m.file}.glb`)!);
-      const prims = doc.getRoot().listMeshes()[0]!.listPrimitives();
-      const tri = prims.find((p) => p.getMode() === 4);
-      const ln = prims.find((p) => p.getMode() === 1);
-      expect(tri, m.file).toBeDefined();
-      expect(ln, m.file).toBeDefined();
-      // decoded (quantized) lines land back on the authored data in world space
-      const node = doc.getRoot().listNodes()[0]!;
-      const mat = new Matrix4().fromArray(node.getWorldMatrix());
-      const pos = ln!.getAttribute('POSITION')!;
       const src = lines[m.file]!;
-      expect(pos.getCount() * 3).toBe(src.length);
+      // meshes in scene order: body first, then each named node (rest pose, identity rotation)
+      const meshNodes: Node[] = [];
+      doc
+        .getRoot()
+        .listScenes()[0]!
+        .traverse((n) => {
+          if (n.getMesh()) meshNodes.push(n);
+        });
+      let at = 0;
       const v = new Vector3();
-      for (let i = 0; i < pos.getCount(); i++) {
-        const e = pos.getElement(i, [0, 0, 0]);
-        v.set(e[0]!, e[1]!, e[2]!).applyMatrix4(mat);
-        expect(Math.abs(v.x - src[i * 3]!)).toBeLessThan(1e-3);
-        expect(Math.abs(v.y - src[i * 3 + 1]!)).toBeLessThan(1e-3);
-        expect(Math.abs(v.z - src[i * 3 + 2]!)).toBeLessThan(1e-3);
+      for (const node of meshNodes) {
+        const prims = node.getMesh()!.listPrimitives();
+        expect(
+          prims.find((p) => p.getMode() === 4),
+          `${m.file}/${node.getName()}`,
+        ).toBeDefined();
+        const ln = prims.find((p) => p.getMode() === 1);
+        if (!ln) continue;
+        const mat = new Matrix4().fromArray(node.getWorldMatrix());
+        const pos = ln.getAttribute('POSITION')!;
+        for (let i = 0; i < pos.getCount(); i++) {
+          const e = pos.getElement(i, [0, 0, 0]);
+          v.set(e[0]!, e[1]!, e[2]!).applyMatrix4(mat);
+          expect(Math.abs(v.x - src[at]!)).toBeLessThan(1e-3);
+          expect(Math.abs(v.y - src[at + 1]!)).toBeLessThan(1e-3);
+          expect(Math.abs(v.z - src[at + 2]!)).toBeLessThan(1e-3);
+          at += 3;
+        }
       }
+      expect(at, m.file).toBe(src.length);
     }
   });
 

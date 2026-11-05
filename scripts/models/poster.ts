@@ -281,7 +281,7 @@ export function buildPoster(opts: PosterOptions = {}): string {
   const byFile = new Map<string, ModelDef>(models.map((m) => [m.file, m]));
   const placed: Placed[] = [];
   const sheetDef = byFile.get('sheet')!;
-  const sheet = place(sheetDef.build(), [0, 0, 0], [0, 0, 0, 1]);
+  const sheet = place(sheetDef.buildPosed(), [0, 0, 0], [0, 0, 0, 1]);
   placed.push(sheet);
   for (const o of objects) {
     if (!o.confirmed && !opts.includeUnconfirmed) continue;
@@ -289,7 +289,7 @@ export function buildPoster(opts: PosterOptions = {}): string {
     if (!def) throw new Error(`poster: no model for ${o.id}`);
     placed.push(
       place(
-        def.build(),
+        def.buildPosed(),
         o.home.p as V,
         o.home.q as [number, number, number, number],
       ),

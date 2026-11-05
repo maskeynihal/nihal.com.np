@@ -10,6 +10,9 @@ import {
   Matrix4,
   PlaneGeometry,
   SphereGeometry,
+  TorusGeometry,
+  Vector2,
+  Vector3,
 } from 'three';
 
 export type Vec3 = [number, number, number];
@@ -23,6 +26,8 @@ export interface Part {
   indices: number[];
   /** flat xyz xyz pairs: authored crease segments, one segment per 6 numbers */
   lines: number[];
+  /** uv pairs; only on texture-bearing quads (OLED, calendar face). Dropped by `merge`. */
+  uvs?: number[];
 }
 
 /** Round to 1e-6 m so output is identical across platforms. */
@@ -48,12 +53,18 @@ export function mergeAll(parts: Part[]): Part {
   return out;
 }
 
-function fromGeometry(g: BufferGeometry, m: Matrix4): Part {
+function fromGeometry(g: BufferGeometry, m: Matrix4, withUv = false): Part {
   g.applyMatrix4(m);
   const pos = g.getAttribute('position');
   const nor = g.getAttribute('normal');
+  const uv = g.getAttribute('uv');
   const idx = g.getIndex();
   const part = emptyPart();
+  if (withUv) {
+    part.uvs = [];
+    for (let i = 0; i < pos.count; i++)
+      part.uvs.push(r(uv.getX(i)), r(uv.getY(i)));
+  }
   for (let i = 0; i < pos.count; i++) {
     part.positions.push(r(pos.getX(i)), r(pos.getY(i)), r(pos.getZ(i)));
     part.normals.push(r(nor.getX(i)), r(nor.getY(i)), r(nor.getZ(i)));
@@ -231,3 +242,112 @@ export function bounds(p: Part): { min: Vec3; max: Vec3 } {
 }
 
 export const triCount = (p: Part) => p.indices.length / 3;
+
+/** A transform applied to a whole part: positions, normals and authored lines. */
+export function transform(p: Part, m: Matrix4): Part {
+  const nm = new Matrix4().extractRotation(m);
+  const v = new Vector3();
+  const map = (src: number[], mat: Matrix4, unit: boolean) => {
+    const out: number[] = [];
+    for (let i = 0; i < src.length; i += 3) {
+      v.set(src[i]!, src[i + 1]!, src[i + 2]!).applyMatrix4(mat);
+      if (unit) v.normalize();
+      out.push(r(v.x), r(v.y), r(v.z));
+    }
+    return out;
+  };
+  const out: Part = {
+    positions: map(p.positions, m, false),
+    normals: map(p.normals, nm, true),
+    indices: [...p.indices],
+    lines: map(p.lines, m, false),
+  };
+  if (p.uvs) out.uvs = [...p.uvs];
+  return out;
+}
+
+export const translate = (p: Part, t: Vec3): Part =>
+  transform(p, new Matrix4().makeTranslation(t[0], t[1], t[2]));
+
+/** Rotate about the world Y axis through the origin (radians, right-handed). */
+export const rotateY = (p: Part, a: number): Part =>
+  transform(p, new Matrix4().makeRotationY(a));
+
+/** Rotate about the world X axis through the origin (radians, right-handed). */
+export const rotateX = (p: Part, a: number): Part =>
+  transform(p, new Matrix4().makeRotationX(a));
+
+/** A flat textured quad facing +Z, centred on the origin. `w` along x, `h` along y. */
+export function quad(w: number, h: number): Part {
+  return fromGeometry(new PlaneGeometry(w, h), new Matrix4(), true);
+}
+
+export interface RingOpts {
+  /** centre of the torus */
+  c: Vec3;
+  /** distance from the centre to the middle of the tube */
+  radius: number;
+  tube: number;
+  /** plane of the ring: 'z' => xy plane (torus default), 'x' => yz plane */
+  plane?: 'x' | 'z';
+  tubeSegments: number;
+  ringSegments: number;
+}
+
+/** A torus (binding ring). No authored creases: the caller adds what it wants. */
+export function torus(o: RingOpts): Part {
+  const rot = new Matrix4();
+  if ((o.plane ?? 'z') === 'x') rot.makeRotationY(Math.PI / 2);
+  return fromGeometry(
+    new TorusGeometry(o.radius, o.tube, o.tubeSegments, o.ringSegments),
+    at(o.c).multiply(rot),
+  );
+}
+
+/**
+ * Surface of revolution about the Y axis through `c`. `profile` is (radius, y) pairs from bottom
+ * to top; normals are the profile's outward normals, averaged across a vertex. The profile
+ * should be wound so the outside faces away from the axis when walking bottom to top.
+ */
+export function lathe(
+  c: Vec3,
+  profile: [number, number][],
+  segments: number,
+): Part {
+  const part = emptyPart();
+  const n = profile.length;
+  const prof = (i: number) => profile[i]!;
+  const nrm2 = (i: number): [number, number] => {
+    // outward normal of the segment between profile[i] and profile[i+1] in the (r, y) plane
+    const a = prof(i);
+    const b = prof(i + 1);
+    const d = new Vector2(b[0] - a[0], b[1] - a[1]).normalize();
+    return [d.y, -d.x];
+  };
+  for (let k = 0; k <= segments; k++) {
+    const t = (k / segments) * Math.PI * 2;
+    const [s, co] = [Math.sin(t), Math.cos(t)];
+    for (let i = 0; i < n; i++) {
+      const lo = i > 0 ? nrm2(i - 1) : nrm2(i);
+      const hi = i < n - 1 ? nrm2(i) : nrm2(i - 1);
+      const nr = lo[0] + hi[0];
+      const ny = lo[1] + hi[1];
+      const l = Math.hypot(nr, ny) || 1;
+      const [R, Y] = prof(i);
+      part.positions.push(r(c[0] + R * s), r(c[1] + Y), r(c[2] + R * co));
+      part.normals.push(r((nr / l) * s), r(ny / l), r((nr / l) * co));
+    }
+  }
+  for (let k = 0; k < segments; k++) {
+    for (let i = 0; i < n - 1; i++) {
+      const a = k * n + i;
+      const b = (k + 1) * n + i;
+      // skip zero-area triangles where the profile touches the axis
+      const aOnAxis = prof(i)[0] === 0;
+      const bOnAxis = prof(i + 1)[0] === 0;
+      if (!aOnAxis) part.indices.push(a, b, a + 1);
+      if (!bOnAxis) part.indices.push(b, b + 1, a + 1);
+    }
+  }
+  return part;
+}

@@ -1,0 +1,153 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>model check</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    background: #1f3fe0;
+  }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "/three/build/three.module.js",
+      "three/addons/": "/three/examples/jsm/"
+    }
+  }
+</script>
+<script type="module">
+  // Tiny check renderer for the D-03 models: occluder + inverted hull + authored creases.
+  import {
+    Color,
+    DoubleSide,
+    Group,
+    LineBasicMaterial,
+    Mesh,
+    MeshBasicMaterial,
+    PerspectiveCamera,
+    Scene,
+    ShaderMaterial,
+    WebGLRenderer,
+    BackSide,
+    Box3,
+    Vector3,
+  } from 'three';
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+  import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+  const BLUE = new Color('#1F3FE0');
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+
+  const occluder = new MeshBasicMaterial({
+    color: BLUE,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
+  const hull = new ShaderMaterial({
+    side: BackSide,
+    uniforms: { w: { value: 0.0016 } },
+    vertexShader: `uniform float w; void main(){ gl_Position = projectionMatrix * modelViewMatrix * vec4(position + normal * w, 1.0); }`,
+    fragmentShader: `void main(){ gl_FragColor = vec4(1.0); }`,
+  });
+  const line = new LineBasicMaterial({ color: 0xffffff });
+  const screenMat = new MeshBasicMaterial({
+    color: 0x0a1c6b,
+    side: DoubleSide,
+  });
+
+  async function load(file, { poseClock, lookEyes } = {}) {
+    const gltf = await loader.loadAsync(`/glb/${file}.glb`);
+    const root = gltf.scene;
+    const meshes = [];
+    root.traverse((o) => {
+      if (o.isMesh) meshes.push(o);
+    });
+    for (const o of meshes) {
+      const tris = o;
+      const geo = tris.geometry;
+      tris.material =
+        o.name.endsWith('screen-mesh') || o.name.endsWith('face-mesh')
+          ? screenMat
+          : occluder;
+      if (tris.material === occluder) {
+        const h = new Mesh(geo, hull);
+        o.add(h);
+      }
+    }
+    // convert LINES primitives (loaded as LineSegments by GLTFLoader) into white lines
+    root.traverse((o) => {
+      if (o.isLineSegments || o.isLine) o.material = line;
+    });
+    if (poseClock) {
+      const h = root.getObjectByName('hand-hour');
+      const m = root.getObjectByName('hand-minute');
+      if (h) h.rotation.y = -((10 + 10 / 60) / 12) * Math.PI * 2;
+      if (m) m.rotation.y = -(10 / 60) * Math.PI * 2;
+    }
+    if (lookEyes) {
+      for (const n of ['eye-l', 'eye-r']) {
+        const e = root.getObjectByName(n);
+        if (e) e.rotation.y += lookEyes;
+      }
+    }
+    return root;
+  }
+
+  const params = new URLSearchParams(location.search);
+  const W = Number(params.get('w') ?? 800);
+  const H = Number(params.get('h') ?? 600);
+  const renderer = new WebGLRenderer({
+    antialias: true,
+    preserveDrawingBuffer: true,
+  });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(1);
+  renderer.setClearColor(BLUE);
+  document.body.appendChild(renderer.domElement);
+
+  window.renderModel = async (file, yawDeg, pitchDeg, opts = {}) => {
+    const scene = new Scene();
+    const root = await load(file, opts);
+    scene.add(root);
+    const box = new Box3().setFromObject(root);
+    const c = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+    const radius = Math.max(size.x, size.y, size.z) * 0.9;
+    const cam = new PerspectiveCamera(35, W / H, 0.01, 10);
+    const yaw = (yawDeg * Math.PI) / 180;
+    const pitch = (pitchDeg * Math.PI) / 180;
+    const d = radius * 3.2;
+    cam.position.set(
+      c.x + Math.sin(yaw) * Math.cos(pitch) * d,
+      c.y + Math.sin(pitch) * d,
+      c.z + Math.cos(yaw) * Math.cos(pitch) * d,
+    );
+    cam.lookAt(c);
+    renderer.render(scene, cam);
+    return true;
+  };
+
+  // Full hero scene from objects.ts home poses, through the shared hero camera.
+  window.renderHero = async (objects, cam, includeUnconfirmed) => {
+    const scene = new Scene();
+    const sheet = await load('sheet');
+    scene.add(sheet);
+    for (const o of objects) {
+      if (!o.confirmed && !includeUnconfirmed) continue;
+      const g = new Group();
+      const m = await load(o.model.replace('.glb', ''), { poseClock: true });
+      g.add(m);
+      g.position.set(...o.home.p);
+      g.quaternion.set(...o.home.q);
+      scene.add(g);
+    }
+    const camera = new PerspectiveCamera(cam.fov, W / H, cam.near, cam.far);
+    camera.position.set(...cam.position);
+    camera.lookAt(...cam.lookAt);
+    renderer.render(scene, camera);
+    return true;
+  };
+  window.ready = true;
+</script>
