@@ -52,7 +52,7 @@ Deps: A-07. Vercel project (framework Astro, Node version verified), Deployment 
 ## Epic B: Static page (PR 2)
 
 ### B-01 Sheet border and index
-Deps: A-06, A-03. Drawn border; left-margin index ≥ 1024 / bottom strip below; rows as links with `aria-current` via midline IO; progress rule via two paths + clip-rect `scaleY(var(--progress))`, `animation-timeline: scroll(root)` with JS fallback; dims to 40% on `nihal:drag`. Verify @B-01: `aria-current` follows scroll on tall sections; keyboard reaches all rows; fallback path exercised in a project with the feature flag off.
+Deps: A-06, A-03. Carry-over from A-03 r3: final toggle placement must not wrap at 375 px under OS reduce (note visible); un-skip/extend the 375 px test for the reduced-motion project; tidy the long header comment in `prefs-inline.js`. Drawn border; left-margin index ≥ 1024 / bottom strip below; rows as links with `aria-current` via midline IO; progress rule via two paths + clip-rect `scaleY(var(--progress))`, `animation-timeline: scroll(root)` with JS fallback; dims to 40% on `nihal:drag`. Verify @B-01: `aria-current` follows scroll on tall sections; keyboard reaches all rows; fallback path exercised in a project with the feature flag off.
 
 ### B-02 Section and PaperPanel primitives
 Deps: A-02. Carry-over from A-02 review: Playwright guard that every rendered → / ← sits in an element whose computed font-family is JetBrains Mono (Fraunces has no arrow glyphs). Asymmetric grid, rhythm, opacity-only enter. Verify @B-02: visual at 3 viewports; no horizontal scroll at 320.
