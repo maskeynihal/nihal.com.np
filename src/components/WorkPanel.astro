@@ -3,21 +3,36 @@ import type { WorkItem } from '../content/schema';
 import { splitDateLine } from '../lib/dates';
 import PaperPanel from './PaperPanel.astro';
 
+const marks = import.meta.glob<string>('../assets/marks/*.svg', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
 /**
  * One work panel: anchor `work-<id>` (desk objects link here), heading, a mono date line
  * (what happened, when), prose and real links. All plain HTML. An item with a `frameNote`
  * (client work with no code) also gets an empty drawing frame whose title block is filled in.
- * The drawn mark joins the panel in B-05.
+ * Each panel carries one hand-drawn mark (src/assets/marks/<id>.svg, currentColor): already drawn,
+ * decorative, never animated.
  */
 interface Props {
   item: WorkItem;
 }
 const { item } = Astro.props;
+const mark = marks[`../assets/marks/${item.id}.svg`];
+if (!mark) throw new Error(`no mark for work item ${item.id}`);
 const headingId = `work-${item.id}-heading`;
 const { date, rest } = splitDateLine(item.dateLine);
 ---
 
 <PaperPanel as="article" id={`work-${item.id}`} class="work-panel">
+  <div
+    class="work-mark"
+    aria-hidden="true"
+    data-mark={item.id}
+    set:html={mark}
+  />
   <h3 id={headingId}>{item.title}</h3>
   <p class="label work-date">
     {date ? <time datetime={date.datetime}>{date.text}</time> : null}
