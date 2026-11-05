@@ -27,7 +27,7 @@ Reviewer-only (not grep): "craft"/"underscore" as verbs; rule-of-three where thr
 ## 3. Draft copy (v2)
 
 ### Sheet index (nav)
-Rows: desk · work · open source · writing · cv · contact · colophon
+Rows: desk · about · work · open source · writing · cv · contact · colophon
 Toggles: "reduce motion" (`aria-pressed`) · "sound" (`aria-pressed`, state text "on" / "off") · note when the OS forces reduced motion: "set by your system"
 
 ### #desk: title block
@@ -126,3 +126,14 @@ Physics loading: "loading 3D" · 3D off: "3D is off on this device. Everything s
 - [ ] `copy-gate` passes on `src/content/**`.
 - [ ] Reviewer reads every panel aloud; no two panels share a skeleton; zero zinger endings.
 - [ ] Zero exclamation marks.
+
+## 4. v3 copy (2026-11-06, supersedes the matching lines above)
+Source of truth is `src/content/copy.ts` and `cv.ts`; deck in `docs/specs/04-v3-improvements.md` section 2.
+- Index rows: desk · about · work · open source · writing · cv · contact · colophon.
+- Title: "Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal". Description (146 chars): "Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He builds healthcare software on AWS at Leapfrog Technology and co-founded Daboo Spaces." Keywords meta on the index only; it names Trayt, visible text does not.
+- Title block: kicker "lead software engineer · kathmandu, nepal"; intro (option A) "I lead an engineering team at Leapfrog Technology that builds a US behavioural-health platform on AWS. I co-founded Daboo Spaces, a coworking space in Sankhamul. The rest of this sheet is things I built because I wanted them."; second action "see the work →" to #work; drag hint "pick something up. throw it off the table if you like."; reset "put everything back".
+- #about: three paragraphs, a fourth linking Daboo Spaces (https://daboospaces.com), and a facts list (location, role, co-founder, stack, open to). The label "location" replaces the deck's "based in", which is a banned phrase.
+- #work intro: "Side projects, each built to fix something that annoyed me."
+- #cv: intro "Since 2019: two companies, and a long climb at Leapfrog from intern to lead.", bullets under each role, a Daboo Spaces co-founder row (date cell "alongside", no year), skills row.
+- #contact lead: "Email is fastest. I read everything and reply to most within a couple of days." Socials add instagram and hashnode.
+- #colophon adds: "Built with Astro and three.js. The desk is code, not a model file from a store."
