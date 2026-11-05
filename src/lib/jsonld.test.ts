@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildPerson, serializeLd } from './jsonld';
+import { buildGraph, buildPerson, serializeLd } from './jsonld';
 
 describe('buildPerson', () => {
   const p = buildPerson();
   it('has the expected fields', () => {
-    expect(p['@context']).toBe('https://schema.org');
     expect(p['@type']).toBe('Person');
     expect(p.name).toBe('Nihal Maskey');
     expect(p.url).toBe('https://nihal.com.np');
-    expect(p.jobTitle).toBe('Lead Engineer');
+    expect(p.jobTitle).toBe('Lead Software Engineer');
     expect(p.worksFor).toEqual({
       '@type': 'Organization',
       name: 'Leapfrog Technology',
@@ -17,15 +16,27 @@ describe('buildPerson', () => {
     expect(p.address.addressLocality).toBe('Kathmandu');
     expect(p.address.addressCountry).toBe('NP');
   });
-  it('sameAs is github, linkedin, x from content', () => {
+  it('sameAs covers the five socials', () => {
     expect(p.sameAs).toEqual([
       'https://github.com/maskeynihal',
       'https://www.linkedin.com/in/maskeynihal',
       'https://x.com/nihalmaskey',
+      'https://www.instagram.com/maskeynihal',
+      'https://nihalmaskey.hashnode.dev',
     ]);
   });
+  it('graph has Daboo Spaces founded by the person', () => {
+    const g = buildGraph();
+    expect(g['@graph'].map((n) => n['@type'])).toEqual([
+      'Person',
+      'Organization',
+      'WebSite',
+      'ProfilePage',
+    ]);
+    expect(g['@graph'][1]).toMatchObject({ founder: { '@id': p['@id'] } });
+  });
   it('never mentions the client', () => {
-    expect(JSON.stringify(p)).not.toMatch(/trayt/i);
+    expect(JSON.stringify(buildGraph())).not.toMatch(/trayt/i);
   });
   it('throws when a social is missing', () => {
     expect(() => buildPerson([])).toThrow(/github/);

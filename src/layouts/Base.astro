@@ -4,7 +4,7 @@ import printCss from '../styles/print.css?url';
 import PrefsScript from '../components/PrefsScript.astro';
 import { getCopy } from '../content';
 import { site } from '../content/site';
-import { buildPerson, serializeLd } from '../lib/jsonld';
+import { buildGraph, serializeLd } from '../lib/jsonld';
 
 interface Props {
   title?: string;
@@ -13,7 +13,7 @@ interface Props {
   noindex?: boolean;
   /** Renders the skip link to this id (index only). */
   skipTo?: string;
-  /** Emits the Person JSON-LD (index only). */
+  /** Emits the JSON-LD graph and profile meta (index only). */
   jsonLd?: boolean;
 }
 const { meta, titleBlock } = getCopy();
@@ -40,6 +40,8 @@ const ogImage = abs(site.og.image);
     <PrefsScript />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {jsonLd && <meta name="keywords" content={meta.keywords} />}
+    <meta name="author" content={site.person.name} />
     <meta
       name="robots"
       content={noindex ? 'noindex, follow' : 'index, follow'}
@@ -47,7 +49,13 @@ const ogImage = abs(site.og.image);
     {!noindex && <link rel="canonical" href={canonical} />}
     <meta name="theme-color" content={site.themeColor} />
     <meta name="color-scheme" content="light" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={jsonLd ? 'profile' : 'website'} />
+    {jsonLd && (
+      <>
+        <meta property="profile:first_name" content={site.person.firstName} />
+        <meta property="profile:last_name" content={site.person.lastName} />
+      </>
+    )}
     {!noindex && <meta property="og:url" content={canonical} />}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -68,7 +76,7 @@ const ogImage = abs(site.og.image);
     {jsonLd && (
       <script
         type="application/ld+json"
-        set:html={serializeLd(buildPerson())}
+        set:html={serializeLd(buildGraph())}
       />
     )}
     <link rel="stylesheet" href={printCss} media="print" />
