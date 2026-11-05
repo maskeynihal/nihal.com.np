@@ -51,5 +51,7 @@ export const pending = {
   /** Candidate strings that become displayed only once confirmed. */
   candidates: {
     cruiserAltPhrase: 'a toy Land Cruiser',
+    /** Appended to the cv org of the two Trayt rows once the client name is confirmed. */
+    cvOrgSuffix: 'Leapfrog Technology, for Trayt Health',
   },
 } as const;

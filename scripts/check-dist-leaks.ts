@@ -1,20 +1,15 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join, relative, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pending, PENDING_SENTINEL } from '../src/content/pending';
+import { work } from '../src/content/work';
+import { cv } from '../src/content/cv';
+import { objects } from '../src/content/objects';
 
-const TEXT_EXT = new Set([
-  '.html',
-  '.js',
-  '.mjs',
-  '.css',
-  '.json',
-  '.txt',
-  '.xml',
-  '.svg',
-  '.webmanifest',
-  '.map',
-]);
+/** Binary if the first 8 KB contain a NUL byte. Everything else is scanned, whatever its name. */
+export function isBinary(buf: Buffer): boolean {
+  return buf.subarray(0, 8192).includes(0);
+}
 
 export interface Leak {
   file: string;
@@ -40,10 +35,48 @@ export function pendingStrings(value: unknown = pending, out: string[] = []) {
   return out;
 }
 
-/** Scan every text file under `dist`. `allowPending` is for the owner preview build only. */
+const SKIP_KEYS = new Set(['id', 'model', 'target', 'href']);
+
+/**
+ * Displayed strings of `confirmed: false` rows (work, cv, objects) that the getters filter
+ * out of a plain build. Strings of 12+ characters, plus every object label and callout.
+ * The cv org suffix ("for Trayt Health") lives in pending.candidates and is picked up by
+ * `pendingStrings`.
+ */
+export function unconfirmedStrings(): string[] {
+  const out = new Set<string>();
+  const walk = (v: unknown) => {
+    if (typeof v === 'string') {
+      if (v.length >= 12 && !/^https?:\/\//.test(v)) out.add(v);
+    } else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object')
+      for (const [k, x] of Object.entries(v)) if (!SKIP_KEYS.has(k)) walk(x);
+  };
+  for (const row of [...work, ...cv]) if (!row.confirmed) walk(row);
+  for (const o of objects) {
+    if (o.confirmed) continue;
+    out.add(o.label);
+    for (const c of o.callouts ?? []) out.add(c.text);
+  }
+  return [...out];
+}
+
+const htmlEscape = (v: string) =>
+  v
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/** Scan every non-binary file under `dist`. `allowPending` is for the owner preview build only. */
 export function checkLeaks(
   dist: string,
-  opts: { allowPending?: boolean; pendingValues?: string[] } = {},
+  opts: {
+    allowPending?: boolean;
+    pendingValues?: string[];
+    unconfirmedValues?: string[];
+  } = {},
 ): Leak[] {
   const leaks: Leak[] = [];
   const always: [string, RegExp][] = [
@@ -57,17 +90,25 @@ export function checkLeaks(
   ];
   const values = opts.allowPending
     ? []
-    : (opts.pendingValues ?? pendingStrings());
+    : [
+        ...(opts.pendingValues ?? pendingStrings()),
+        ...(opts.unconfirmedValues ?? unconfirmedStrings()),
+      ];
   for (const file of walk(dist)) {
-    if (!TEXT_EXT.has(extname(file).toLowerCase())) continue;
-    const text = readFileSync(file, 'utf8');
+    const buf = readFileSync(file);
+    if (isBinary(buf)) continue;
+    const text = buf.toString('utf8');
     const rel = relative(dist, file);
     for (const [label, re] of [...always, ...(opts.allowPending ? [] : gated)])
       if (re.test(text)) leaks.push({ file: rel, match: label });
     for (const v of values) {
       // Raw, and as it would sit inside a JSON/JS string literal.
       const escaped = JSON.stringify(v).slice(1, -1);
-      if (text.includes(v) || text.includes(escaped))
+      if (
+        text.includes(v) ||
+        text.includes(escaped) ||
+        text.includes(htmlEscape(v))
+      )
         leaks.push({ file: rel, match: v });
     }
   }

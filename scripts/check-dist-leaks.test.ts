@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkLeaks, pendingStrings } from './check-dist-leaks';
+import {
+  checkLeaks,
+  isBinary,
+  pendingStrings,
+  unconfirmedStrings,
+} from './check-dist-leaks';
+import { objects } from '../src/content/objects';
+import { work } from '../src/content/work';
 import { PENDING_SENTINEL, pending } from '../src/content/pending';
 
 function dist(files: Record<string, string>) {
@@ -70,5 +77,71 @@ describe('check-dist-leaks', () => {
     expect(all.length).toBeGreaterThan(5);
     expect(all.every((s) => s.length > 12)).toBe(true);
     expect(all).not.toContain(PENDING_SENTINEL.slice(0, 3));
+  });
+
+  it('scans extensionless and unusual-extension text files', () => {
+    const d = dist({ LICENSE: 'TODO fix', 'a.cjs': 'x = "lorem"' });
+    expect(checkLeaks(d).map((l) => l.file)).toEqual(['LICENSE', 'a.cjs']);
+  });
+
+  it('skips binary files (NUL in the first 8 KB) and sniffs content, not name', () => {
+    const d = mkdtempSync(join(tmpdir(), 'leaks-'));
+    writeFileSync(
+      join(d, 'font.woff2'),
+      Buffer.from([0, 1, 2, 84, 79, 68, 79]),
+    );
+    writeFileSync(join(d, 'noext'), Buffer.from('TODO'));
+    expect(isBinary(Buffer.from([65, 0, 66]))).toBe(true);
+    expect(isBinary(Buffer.from('abc'))).toBe(false);
+    expect(checkLeaks(d).map((l) => l.file)).toEqual(['noext']);
+  });
+
+  describe('unconfirmed rows', () => {
+    const unconfirmedObject = objects.find((o) => !o.confirmed)!;
+    const trayt = work.find((w) => !w.confirmed)!;
+
+    it('collects unconfirmed work text and every unconfirmed label and callout', () => {
+      const all = unconfirmedStrings();
+      expect(all).toContain(trayt.title);
+      expect(all).toContain(trayt.body[0]);
+      expect(all).toContain(unconfirmedObject.label);
+      for (const c of unconfirmedObject.callouts ?? [])
+        expect(all).toContain(c.text);
+      for (const o of objects.filter((o) => o.confirmed))
+        expect(all).not.toContain(o.label);
+      expect(all.some((s) => s.startsWith('http'))).toBe(false);
+    });
+
+    it('flags an unconfirmed object label in a .js file and an extensionless file', () => {
+      const label = unconfirmedObject.label;
+      const d = dist({
+        '_astro/chunk.js': `var l=${JSON.stringify(label)}`,
+        'meta/asset': `<li>${label}</li>`,
+      });
+      const leaks = checkLeaks(d);
+      expect(leaks).toEqual(
+        expect.arrayContaining([
+          { file: '_astro/chunk.js', match: label },
+          { file: 'meta/asset', match: label },
+        ]),
+      );
+    });
+
+    it('flags an HTML-escaped unconfirmed work body', () => {
+      const d = dist({
+        'index.html': `<p>${(trayt.body[1] ?? '').replace(/'/g, '&#39;')}</p>`,
+      });
+      expect(checkLeaks(d).map((l) => l.match)).toContain(trayt.body[1]);
+    });
+
+    it('--allow-pending skips them', () => {
+      const d = dist({ 'a.js': unconfirmedObject.label + trayt.title });
+      expect(checkLeaks(d, { allowPending: true })).toEqual([]);
+    });
+
+    it('does not flag confirmed labels', () => {
+      const d = dist({ 'index.html': '<a>arduino water monitor</a>' });
+      expect(checkLeaks(d)).toEqual([]);
+    });
   });
 });
