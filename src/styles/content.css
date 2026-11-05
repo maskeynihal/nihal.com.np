@@ -459,3 +459,218 @@
 .title-block-kicker {
   margin: 0.25rem 0 0.75rem;
 }
+
+/* ===== v3 WS4: hover and focus states. Motion-gated; lifts for fine pointers only. ===== */
+
+/* Text links: the underline draws in from the left (1 px gradient), 180 ms. */
+.sheet-links a,
+.sheet-link,
+.copy-email-link,
+.revision-table a,
+.writing-list a,
+.cv-table a,
+.work-panel h3 a,
+.section-body p a {
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 calc(50% + 0.75em);
+  background-size: 0% 1px;
+}
+
+/* Prose links keep a resting underline; the draw is for the label rows. */
+.section-body p a {
+  background-size: 100% 1px;
+}
+
+[data-motion='full'] .sheet-links a,
+[data-motion='full'] .sheet-link,
+[data-motion='full'] .copy-email-link,
+[data-motion='full'] .revision-table a,
+[data-motion='full'] .writing-list a,
+[data-motion='full'] .cv-table a {
+  transition: background-size 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sheet-links a:hover,
+.sheet-links a:focus-visible,
+.sheet-link:hover,
+.sheet-link:focus-visible,
+.copy-email-link:hover,
+.copy-email-link:focus-visible,
+.revision-table a:hover,
+.revision-table a:focus-visible,
+.writing-list a:hover,
+.writing-list a:focus-visible,
+.cv-table a:hover,
+.cv-table a:focus-visible,
+.work-panel:hover h3,
+.work-panel:focus-within h3 {
+  background-size: 100% 1px;
+}
+
+.work-panel h3 {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+[data-motion='full'] .work-panel h3 {
+  transition: background-size 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Nav rows: a short leader slides out and the label shifts 4 px. */
+.sheet-index-link {
+  position: relative;
+}
+
+.sheet-index-link::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 50%;
+  width: 0.5rem;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+[data-motion='full'] .sheet-index-link,
+[data-motion='full'] .sheet-index-link::before {
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    padding 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sheet-index-link:hover,
+.sheet-index-link:focus-visible {
+  text-decoration: none;
+  padding-inline-start: calc(0.5rem + 4px);
+}
+
+.sheet-index-link:hover::before,
+.sheet-index-link:focus-visible::before {
+  transform: scaleX(1);
+}
+
+.sheet-index-link:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Table rows: a faint tint beside the C-02 leader. */
+.revision-table tbody tr,
+.cv-table tr {
+  transition: background-color 160ms;
+}
+
+.revision-table tbody tr:hover,
+.cv-table tr:hover,
+.revision-table tbody tr:has(:focus-visible),
+.cv-table tr:has(:focus-visible),
+.writing-list li:hover,
+.writing-list li:has(:focus-visible) {
+  background-color: color-mix(in srgb, var(--panel-accent) 6%, transparent);
+}
+
+/* Buttons: invert, 120 ms; pressed nudges 1 px. */
+.form-submit,
+.arcade-play,
+.arcade-leave {
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+.form-submit:hover,
+.form-submit:focus-visible,
+.arcade-play:hover,
+.arcade-play:focus-visible {
+  color: var(--panel-ink);
+  background: var(--panel);
+}
+
+.arcade-leave:hover,
+.arcade-leave:focus-visible {
+  color: var(--panel);
+  background: var(--panel-ink);
+}
+
+.form-submit:active,
+.arcade-play:active,
+.arcade-leave:active {
+  transform: translateY(1px);
+}
+
+.pref-toggle:hover:not([aria-disabled='true']),
+.pref-toggle:focus-visible,
+.desk-reset:hover,
+.desk-reset:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}
+
+/* Socials: a drawn arrow that moves 3 px right. */
+.contact-panel .sheet-links a::after {
+  content: '→' / '';
+  display: inline-block;
+  margin-inline-start: 0.5em;
+}
+
+[data-motion='full'] .contact-panel .sheet-links a::after {
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.contact-panel .sheet-links a:hover::after,
+.contact-panel .sheet-links a:focus-visible::after {
+  transform: translateX(3px);
+}
+
+/* Work panels: lift 4 px with a crisp offset outline, the mark redraws once.
+   The lift is for fine pointers only; keyboard focus gets the outline without moving. */
+.work-panel {
+  --lift-ring: 0 0 0 0 var(--stroke);
+}
+
+@keyframes mark-draw {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+[data-motion='full'] .work-panel:focus-within .work-mark path {
+  animation: mark-draw 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion='full'] .work-panel {
+    transition:
+      transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      box-shadow 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity var(--enter-ms) cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .work-panel:hover {
+    box-shadow: 4px 4px 0 0 var(--stroke);
+  }
+
+  [data-motion='full'] .work-panel:hover {
+    transform: translate(-2px, -4px);
+  }
+
+  [data-motion='full'] .work-panel:hover .work-mark path {
+    animation: mark-draw 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+.work-panel:focus-within {
+  box-shadow: 4px 4px 0 0 var(--stroke);
+}
