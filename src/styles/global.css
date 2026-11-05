@@ -235,6 +235,7 @@ a {
 
 .page-prefs {
   display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 1.5rem;
   margin-top: 1rem;
@@ -242,12 +243,18 @@ a {
 
 .pref-row {
   display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .pref-note {
   white-space: nowrap;
+}
+
+/* The note sits under the motion toggle, so the two toggles stay on one line at 375 px
+   under OS reduce and the note never pushes the page wide. */
+.pref-note > [aria-hidden='true'] {
+  display: none;
 }
 
 /* The inline head script sets data-motion-os before first paint, so the note

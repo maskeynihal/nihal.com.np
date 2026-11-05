@@ -1,12 +1,10 @@
-/* Shipped inline in <head> (see PrefsScript.astro); unit-tested as-is.
-   Motion rule: the OS setting is a floor. effective = reduce if stored is
-   'reduce' OR prefers-reduced-motion matches, else full; a stored 'full'
-   never overrides the OS. data-motion-os=reduce marks the OS state before
-   paint so the "set by your system" note exists (display) only then. Sound defaults to off.
-   Legacy map: #projects #about #blog #experience #education are the specified
-   ones; #skills and #home are intentional extras.
-   Legacy fragments are rewritten in place: replaceState (no extra history
-   entry), then the hash is re-applied so the browser scrolls to the target. */
+/* Shipped inline in <head> (PrefsScript.astro); unit-tested as-is.
+   Motion: effective = reduce if stored is 'reduce' OR the OS asks for reduce, else full.
+   The OS setting is a floor; a stored 'full' never overrides it.
+   data-motion-os=reduce is set before paint so the "set by your system" note has no CLS.
+   Sound defaults to off.
+   Legacy fragments (#projects #about #blog #experience #education, plus #skills #home)
+   are rewritten with replaceState, then the hash is re-applied to scroll to the target. */
 (function () {
   try {
     var d = document.documentElement;

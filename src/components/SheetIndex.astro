@@ -1,0 +1,56 @@
+---
+import { copy } from '../content/copy';
+import { indexRows } from '../lib/sections';
+
+const rows = indexRows();
+---
+
+<!-- Left-margin index from 1024 px, bottom strip below. Rows are plain in-page links, so it works
+     without JS. The script adds aria-current (section on the viewport midline) and, when scroll
+     timelines are unavailable or motion is off, drives the progress rule. -->
+<nav
+  class="sheet-index"
+  aria-label={copy.nav.label}
+  data-sheet-index
+  data-print="hide"
+>
+  <svg
+    class="sheet-rule"
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 2 1000"
+    preserveAspectRatio="none"
+  >
+    <defs>
+      <clipPath id="sheet-rule-clip">
+        <rect
+          class="sheet-rule-fill"
+          x="0"
+          y="0"
+          width="2"
+          height="1000"
+        ></rect>
+      </clipPath>
+    </defs>
+    <path class="sheet-rule-base" d="M1 0V1000"></path>
+    <g clip-path="url(#sheet-rule-clip)">
+      <path class="sheet-rule-lit" d="M1 0V1000"></path>
+    </g>
+  </svg>
+  <ol class="sheet-index-list">
+    {rows.map((row) => (
+      <li>
+        <a class="sheet-index-link" href={`#${row.id}`}>
+          {row.label}
+        </a>
+      </li>
+    ))}
+  </ol>
+</nav>
+
+<script>
+  import { initSheetIndex } from '../lib/sheet-index';
+
+  const nav = document.querySelector<HTMLElement>('[data-sheet-index]');
+  if (nav) initSheetIndex(nav);
+</script>

@@ -1,5 +1,21 @@
 /* The sheet: border, index, 12-column sections, panels (B-01, B-02). Tokens live in tokens.css. */
 
+/* --- Border: --blue-deep band, 1 px white line on its inner edge. ----------------------- */
+.sheet-border {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  border: var(--inset) solid var(--blue-deep);
+}
+
+.sheet-border::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--white);
+}
+
 /* --- Page frame --------------------------------------------------------------------------- */
 .sheet {
   padding-block-start: calc(var(--inset) + var(--gutter));
@@ -73,6 +89,180 @@
 
 .panel-pending {
   opacity: 0;
+}
+
+/* --- Sheet index -------------------------------------------------------------------------- */
+.sheet-index {
+  position: fixed;
+  z-index: 25;
+  transition: opacity 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sheet-index[data-dim] {
+  opacity: 0.4;
+}
+
+.sheet-index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+.sheet-index-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  font-variation-settings: normal;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--white);
+}
+
+.sheet-index-link:hover {
+  text-decoration: underline;
+}
+
+/* Current row is filled. */
+.sheet-index-link[aria-current] {
+  background: var(--white);
+  color: var(--blue);
+}
+
+/* Bottom strip, below 1024. The rule becomes a thin line along its top edge. */
+.sheet-index {
+  inset-inline: var(--inset);
+  inset-block-end: var(--inset);
+  height: var(--strip-h);
+  background: var(--blue-deep);
+}
+
+.sheet-index::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 1px;
+  background: var(--white);
+  transform-origin: left;
+  transform: scaleX(var(--progress, 0));
+  /* Longhands on purpose: the CSS minifier folds the timeline into the `animation` shorthand,
+     which some engines drop. A partial longhand set is never merged. */
+  animation-name: progress-x;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: scroll(root);
+}
+
+.sheet-index-list {
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  justify-content: space-between;
+}
+
+.sheet-rule {
+  display: none;
+}
+
+/* Left margin, from 1024. */
+@media (min-width: 1024px) {
+  .sheet-index {
+    inset-inline: auto;
+    inset-inline-start: calc(var(--inset) + var(--gutter));
+    inset-block: calc(var(--inset) + var(--gutter));
+    width: var(--index-w);
+    height: auto;
+    background: none;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    padding-inline-start: 14px;
+  }
+
+  .sheet-index::before {
+    display: none;
+  }
+
+  .sheet-rule {
+    display: block;
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 6px;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .sheet-index-list {
+    flex-direction: column;
+    justify-content: center;
+    overflow: visible;
+    height: auto;
+    align-self: center;
+  }
+
+  .sheet-index-link {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* Progress rule: a dotted --mist path with a white copy revealed by scaleY(--progress). */
+.sheet-rule path {
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 1 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.sheet-rule-base {
+  stroke: var(--mist-strong);
+}
+
+.sheet-rule-lit {
+  stroke: var(--white);
+}
+
+.sheet-rule-fill {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  transform: scaleY(var(--progress, 0));
+  animation-name: progress-y;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: scroll(root);
+}
+
+@keyframes progress-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes progress-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* No scroll timelines: drop the animations; sheet-index.ts writes --progress instead.
+   (Motion off does the same through the global animation reset.) */
+@supports not (animation-timeline: scroll()) {
+  .sheet-rule-fill,
+  .sheet-index::before {
+    animation: none;
+  }
 }
 
 /* Link row inside a panel. */

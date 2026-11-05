@@ -176,12 +176,11 @@ test.describe('preferences @A-03', () => {
     await expect(btn).toHaveAccessibleDescription('');
   });
 
-  test('prefs row stays on one line at 375px', async ({
+  test('prefs row stays on one line at 375px, note included under OS reduce', async ({
     page,
     javaScriptEnabled,
   }, info) => {
     test.skip(!javaScriptEnabled, 'needs JS');
-    test.skip(info.project.name === 'reduced-motion', 'note adds width');
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto('/');
     const [a, b] = await Promise.all([
@@ -194,6 +193,14 @@ test.describe('preferences @A-03', () => {
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
+    if (info.project.name === 'reduced-motion') {
+      // The note sits under the toggle: visible, inside the viewport, below the buttons.
+      const note = await page.locator('#motion-note').boundingBox();
+      expect(note).not.toBeNull();
+      expect(note!.x + note!.width).toBeLessThanOrEqual(375);
+      expect(note!.y).toBeGreaterThanOrEqual(a!.y + a!.height - 1);
+      await expectNoAxeViolations(page, { label: '/ 375 px under OS reduce' });
+    }
   });
 
   test('toggle labels have a visible gap (no "SOUNDOFF")', async ({

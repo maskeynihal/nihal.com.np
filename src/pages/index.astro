@@ -7,6 +7,8 @@ import Poster from '../components/Poster.astro';
 import Desk from '../components/desk/Desk';
 import Section from '../components/Section.astro';
 import PaperPanel from '../components/PaperPanel.astro';
+import SheetBorder from '../components/SheetBorder.astro';
+import SheetIndex from '../components/SheetIndex.astro';
 import { getCopy } from '../content';
 import { rowLabel } from '../lib/sections';
 
@@ -16,6 +18,8 @@ const year = String(new Date().getFullYear());
 ---
 
 <Base skipTo="work" jsonLd>
+  <SheetBorder />
+  <SheetIndex />
   <main class="sheet">
     <Section id="desk" side="full" labelledBy="name">
       <h1 id="name" class="name">
