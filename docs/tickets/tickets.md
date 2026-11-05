@@ -29,7 +29,7 @@ Deps: A-02. Carry-over from A-02 review: scope or remove the `.hook-transition` 
 Deps: A-01. Zod schemas (`WorkItem`, `PR`, `Post`, `CvRow`, `BodyDef`, `Copy`, `Holiday`); content files populated from `02-copy.md` v2; `[CONFIRM]`/`[ASK]` items carry `confirmed: false` and are hidden; `fetch-github.ts` + committed `generated/github.json` with failure fallback; build fails on invalid data. Verify: bad-row test fails; build passes; grep for hard-coded years returns none.
 
 ### A-05 Copy gate
-Deps: A-04. `scripts/copy-gate.ts` scoped to `src/content/**`, banned list from `02-copy.md` §2, allowlist `DynamoDB`, `Loop Harness`, output `file:line: word`, exit 1; fixtures; CI job. Verify: seeded word fails CI; removed passes.
+Deps: A-04. Carry-over from A-04 r1: unconfirmed notes live outside displayed content (see A-04 fix), so the gate scans displayed strings only. `scripts/copy-gate.ts` scoped to `src/content/**`, banned list from `02-copy.md` §2, allowlist `DynamoDB`, `Loop Harness`, output `file:line: word`, exit 1; fixtures; CI job. Verify: seeded word fails CI; removed passes.
 
 ### A-06 Layout, head, SEO, pages
 Deps: A-02, A-04. `Base.astro` (meta, OG, JSON-LD Person, theme-color, manifest, skip link); `404.astro`, `sent.astro` (noindex); robots; sitemap. Verify: Lighthouse SEO 100; structured-data validator; 404 status on preview.
@@ -58,10 +58,10 @@ Deps: A-06, A-03. Carry-over from A-03 r3: final toggle placement must not wrap 
 Deps: A-02. Carry-over from A-02 review: Playwright guard that every rendered → / ← sits in an element whose computed font-family is JetBrains Mono (Fraunces has no arrow glyphs). Asymmetric grid, rhythm, opacity-only enter. Verify @B-02: visual at 3 viewports; no horizontal scroll at 320.
 
 ### B-03 Title block and poster
-Deps: B-02, D-01. `TitleBlock` (h1 real text with clip-path wipe, sentence, email copy, live time, rev/sheet/scale from build); inline SVG poster `role=img` ≤ 16 KB; **phone order**: title block → poster/canvas → object list; `ObjectList` single DOM node, visible on phones and `:focus-within`; poster `inert` toggling hook. Verify @B-03: LCP element is text in `#desk` (lhci audit); h1 textContent exact; object list links navigate in no-js and no-webgl projects.
+Deps: B-02, D-01. Carry-over from A-04 r1: rev/sheet/scale line comes from content + build date, not hard-coded in `index.astro`. `TitleBlock` (h1 real text with clip-path wipe, sentence, email copy, live time, rev/sheet/scale from build); inline SVG poster `role=img` ≤ 16 KB; **phone order**: title block → poster/canvas → object list; `ObjectList` single DOM node, visible on phones and `:focus-within`; poster `inert` toggling hook. Verify @B-03: LCP element is text in `#desk` (lhci audit); h1 textContent exact; object list links navigate in no-js and no-webgl projects.
 
 ### B-04 Work, open source, writing, cv
-Deps: B-02, A-04. Five work panels with date lines and marks; Trayt panel as empty frame with filled title block; revision table (`<table>` + caption); writing list; cv table; all readable with no JS. Verify @B-04: no-js project; link check; copy gate.
+Deps: B-02, A-04. Carry-over from A-04 r1: create anchors `id="work-<id>"` on each work panel (object targets use them); decide how the Trayt panel renders while `confirmed:false` (default: omitted until the owner confirms the client name; the empty-frame treatment applies once confirmed). Five work panels with date lines and marks; Trayt panel as empty frame with filled title block; revision table (`<table>` + caption); writing list; cv table; all readable with no JS. Verify @B-04: no-js project; link check; copy gate.
 
 ### B-05 Work-panel marks
 Deps: B-04, D-01. One SVG mark per panel, already drawn (no draw-in). Verify: visual; `getAnimations()` empty on marks.

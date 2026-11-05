@@ -97,7 +97,7 @@ Early (2019-2020): `MedAssist`, `Karya` (project management, Node + React), `mer
 - **benawad/dogehouse**: 5 merged PRs Feb-Mar 2021 incl. "Update Nepali translation", "Persist Language after page refresh".
 - **supabase/supabase**: 2 merged (2021-12 null-check; 2023-02 docs).
 - **zen-browser/www** typo (2024-12), **Lf-Network/oss-leaderboard** sticky header (2024-10), **computerclubkec** lazy-load (2024-10), **sbimochan/har-to-mocks**, **kritish-dhaubanjar/logex**, **pratishshr/envault**, **Thamodaran/react-read-more-less** (prevent event bubbling, 2023), **fireship-io/git-sticker** (2020-03).
-- 18 unmerged/closed PRs incl. laravel/breeze, laravel/sail, spatie/laravel-backup, pusher/pusher-http-php, PoskOfficial/Miti.
+- 13 closed without merging in public repos (live GitHub count 2026-11-05; the earlier "18" included 5 still-open PRs), incl. laravel/breeze, laravel/sail, spatie/laravel-backup, pusher/pusher-http-php, PoskOfficial/Miti.
 - **Frogtoberfest** (Leapfrog's October open-source event): rank 32, score 22.8 (year not shown). Several repos tagged `hacktoberfest-accepted`.
 
 ## Writing
