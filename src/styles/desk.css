@@ -1,0 +1,131 @@
+/* The desk: title block, drawing (poster or canvas) and object list (B-03).
+   Phone order is the DOM order: title block, drawing, object list. */
+
+.desk-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+/* --- Title block ---------------------------------------------------------------------- */
+.title-block {
+  max-width: 40rem;
+}
+
+.title-block .name {
+  font-size: clamp(4rem, 2rem + 4vw, 7rem);
+  overflow-wrap: anywhere;
+}
+
+.title-block-line {
+  margin-block-start: 1.25rem;
+}
+
+.title-block-rows {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 1.25rem 0 0;
+  border-block-start: 1px solid var(--hairline);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.title-block-rows a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* Reserve the width of "00:00" (five mono glyphs plus .label tracking of 0.08em each) so the
+   minute filling in never shifts the line. */
+.live-time {
+  display: inline-block;
+  min-width: calc(5ch + 5 * 0.08em);
+}
+
+.title-block-prefs {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  margin-block-start: 0.5rem;
+}
+
+/* --- The drawing ---------------------------------------------------------------------- */
+.desk {
+  margin: 0;
+}
+
+/* Phones: a fixed-height frame the canvas will fill, so swapping poster for canvas moves nothing. */
+.poster-frame {
+  height: clamp(320px, 48svh, 420px);
+}
+
+.poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The island mounts this live region after first paint. While empty it must take no space, or
+   the title block (end-aligned to the drawing) would shift when the island arrives. */
+.desk-note {
+  margin: 0;
+}
+
+.desk-note:not(:empty) {
+  margin-top: 0.5rem;
+}
+
+/* --- Object list ---------------------------------------------------------------------- */
+.object-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.object-list a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-underline-offset: 0.3em;
+  transition: opacity 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .poster-frame {
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
+
+  /* E-01: once the canvas replaces the poster, hide this list on desktop until :focus-within
+     (opacity only, so it stays in the tab order and nothing moves). Until then the poster is
+     the only drawing, so the list stays visible at every width. */
+}
+
+@media (min-width: 1024px) {
+  .desk-stage {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    row-gap: 1rem;
+    align-items: start;
+  }
+
+  /* Left of the drawing, so it never covers a drawn object. Top-aligned on purpose: the browser
+     can paint before the later siblings are parsed, and an end-aligned block would then jump. */
+  .title-block {
+    grid-column: 1 / 6;
+    grid-row: 1 / span 2;
+  }
+
+  .desk {
+    grid-column: 6 / 13;
+    grid-row: 1;
+  }
+
+  .object-list {
+    grid-column: 6 / 13;
+    grid-row: 2;
+  }
+}

@@ -1,8 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import { testHooks } from '../lib/env';
-import MotionToggle from '../components/MotionToggle.astro';
-import SoundToggle from '../components/SoundToggle.astro';
+import TitleBlock from '../components/TitleBlock.astro';
+import ObjectList from '../components/ObjectList.astro';
 import Poster from '../components/Poster.astro';
 import Desk from '../components/desk/Desk';
 import Section from '../components/Section.astro';
@@ -22,26 +22,16 @@ const year = String(new Date().getFullYear());
   <SheetIndex />
   <main class="sheet">
     <Section id="desk" side="full" labelledBy="name">
-      <h1 id="name" class="name">
-        {titleBlock.name}
-      </h1>
-      <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
-      <div class="page-prefs">
-        <MotionToggle />
-        <SoundToggle />
+      <div class="desk-stage">
+        <TitleBlock />
+        <!-- The poster is plain HTML and visible by default. The Desk island only sets
+             data-desk-state (poster | live | failed) and the status note. -->
+        <figure class="desk" data-desk data-desk-state="poster">
+          <Poster />
+          <Desk client:only="react" />
+        </figure>
+        <ObjectList />
       </div>
-      <div class="paper page-sheet">
-        <p>{titleBlock.options[titleBlock.selected]}</p>
-        <p class="page-sheet-contact">
-          <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
-        </p>
-      </div>
-      <!-- The poster is plain HTML and visible by default. The Desk island only sets
-           data-desk-state (poster | live | failed) and the status note. -->
-      <figure class="desk" data-desk data-desk-state="poster">
-        <Poster />
-        <Desk client:only="react" />
-      </figure>
     </Section>
 
     <!-- work, open-source, writing and cv: headed sections; B-04 fills them with panels and tables. -->

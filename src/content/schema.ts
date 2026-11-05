@@ -112,6 +112,8 @@ export const Copy = z.strictObject({
     options: z.strictObject({ A: text, B: text, C: text }),
     email: z.email(),
     timeLabel: text,
+    /** Template; {rev} is the build month as YYYY.MM. */
+    revLine: text,
     dragHint: text,
     reset: text,
     skip: text,

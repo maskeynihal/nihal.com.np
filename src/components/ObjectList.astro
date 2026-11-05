@@ -1,0 +1,22 @@
+---
+import { getObjects, getWork } from '../content';
+import { objectLinks } from '../lib/object-links';
+
+/**
+ * One DOM node for every viewport: real links to the sections the drawn objects stand for,
+ * derived from `getObjects()` (the same set as the poster and its description). Visible on
+ * every viewport while the poster is the drawing (E-01 hides it on desktop until focus once the
+ * canvas replaces the poster; it stays the keyboard path). Not part of the Desk island.
+ */
+const links = objectLinks(getObjects(), getWork());
+---
+
+<ul class="label object-list" data-object-list>
+  {links.map((l) => (
+    <li>
+      <a href={l.href} data-object={l.id}>
+        {l.label} → {l.targetLabel}
+      </a>
+    </li>
+  ))}
+</ul>

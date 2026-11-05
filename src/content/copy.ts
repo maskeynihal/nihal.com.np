@@ -37,6 +37,7 @@ export const copy = {
     },
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
+    revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
     dragHint: 'drag things around. tap one to jump to its section.',
     reset: 'reset the desk',
     skip: 'skip the 3D desk',

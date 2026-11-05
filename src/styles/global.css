@@ -2,6 +2,7 @@
 @import './fonts.generated.css';
 @import './tokens.css';
 @import './sheet.css';
+@import './desk.css';
 
 /* Expose the :root tokens to Tailwind by reference (no literal values here).
    Font utilities use distinct names (font-heading/prose/code) because
@@ -193,24 +194,6 @@ a {
   border: 0;
 }
 
-/* Desk figure (A-10). The poster is visible unless a positive state says otherwise
-   (E-01 adds the `live` rule); the note is empty until the island fails. */
-.desk {
-  margin: 1.5rem 0 0;
-  max-width: 40rem;
-}
-
-.desk .poster {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-}
-
-.desk-note {
-  margin-top: 0.5rem;
-}
-
 .page-main {
   padding: 24px 16px;
 }
@@ -220,24 +203,12 @@ a {
   margin-top: 0.5rem;
 }
 
-.page-rev {
-  margin-top: 1rem;
-}
-
 .page-sheet {
   margin-top: 1.5rem;
   max-width: 40rem;
 }
 
 .page-sheet-contact {
-  margin-top: 1rem;
-}
-
-.page-prefs {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1.5rem;
   margin-top: 1rem;
 }
 

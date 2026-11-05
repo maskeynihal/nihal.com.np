@@ -1,31 +1,37 @@
 ---
+import posterSvg from '../assets/poster.svg?raw';
 import { getObjects } from '../content';
 import { buildPosterAlt } from '../content/poster-alt';
 
-// PLACEHOLDER (A-10): D-03 swaps this body for the generated poster SVG (<= 16 KB).
-// Keep the contract: inline SVG, role="img", alt derived from the shown objects,
-// visible without JS. The Desk island toggles state on the wrapping figure only.
-const alt = buildPosterAlt(getObjects());
+/**
+ * The line drawing of the desk (D-01 poster, projected from the same models as the 3D scene),
+ * inlined so it paints with the HTML: no request, no JS. `role="img"` with a description built
+ * from the objects actually shown. It is also the fallback for every no-3D path; the Desk island
+ * only sets `data-desk-state` on the wrapping figure. The script below makes the poster `inert`
+ * while the canvas is live (the object list is the keyboard path) and restores it otherwise.
+ */
+const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
+const svg = posterSvg
+  .trim()
+  .replace(
+    '<svg ',
+    `<svg class="poster" role="img" aria-label="${alt}" focusable="false" `,
+  );
 ---
 
-<svg
-  class="poster"
-  role="img"
-  aria-label={alt}
-  viewBox="0 0 640 360"
-  width="640"
-  height="360"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.5"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <rect x="236" y="150" width="168" height="110" rx="4"></rect>
-  <rect x="290" y="176" width="60" height="32"></rect>
-  <circle cx="120" cy="110" r="46"></circle>
-  <path d="M120 110V76M120 110l22 12"></path>
-  <rect x="470" y="70" width="110" height="96" rx="4"></rect>
-  <path d="M470 98h110"></path>
-  <path d="M470 280a30 30 0 0 1 60 0v34l-12-8-12 8-12-8-12 8-12-8z"></path>
-</svg>
+<div class="poster-frame" data-poster set:html={svg} />
+
+<script>
+  const frame = document.querySelector<HTMLElement>('[data-poster]');
+  const figure = frame?.closest<HTMLElement>('[data-desk]');
+  if (frame && figure) {
+    const sync = () => {
+      frame.inert = figure.dataset['deskState'] === 'live';
+    };
+    sync();
+    new MutationObserver(sync).observe(figure, {
+      attributes: true,
+      attributeFilter: ['data-desk-state'],
+    });
+  }
+</script>

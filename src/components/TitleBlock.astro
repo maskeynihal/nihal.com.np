@@ -1,0 +1,48 @@
+---
+import { getCopy } from '../content';
+import { revLine } from '../lib/title-block';
+import MotionToggle from './MotionToggle.astro';
+import SoundToggle from './SoundToggle.astro';
+
+/**
+ * The drawing's title block (design 3, #desk): name as the page's only h1, one sentence, the
+ * address, the live Kathmandu time and the revision line. Everything but the minute is plain
+ * server-rendered text, so it is the first paint and the LCP element. The rev line comes from
+ * the content template and the build date; the time is filled in by the script below.
+ */
+const { titleBlock } = getCopy();
+const rev = revLine(titleBlock.revLine, new Date());
+---
+
+<div class="paper title-block">
+  <h1 id="name" class="name">
+    {titleBlock.name}
+  </h1>
+  <p class="title-block-line">{titleBlock.options[titleBlock.selected]}</p>
+  <ul class="label title-block-rows">
+    <li>
+      <!-- CopyEmail (copy button) replaces this link in B-06a. -->
+      <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
+    </li>
+    <li>
+      <time class="live-time" data-live-time></time> {titleBlock.timeLabel}
+    </li>
+    <li>{rev}</li>
+  </ul>
+  <div class="title-block-prefs">
+    <MotionToggle />
+    <SoundToggle />
+  </div>
+</div>
+
+<script>
+  import { everyMinute, formatClock } from '../lib/time';
+
+  const els = document.querySelectorAll<HTMLTimeElement>('[data-live-time]');
+  everyMinute((now) => {
+    for (const el of els) {
+      el.textContent = formatClock(now);
+      el.dateTime = now.toISOString();
+    }
+  });
+</script>
