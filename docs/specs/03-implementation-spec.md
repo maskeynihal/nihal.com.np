@@ -102,7 +102,7 @@ export default defineConfig({
 Zod schemas for `WorkItem`, `PR`, `Post`, `CvRow`, `BodyDef`, `Copy`, `Holiday`. `fetch-github.ts` writes `generated/github.json` (merged count, closed count, repo metadata); failure → committed file + warning. `bs-date.ts`: Gregorian → Bikram Sambat using a committed year table (1970-2100 BS) with unit tests against known dates; `holidays.json` ported from the owner's spatie PR for the current BS year(s), schema-validated, each holiday with a source. Years in copy as "since 2019"; rev line from build date.
 
 ## 8. Head, SEO
-Title `nihal maskey · lead engineer, kathmandu`; description; canonical; OG/Twitter; `theme-color #1F3FE0`; JSON-LD `Person`; robots; sitemap (`/`, `/sent` excluded via noindex); manifest. Fonts preloaded (Fraunces display instance, JetBrains Mono), `font-display: swap`, `size-adjust` fallbacks from `@capsizecss/metrics`. Analytics: `import { inject } from '@vercel/analytics'` in a hoisted script after a `navigator.doNotTrack !== '1'` check.
+Title `nihal maskey · lead engineer, kathmandu`; description; canonical; OG/Twitter; `theme-color #1F3FE0`; JSON-LD `Person`; robots; sitemap (`/`, `/sent` excluded via noindex); manifest. No font preload: Chromium and WebKit disagree on `crossorigin` for font preloads, so any static preload double-downloads in one engine (measured in A-13 r2). `font-display: swap` + `size-adjust` fallbacks from `@capsizecss/metrics` keep CLS 0; each woff2 is requested once. Analytics: `import { inject } from '@vercel/analytics'` in a hoisted script after a `navigator.doNotTrack !== '1'` check.
 
 ## 9. CSP and headers (`scripts/write-vercel-json.ts`, postbuild)
 Reads `dist/**/*.html`, sha256 of every inline `<script>`, writes `vercel.json`:
@@ -148,7 +148,7 @@ Vercel static (no adapter), framework Astro, `vercel.json` generated at build. N
 | Detailed models late | D-02 grey-box GLBs from code; finals swap behind same ids; poster regenerates from the same data |
 | BS calendar correctness | committed table + unit tests vs known dates; holidays shown only when data covers the year |
 | Astro island ↔ DOM | custom events `nihal:navigate`, `nihal:reset`, `nihal:drag`; one scroll owner |
-| CLS from fonts | preload + `size-adjust`; hero text never `opacity:0` |
+| CLS from fonts | `size-adjust` fallbacks, no preload (A-13 r2); hero text never `opacity:0`; lhci on Linux CI re-checks CLS |
 | Formspree down | network error copy with the email; native action still works |
 | GitHub API limit | committed snapshot |
 | Copy gate noise | prose-only scope; allowlist |

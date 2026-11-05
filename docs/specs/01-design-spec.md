@@ -44,7 +44,7 @@ No gradients. No shadows on blue. No blur. Paper panels: 1 px `--blue-ink`/14% h
 | Body | **Fraunces** at small optical size (opsz 14), wght 400-500, SOFT 0 | 17 px / 1.55 on paper, measure ≤ 64ch. Crisp, not cuddly. |
 | Labels, numbers, tables, code | **JetBrains Mono** variable (wght 400-600) | Uppercase labels 11-13 px tracked 0.08em; tabular numerals; all dates, times, dimensions. |
 
-Inter is dropped. Fonts self-hosted, latin only, instanced + subset (budget ≤ 130 KB total), preloaded, `size-adjust` metric fallbacks so the 128 px name does not shift. Scale: 12 label / 15 small / 17 body / 22 lead / 28 h3 / 40 h2 / 64-128 name. Sentence case. Lowercase only on headings and the sheet index, never body copy.
+Inter is dropped. Fonts self-hosted, latin only, instanced + subset (budget ≤ 130 KB total), not preloaded (see impl spec §8), `size-adjust` metric fallbacks so the 128 px name does not shift. Scale: 12 label / 15 small / 17 body / 22 lead / 28 h3 / 40 h2 / 64-128 name. Sentence case. Lowercase only on headings and the sheet index, never body copy.
 
 ### 2.3 Line language
 One drafting hand. Structural strokes 1.5 CSS px white, round caps. Secondary strokes 1 px `--line-2`. Dimension lines with 45° tick terminators (drafting convention, not arrowheads). The same code-built models (`scripts/models`, three.js in Node) produce both the runtime GLB crease lines and the SVG poster (projected through the hero camera), so 2D and 3D match exactly.
