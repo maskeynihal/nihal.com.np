@@ -47,7 +47,7 @@ No gradients. No shadows on blue. No blur. Paper panels: 1 px `--blue-ink`/14% h
 Inter is dropped. Fonts self-hosted, latin only, instanced + subset (budget ≤ 130 KB total), preloaded, `size-adjust` metric fallbacks so the 128 px name does not shift. Scale: 12 label / 15 small / 17 body / 22 lead / 28 h3 / 40 h2 / 64-128 name. Sentence case. Lowercase only on headings and the sheet index, never body copy.
 
 ### 2.3 Line language
-One drafting hand. Structural strokes 1.5 CSS px white, round caps. Secondary strokes 1 px `--line-2`. Dimension lines with 45° tick terminators (drafting convention, not arrowheads). The same Blender models produce both the SVG poster (Freestyle export) and the runtime GLB crease lines, so 2D and 3D match exactly.
+One drafting hand. Structural strokes 1.5 CSS px white, round caps. Secondary strokes 1 px `--line-2`. Dimension lines with 45° tick terminators (drafting convention, not arrowheads). The same code-built models (`scripts/models`, three.js in Node) produce both the runtime GLB crease lines and the SVG poster (projected through the hero camera), so 2D and 3D match exactly.
 
 ### 2.4 Layout
 12-column fluid grid, 24 px gutters, 1280 px max, 16 px gutters on phones. The sheet has a drawn **border** (1 px white, 24 px inset on desktop, 12 px on phones) with the sheet index running inside the left margin on ≥ 1024 px and as a bottom strip below. Text blocks on columns 2-7 or 6-12, never centered. Sections alternate sides. Rhythm 160 px desktop / 96 px phones. No equal-tile grids.
@@ -85,7 +85,7 @@ Legacy anchors (`#projects`, `#about`, `#blog`, `#experience`, `#education`) map
 Three passes per object, no lights, no textures (one OLED canvas), no post-processing:
 1. **Occluder**: `MeshBasicMaterial({color: BLUE, polygonOffset: true, factor: 1, units: 1, toneMapped: false})`.
 2. **Silhouette**: inverted hull: same geometry, `side: BackSide`, white, vertex shader pushes along the normal by a screen-constant 1.5 px (`onBeforeCompile`). Gives an outline on every curved surface.
-3. **Creases**: authored in Blender (marked sharp / Freestyle), exported as a `LINES` primitive in the GLB, rendered with `LineSegments2` + `LineMaterial` (`linewidth 1.5`, `worldUnits false`, `resolution` updated on resize, `alphaToCoverage`, `toneMapped false`). Secondary dimension lines use `--line-2` opaque.
+3. **Creases**: chosen per part in the code-built models (`scripts/models`), exported as a `LINES` primitive in the GLB, rendered with `LineSegments2` + `LineMaterial` (`linewidth 1.5`, `worldUnits false`, `resolution` updated on resize, `alphaToCoverage`, `toneMapped false`). Secondary dimension lines use `--line-2` opaque.
 Canvas: opaque (`alpha: false`), clear colour `--blue`, `flat` (no tone mapping), sRGB output. Camera 35° FOV, `near 0.5 / far 8`, fixed; pointer nudge ±2° on desktop, lerped with a convergence threshold. Colour check tolerance ±2/255. Lines are not raycastable; raycast against occluders only.
 
 ### 4.3 Dimension callouts (signature interaction 1)
@@ -155,7 +155,7 @@ Canvas `aria-hidden`; poster `role="img"` with description; object list = real l
 Gradient; glass/blur; shadow on blue; centered hero with two buttons; pill badge above a heading; round-number stat row; three equal icon cards; Lucide/Heroicons as decoration; emoji or ♥ glyphs; bento grid; marquee; pulsing dot; blinking cursor; bounce/elastic easing; purple; Inter anywhere; Title Case; stock illustration/photo; abstract 3D blob; preloader with percentage; testimonial; logo wall; custom cursor or cursor follower; "01 / 02" section numerals; "scroll ↓" indicator; stroke draw-in on more than the hero; fade-up-and-translate section entrances; lowercase body copy; "made with" footer; font-list colophon; decorative foreign-language glyphs; captioning the toy ("the desk is real").
 
 ## 11. Assets
-- Blender: `sheet`, `arduino` (board + OLED frame), 3 clocks (one model, three labels), `calendar`, `ghost`, `cruiser` (conditional). ≤ 1.2k tris each, ≤ 8k total, ≤ 150 KB GLB total, each with a `LINES` crease primitive. Freestyle export of the same view → poster SVG (≤ 16 KB).
+- Code-built models (`scripts/models`, no Blender): `sheet`, `arduino` (board + OLED frame), 3 clocks (one model, three labels), `calendar`, `ghost`, `cruiser` (conditional). ≤ 1.2k tris each, ≤ 8k total, ≤ 150 KB GLB total, each with a `LINES` crease primitive. Poster SVG (≤ 16 KB) projected from the same line data.
 - SVG marks for the five work panels (one per project, same hand).
 - Fonts: Fraunces instanced, JetBrains Mono, latin, woff2, ≤ 130 KB total.
 - OG 1200×630: title block + poster. Favicon: white drafting-pen nib on blue.

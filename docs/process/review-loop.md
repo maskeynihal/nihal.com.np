@@ -2,6 +2,12 @@
 
 Runs after the owner approves the plan. Updated per `reviews/plan-critique-02-engineering.md` B4.
 
+## Models
+Orchestrator: Opus 5.5 (this session). Every implementer and reviewer, including re-spawns: Sonnet.
+
+## Report hygiene
+Implementer returns only: files changed, commands with exit codes, anything unverified. Reviewer writes full findings to `docs/reviews/<ID>-r<N>.md` and returns only the verdict line plus Blocker/Major titles. Reviewers receive the diff, ticket and specs, never the implementer's report, and edit no file except their verdict file. One writer per checkout: no implementer starts while a reviewer is building in the same tree.
+
 ## Roles (subagents of the orchestrating session)
 - **Implementer**: one ticket. Reads specs 00-03, the ticket, the profile, prior review files for that ticket. Writes code + the ticket's tagged Playwright spec + unit tests. Commits `[ID] message`. Report: what changed, commands run with exit codes, what it could not verify.
 - **Reviewer**: fresh agent, never the implementer. Gets the diff, ticket, specs. Runs `pnpm review <ID>` (builds with hooks, previews, runs `--grep @<ID>`, writes report dir). Three passes, then one verdict line in `docs/reviews/<ID>-r<N>.md`: `VERDICT: Ready to Ship` or `VERDICT: Changes Required`.

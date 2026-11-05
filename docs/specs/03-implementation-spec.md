@@ -145,7 +145,7 @@ Vercel static (no adapter), framework Astro, `vercel.json` generated at build. N
 | iOS context loss | one canvas, DPR 1 on phones, ≤ 8k tris, one 128×64 texture, dispose, poster on loss, 5-min soak test |
 | Rapier size | on-grab only; E-11 picks compat vs real wasm; never in first view |
 | Line AA on 1x phones | `LineMaterial` AA + `alphaToCoverage`; hull width in CSS px; review on a real 1x device |
-| Blender assets late | D-02 grey-box GLBs with `EdgesGeometry` 40°; finals swap behind same ids; D-01 starts day 1 |
+| Detailed models late | D-02 grey-box GLBs from code; finals swap behind same ids; poster regenerates from the same data |
 | BS calendar correctness | committed table + unit tests vs known dates; holidays shown only when data covers the year |
 | Astro island ↔ DOM | custom events `nihal:navigate`, `nihal:reset`, `nihal:drag`; one scroll owner |
 | CLS from fonts | preload + `size-adjust`; hero text never `opacity:0` |
