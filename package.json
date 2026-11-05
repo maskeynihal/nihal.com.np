@@ -12,6 +12,8 @@
     "format:write": "prettier --write .",
     "typecheck": "astro check",
     "test": "vitest run",
+    "build:preview-unconfirmed": "cross-env PUBLIC_SHOW_UNCONFIRMED=1 astro build",
+    "github:fetch": "tsx scripts/fetch-github.ts",
     "build:e2e": "cross-env PUBLIC_TEST_HOOKS=1 astro build",
     "check:graph": "tsx scripts/check-initial-graph.ts",
     "review": "tsx scripts/review.ts",
@@ -25,7 +27,8 @@
     "astro": "7.4.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "tailwindcss": "^4.3.4"
+    "tailwindcss": "^4.3.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",

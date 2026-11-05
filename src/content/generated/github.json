@@ -1,0 +1,47 @@
+{
+  "fetchedAt": "2026-11-05T08:57:11.129Z",
+  "merged": 41,
+  "closed": 13,
+  "repos": {
+    "benawad/dogehouse": {
+      "stars": 9011,
+      "pushedAt": "2023-09-14T22:42:54Z"
+    },
+    "digitalocean/nginxconfig.io": {
+      "stars": 28250,
+      "pushedAt": "2024-12-14T10:56:21Z"
+    },
+    "kritish-dhaubanjar/dev-auth-chrome-extension": {
+      "stars": 9,
+      "pushedAt": "2026-01-31T22:46:59Z"
+    },
+    "kritish-dhaubanjar/dynamodb-dashboard": {
+      "stars": 55,
+      "pushedAt": "2026-11-05T06:23:28Z"
+    },
+    "maskeynihal/pacman": {
+      "stars": 1,
+      "pushedAt": "2020-08-12T08:51:37Z"
+    },
+    "maskeynihal/sensor-for-cars": {
+      "stars": 0,
+      "pushedAt": "2026-11-01T17:45:31Z"
+    },
+    "maskeynihal/space-hog": {
+      "stars": 1,
+      "pushedAt": "2026-10-30T10:41:28Z"
+    },
+    "maskeynihal/tz-extension": {
+      "stars": 2,
+      "pushedAt": "2026-11-04T14:28:04Z"
+    },
+    "spatie/holidays": {
+      "stars": 409,
+      "pushedAt": "2026-11-04T15:43:31Z"
+    },
+    "supabase/supabase": {
+      "stars": 114551,
+      "pushedAt": "2026-11-05T08:14:04Z"
+    }
+  }
+}

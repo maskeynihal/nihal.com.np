@@ -1,0 +1,210 @@
+import { z } from 'zod';
+
+/** https links only, plus mailto: for the contact address. */
+const url = z
+  .url()
+  .refine((v) => v.startsWith('https://') || v.startsWith('mailto:'), {
+    message: 'URL must be https:// or mailto:',
+  });
+
+const text = z.string().min(1);
+const vec3 = z.tuple([z.number(), z.number(), z.number()]);
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
+
+/** Notes for [CONFIRM]/[ASK] fragments that are held back from display. */
+const pending = z.array(text).optional();
+
+export const Link = z.strictObject({ label: text, href: url });
+
+export const WorkItem = z.strictObject({
+  id: z.enum(['trayt', 'tz-converter', 'space-hog', 'car-sensors', 'pac-man']),
+  title: text,
+  dateLine: text,
+  meta: text,
+  body: z.array(text).min(1),
+  frameNote: text.optional(),
+  links: z.array(Link),
+  confirmed: z.boolean(),
+  pending,
+});
+
+export const PR = z.strictObject({
+  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
+  what: text,
+  merged: text,
+  href: url,
+});
+
+export const Post = z.strictObject({
+  date: isoDate,
+  title: text,
+  summary: text,
+  href: url,
+});
+
+export const CvRow = z.strictObject({
+  when: text,
+  role: text,
+  org: text,
+  confirmed: z.boolean(),
+  pending,
+});
+
+export const SECTION_TARGET =
+  /^#(desk|work-[a-z0-9-]+|open-source|writing|cv|contact)$/;
+
+export const BodyDef = z.strictObject({
+  id: z.enum([
+    'arduino',
+    'clock-ktm',
+    'clock-2',
+    'clock-3',
+    'calendar',
+    'ghost',
+    'cruiser',
+  ]),
+  model: text,
+  home: z.strictObject({
+    p: vec3,
+    q: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  }),
+  collider: z.strictObject({
+    kind: z.enum(['cuboid', 'ball', 'capsule']),
+    args: z.array(z.number()).min(1),
+    offset: vec3,
+  }),
+  mass: z.number().positive(),
+  kinematicWhenIdle: z.boolean().optional(),
+  callouts: z.array(z.strictObject({ anchor: vec3, text })),
+  target: z.string().regex(SECTION_TARGET, 'target must be a section id'),
+  explode: vec3,
+  label: text,
+  confirmed: z.boolean(),
+  pending,
+});
+
+export const Holiday = z.strictObject({
+  bsDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected BS YYYY-MM-DD'),
+  adDate: isoDate,
+  name: text,
+  source: url,
+});
+
+export const Copy = z.strictObject({
+  nav: z.strictObject({
+    label: text,
+    rows: z.array(text).length(7),
+  }),
+  prefs: z.strictObject({
+    motion: text,
+    sound: text,
+    on: text,
+    off: text,
+    system: text,
+  }),
+  titleBlock: z.strictObject({
+    name: text,
+    selected: z.enum(['A', 'B', 'C']),
+    options: z.strictObject({ A: text, B: text, C: text }),
+    email: z.email(),
+    timeLabel: text,
+    dragHint: text,
+    reset: text,
+    skip: text,
+    posterAlt: text,
+    posterAltWithCruiser: text,
+    oledCaption: text,
+    objectListLabel: text,
+  }),
+  headings: z.strictObject({
+    work: text,
+    openSource: text,
+    writing: text,
+    cv: text,
+    contact: text,
+  }),
+  work: z.strictObject({
+    play: text,
+    leave: text,
+    openNewTab: text,
+    playStandalone: text,
+  }),
+  openSource: z.strictObject({
+    intro: text,
+    columns: z.tuple([text, text, text]),
+    footer: text,
+  }),
+  writing: z.strictObject({ intro: text, all: text, allHref: url }),
+  cv: z.strictObject({ note: text }),
+  contact: z.strictObject({
+    lead: text,
+    copied: text,
+    overlap: text,
+    socials: z.array(Link),
+    form: z.strictObject({
+      name: text,
+      email: text,
+      subject: text,
+      message: text,
+      send: text,
+    }),
+    success: text,
+    errors: z.strictObject({
+      email: text,
+      message: text,
+      network: text,
+    }),
+  }),
+  colophon: z.strictObject({
+    owner: text,
+    copyright: text,
+    source: text,
+    sourceHref: url,
+  }),
+  notFound: z.strictObject({
+    heading: text,
+    sheet: text,
+    body: text,
+    back: text,
+  }),
+  sent: z.strictObject({ heading: text, body: text, back: text }),
+  status: z.strictObject({
+    loading: text,
+    off: text,
+    lost: text,
+  }),
+  consoleLine: text,
+  /** [CONFIRM]/[ASK] fragments held back from display. Never rendered. */
+  pending: z.array(text),
+});
+
+/** `generated/github.json`, written by `scripts/fetch-github.ts`. */
+export const GithubData = z.strictObject({
+  fetchedAt: z.iso.datetime({ offset: true }),
+  merged: z.number().int().nonnegative(),
+  closed: z.number().int().nonnegative(),
+  repos: z.record(
+    z.string(),
+    z.strictObject({
+      stars: z.number().int().nonnegative(),
+      pushedAt: z.iso.datetime({ offset: true }),
+    }),
+  ),
+});
+
+export type Link = z.infer<typeof Link>;
+export type WorkItem = z.infer<typeof WorkItem>;
+export type PR = z.infer<typeof PR>;
+export type Post = z.infer<typeof Post>;
+export type CvRow = z.infer<typeof CvRow>;
+export type BodyDef = z.infer<typeof BodyDef>;
+export type Holiday = z.infer<typeof Holiday>;
+export type Copy = z.infer<typeof Copy>;
+export type GithubData = z.infer<typeof GithubData>;
+
+export const WorkList = z.array(WorkItem).length(5);
+export const PRList = z.array(PR);
+export const PostList = z.array(Post);
+export const CvList = z.array(CvRow);
+export const BodyList = z.array(BodyDef);
+export const HolidayList = z.array(Holiday);

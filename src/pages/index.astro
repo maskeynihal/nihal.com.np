@@ -3,24 +3,23 @@ import Base from '../layouts/Base.astro';
 import { testHooks } from '../lib/env';
 import MotionToggle from '../components/MotionToggle.astro';
 import SoundToggle from '../components/SoundToggle.astro';
+import { getCopy } from '../content';
+
+const { titleBlock } = getCopy();
 ---
 
 <Base title="nihal maskey · lead engineer, kathmandu">
   <main class="page-main">
-    <h1 class="name">nihal maskey</h1>
+    <h1 class="name">{titleBlock.name}</h1>
     <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
     <div class="page-prefs">
       <MotionToggle />
       <SoundToggle />
     </div>
     <div class="paper page-sheet">
-      <p>
-        I'm a software engineer in Kathmandu. I lead a team at Leapfrog
-        Technology that builds healthcare software on AWS, and I make tools I
-        needed and could not find.
-      </p>
+      <p>{titleBlock.options[titleBlock.selected]}</p>
       <p class="page-sheet-contact">
-        <a href="mailto:contact@nihal.com.np">contact@nihal.com.np</a>
+        <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
       </p>
     </div>
     {testHooks && (

@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly PUBLIC_TEST_HOOKS?: string;
+  readonly PUBLIC_SHOW_UNCONFIRMED?: string;
 }
 
 interface ImportMeta {
