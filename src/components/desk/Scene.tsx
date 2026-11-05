@@ -58,6 +58,7 @@ import {
   setSphereProbe,
 } from './scene-hooks';
 import { Callouts } from './Callouts';
+import { Explode } from './Explode';
 import { Interaction } from './Interaction';
 import { IslandBoundary } from './IslandBoundary';
 import { physicsBridge } from './physics-bridge';
@@ -607,6 +608,7 @@ export default function Scene({ onReady }: { onReady: () => void }) {
             }}
           >
             <Rig art={art} />
+            <Explode />
             <Interaction />
             <Callouts />
             {physicsOn ? (

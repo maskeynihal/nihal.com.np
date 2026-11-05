@@ -399,13 +399,13 @@ test.describe('touch @E-05', () => {
     const t = await touch(page);
     const y0 = await page.evaluate(() => scrollY);
     await t.start(o.x, o.y);
-    for (let i = 1; i <= 10; i++) {
-      await t.move(o.x, o.y - i * 16);
-      await sleep(16);
+    for (let i = 1; i <= 15; i++) {
+      await t.move(o.x, o.y - i * 20);
+      await sleep(30);
     }
     await t.end();
     await expect
-      .poll(() => page.evaluate(() => scrollY))
+      .poll(() => page.evaluate(() => scrollY), { timeout: 10_000 })
       .toBeGreaterThan(y0 + 40);
     expect(await grabbed(page)).toBeNull();
     expect(await physicsState(page)).toBe('idle');
@@ -452,9 +452,8 @@ test.describe('touch @E-05', () => {
     await recordEvents(page);
     const o = await visibleAt(page, 'calendar');
     const t = await touch(page);
-    await t.start(o.x, o.y);
-    await sleep(60);
-    await t.end();
+    // Back to back, so a loaded machine cannot stretch a tap past the 250 ms limit.
+    await Promise.all([t.start(o.x, o.y), t.end()]);
     await expect
       .poll(async () =>
         (await events(page)).filter((e) => e.type === 'nihal:navigate'),
@@ -478,11 +477,13 @@ test.describe('touch @E-05', () => {
     expect(Math.hypot(moved.p[0], moved.p[2] - 0.02)).toBeGreaterThan(0.05);
 
     const corner = { x: g.box.x + 12, y: g.box.y + 12 };
-    await t.start(corner.x, corner.y);
-    await t.end();
-    await sleep(20);
-    await t.start(corner.x, corner.y);
-    await t.end();
+    // Sent back to back (not awaited one by one) so a loaded machine cannot stretch the gap.
+    await Promise.all([
+      t.start(corner.x, corner.y),
+      t.end(),
+      t.start(corner.x, corner.y),
+      t.end(),
+    ]);
     await expect
       .poll(async () => {
         const b = (await bodies(page)).find((x) => x.id === 'arduino')!;

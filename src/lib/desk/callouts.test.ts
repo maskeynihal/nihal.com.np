@@ -6,6 +6,7 @@ import {
   REST_OPACITY,
   fadeAt,
   fadeMs,
+  keepInside,
   labelPlacement,
   leaderDirection,
 } from './callouts';
@@ -54,5 +55,28 @@ describe('leader geometry', () => {
       ty: '-100%',
     });
     expect(labelPlacement({ x: 0, z: 1 })).toEqual({ tx: '-50%', ty: '0' });
+  });
+});
+
+describe('keepInside', () => {
+  it('leaves a label that already fits alone', () => {
+    expect(keepInside(100, '0', 50, 400)).toBe(100);
+  });
+
+  it('pulls a left-aligned label back from the right edge', () => {
+    expect(keepInside(390, '0', 50, 400)).toBe(346);
+  });
+
+  it('pulls a right-aligned label in from the left edge', () => {
+    expect(keepInside(10, '-100%', 50, 400)).toBe(54);
+  });
+
+  it('keeps a centred label whole on both sides', () => {
+    expect(keepInside(5, '-50%', 40, 400)).toBe(24);
+    expect(keepInside(399, '-50%', 40, 400)).toBe(376);
+  });
+
+  it('centres a label wider than the canvas', () => {
+    expect(keepInside(0, '0', 500, 400)).toBe(-50);
   });
 });

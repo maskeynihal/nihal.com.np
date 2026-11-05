@@ -23,6 +23,11 @@ export interface SceneProbe {
     hovered: () => string | null;
     lift: (id: string) => number;
   };
+  explode: {
+    state: () => { target: number; factor: number; range: number };
+    offset: (id: string) => [number, number, number];
+    leaders: () => { id: string; visible: boolean; opacity: number }[];
+  };
   callouts: () => {
     id: string;
     text: string;
@@ -43,6 +48,11 @@ export const probe: SceneProbe = {
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
   interaction: { pick: () => null, hovered: () => null, lift: () => 0 },
+  explode: {
+    state: () => ({ target: 0, factor: 0, range: 1 }),
+    offset: () => [0, 0, 0],
+    leaders: () => [],
+  },
   callouts: () => [],
   quiet: false,
 };
@@ -86,6 +96,9 @@ export function installSceneHooks(): () => void {
     pick: (id) => probe.interaction.pick(id),
     hovered: () => probe.interaction.hovered(),
     hoverLift: (id) => probe.interaction.lift(id),
+    explode: () => probe.explode.state(),
+    explodeOffset: (id) => probe.explode.offset(id),
+    explodeLeaders: () => probe.explode.leaders(),
     callouts: () => probe.callouts(),
     quiet: (on) => {
       probe.quiet = on;
@@ -144,4 +157,11 @@ export function setInteractionProbe(i: SceneProbe['interaction'] | null): void {
 }
 export function setCalloutProbe(fn: SceneProbe['callouts'] | null): void {
   probe.callouts = fn ?? (() => []);
+}
+export function setExplodeProbe(e: SceneProbe['explode'] | null): void {
+  probe.explode = e ?? {
+    state: () => ({ target: 0, factor: 0, range: 1 }),
+    offset: () => [0, 0, 0],
+    leaders: () => [],
+  };
 }

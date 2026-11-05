@@ -358,6 +358,10 @@ function World({ entries }: { entries: RegistryEntry[] }) {
         invalidate();
       },
       grabbed: () => grab.current?.id ?? null,
+      awake: (id) => {
+        const rb = bodies.current.get(id);
+        return !!rb && (grab.current?.id === id || !rb.isSleeping());
+      },
       bodies: () =>
         entries.flatMap((e) => {
           const rb = bodies.current.get(e.id);

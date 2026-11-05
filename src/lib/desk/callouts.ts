@@ -52,3 +52,23 @@ export function labelPlacement(dir: { x: number; z: number }): {
   const ty = dir.z < -0.35 ? '-100%' : dir.z > 0.35 ? '0' : '-50%';
   return { tx, ty };
 }
+
+const SHIFT = { '0': 0, '-50%': 0.5, '-100%': 1 } as const;
+
+/**
+ * Keeps a label box inside the canvas: `pos` is where its anchor edge sits along one axis,
+ * `place` is the CSS translate that edge uses, `extent` the label's size and `limit` the canvas's.
+ */
+export function keepInside(
+  pos: number,
+  place: '0' | '-50%' | '-100%',
+  extent: number,
+  limit: number,
+  margin = 4,
+): number {
+  const k = SHIFT[place];
+  const lo = margin + extent * k;
+  const hi = limit - margin - extent * (1 - k);
+  if (hi < lo) return (lo + hi) / 2;
+  return Math.min(hi, Math.max(lo, pos));
+}

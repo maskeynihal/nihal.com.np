@@ -22,6 +22,8 @@ export interface PhysicsApi {
   /** Every body back to its home pose, asleep. */
   reset(): void;
   grabbed(): string | null;
+  /** True while the body is held or still moving (not asleep). */
+  awake(id: string): boolean;
   // Test aids (PUBLIC_TEST_HOOKS builds only call these).
   bodies(): BodyInfo[];
   teleport(id: string, x: number, y: number, z: number): boolean;

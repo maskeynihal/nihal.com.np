@@ -12,6 +12,7 @@ import {
   REST_OPACITY,
   fadeAt,
   fadeMs,
+  keepInside,
   labelPlacement,
   leaderDirection,
 } from '../../lib/desk/callouts';
@@ -24,8 +25,8 @@ interface Item {
   id: string;
   anchor: Vector3;
   dir: { x: number; z: number };
-  tx: string;
-  ty: string;
+  tx: '0' | '-50%' | '-100%';
+  ty: '0' | '-50%' | '-100%';
   line: LineSegments2;
   material: LineMaterial;
   el: HTMLElement;
@@ -79,8 +80,18 @@ function updateCallouts(
     if (f.value !== f.to) moving = true;
     // The label sits at the far end of the leader, in canvas CSS px.
     _b.project(camera);
-    const x = ((_b.x + 1) / 2) * size.width;
-    const y = ((1 - _b.y) / 2) * size.height;
+    const x = keepInside(
+      ((_b.x + 1) / 2) * size.width,
+      it.tx,
+      it.el.offsetWidth,
+      size.width,
+    );
+    const y = keepInside(
+      ((1 - _b.y) / 2) * size.height,
+      it.ty,
+      it.el.offsetHeight,
+      size.height,
+    );
     it.el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(${it.tx}, ${it.ty})`;
   }
   return moving;
