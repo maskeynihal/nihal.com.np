@@ -75,6 +75,37 @@
   color: var(--stroke, #fff);
 }
 
+/* Phones: the poster is wider than the column (the table fills the screen) and the canvas draws
+   nothing over the sheet index strip along the bottom. */
+@media (max-width: 1023px) {
+  .desk-live,
+  .desk-overlay {
+    clip-path: inset(0 0 calc(var(--inset) + var(--strip-h)) 0);
+  }
+}
+
+@media (max-width: 767px) {
+  .desk {
+    margin-inline: calc(var(--gutter) * -1);
+    margin-block-start: -0.5rem;
+  }
+
+  /* Smaller type and tighter rows so the top of the table shows on the first screen. */
+  .title-block .name {
+    font-size: 3.5rem;
+  }
+
+  .title-block-line {
+    margin-block-start: 0.75rem;
+  }
+
+  .title-block-rows {
+    margin-block-start: 0.75rem;
+    padding-block-start: 0.75rem;
+    gap: 0;
+  }
+}
+
 /* The canvas layer (Desk island): the whole viewport, above the page, transparent and never an
    event target (the Scene listens on `window` and ray-casts, so only a hit on a drawn object starts
    a drag and everything else reaches the page). It fades in once the first frame is drawn (300 ms;
@@ -261,6 +292,27 @@
   .object-list {
     grid-column: 1 / 13;
     grid-row: 3;
+  }
+
+  /* A compact title block so the table is on the first screen: the rows run two across. */
+  .title-block {
+    max-width: 44rem;
+  }
+
+  .title-block-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1.5rem;
+  }
+
+  .title-block-rows a {
+    min-height: 36px;
+  }
+
+  /* The drawing is capped so the whole table fits a laptop screen below the title block. */
+  .desk {
+    max-width: 58rem;
+    width: 100%;
+    justify-self: center;
   }
 
   /* E-01: once the canvas has replaced the poster, the object list is quiet on desktop until it

@@ -20,6 +20,7 @@ export interface RegistryEntry {
 
 const entries = new Map<string, RegistryEntry>();
 const listeners = new Set<() => void>();
+let away = false;
 const emit = () => listeners.forEach((l) => l());
 
 export const registry = {
@@ -42,6 +43,13 @@ export const registry = {
     e.free = free;
     emit();
   },
+  /** True while a free object is moving or rests off the table (drives the reset button). */
+  setAway(next: boolean): void {
+    if (away === next) return;
+    away = next;
+    emit();
+  },
+  anyAway: (): boolean => away,
   anyFree: (): boolean => [...entries.values()].some((e) => e.free),
   subscribe(l: () => void): () => void {
     listeners.add(l);

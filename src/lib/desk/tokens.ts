@@ -12,13 +12,26 @@ const FALLBACK = {
 
 export type TokenName = keyof typeof FALLBACK;
 
-/** Reads a colour token from the document so the canvas can never drift from the theme. */
+let probe: HTMLElement | null = null;
+
+/** Reads a colour token from the document so the canvas can never drift from the theme. The value is
+ *  resolved through a probe element, so `rgb(255 255 255 / 0.85)` and `color-mix()` come back as a
+ *  plain `rgb()` / `rgba()` string three.js can parse. */
 export function readToken(name: TokenName): string {
   if (typeof document === 'undefined') return FALLBACK[name];
-  const v = getComputedStyle(document.documentElement)
+  const raw = getComputedStyle(document.documentElement)
     .getPropertyValue(name)
     .trim();
-  return v === '' ? FALLBACK[name] : v;
+  if (raw === '') return FALLBACK[name];
+  if (!probe) {
+    probe = document.createElement('span');
+    probe.hidden = true;
+    document.documentElement.appendChild(probe);
+  }
+  probe.style.color = '';
+  probe.style.color = `var(${name})`;
+  const resolved = getComputedStyle(probe).color;
+  return resolved === '' ? raw : resolved;
 }
 
 /** Window event the theme toggle dispatches after changing `data-theme` (`detail.theme`). */

@@ -336,6 +336,8 @@ function Model({
 // ---- OLED -----------------------------------------------------------------------------------
 
 function hexToRgb(hex: string): [number, number, number] {
+  const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(hex);
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
   const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
@@ -688,7 +690,10 @@ function TableWatch() {
       wasNear = isNear;
     };
     const flag = () => {
-      if (figure) figure.dataset['deskFree'] = String(registry.anyFree());
+      if (figure)
+        figure.dataset['deskFree'] = String(
+          registry.anyFree() && registry.anyAway(),
+        );
     };
     flag();
     window.addEventListener('scroll', onScroll, { passive: true });

@@ -10,7 +10,7 @@ import {
 } from '@react-three/rapier';
 import { Quaternion, Vector3 } from 'three';
 import { FOLLOW, clamp } from '../../../lib/desk/drag';
-import { atDepthZero, worldBounds } from '../../../lib/desk/view';
+import { COS, atDepthZero, worldBounds } from '../../../lib/desk/view';
 import { registry, type RegistryEntry } from '../registry';
 import { detach, reattach, table, tableEvents } from '../table';
 import { playImpact } from '../../../lib/sound';
@@ -54,7 +54,14 @@ const TABLE_THICK = 0.04;
 const TABLE_FLOOR_GAP = 0.25;
 const TABLE_CEILING_GAP = 0.45;
 /** The floor sits this far above the viewport's bottom edge so a resting object is fully on screen. */
-const FLOOR_LIFT = 0.05;
+const FLOOR_LIFT_MIN = 0.05;
+/** Below 1024 px the sheet index is a strip along the bottom (border inset + strip height): the floor
+ *  sits on top of it. From 1024 px only the border line is there. */
+const floorLift = (): number =>
+  Math.max(
+    FLOOR_LIFT_MIN,
+    (table.viewport.width < 1024 ? 56 : 12) / (table.layout.ppm * COS),
+  );
 
 interface Held {
   id: string;
@@ -119,7 +126,7 @@ function World() {
         );
       const T = 0.5;
       r.colliders = [
-        make(halfW + 2 * T, T, 0, -halfH + FLOOR_LIFT - T), // floor
+        make(halfW + 2 * T, T, 0, -halfH + floorLift() - T), // floor
         make(halfW + 2 * T, T, 0, halfH + T), // ceiling
         make(T, halfH + 2 * T, -halfW - T, 0), // left wall
         make(T, halfH + 2 * T, halfW + T, 0), // right wall
@@ -208,7 +215,7 @@ function World() {
       const top = table.world.y;
       const on =
         table.visible &&
-        top > -halfH + FLOOR_LIFT + TABLE_FLOOR_GAP &&
+        top > -halfH + floorLift() + TABLE_FLOOR_GAP &&
         top < halfH - TABLE_CEILING_GAP;
       tb.collider.setEnabled(on);
       tb.body.setNextKinematicTranslation({
@@ -251,6 +258,22 @@ function World() {
       speeds.current.set(entry.id, speed);
     }
     sync();
+    // "put everything back" stays visible only while something is moving or rests off the table.
+    let away = false;
+    for (const entry of registry.all()) {
+      if (!entry.free) continue;
+      const rb = bodies.current.get(entry.id);
+      if (!rb) continue;
+      const p = rb.translation();
+      const onTable =
+        table.visible &&
+        rb.isSleeping() &&
+        Math.abs(p.x - table.world.x) < 0.8 &&
+        p.y > table.world.y - 0.6 &&
+        p.y < table.world.y + 0.8;
+      if (!onTable) away = true;
+    }
+    registry.setAway(away);
   });
 
   useEffect(() => {
@@ -289,7 +312,7 @@ function World() {
         if (!h) return;
         const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
         h.tx = clamp(x + h.ox, -halfW + 0.05, halfW - 0.05);
-        h.ty = clamp(y + h.oy, -halfH + FLOOR_LIFT, halfH - 0.3);
+        h.ty = clamp(y + h.oy, -halfH + floorLift(), halfH - 0.3);
         invalidate();
       },
       release: (vx, vy) => dropHeld(vx, vy),
