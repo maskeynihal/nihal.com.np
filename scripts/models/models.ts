@@ -8,8 +8,10 @@
  * so rotating it needs no other bookkeeping. Creases are authored per part, never by angle.
  */
 import {
+  ball,
   box,
   cylinder,
+  extrude,
   lathe,
   lineSeg,
   merge,
@@ -529,6 +531,133 @@ function cruiser(): ModelParts {
   return { body: p, nodes: [] };
 }
 
+/** Open MacBook-style laptop, generic: no logo. Base 0.28 x 0.19 m, lid leaning back 18 degrees. */
+function laptop(): ModelParts {
+  const W = 0.28;
+  const D = 0.19;
+  const H = 0.012;
+  const base = box({ c: [0, H / 2, 0], s: [W, H, D] });
+  const top = H + LIFT;
+  // keyboard well: a rectangle, five key rows, eleven key columns
+  const kx = 0.122;
+  const kz0 = -0.08;
+  const kz1 = 0.012;
+  base.lines.push(...rectY(-kx, kx, top, kz0, kz1));
+  for (let r = 1; r < 5; r++) {
+    const z = kz0 + ((kz1 - kz0) * r) / 5;
+    base.lines.push(...lineSeg([-kx, top, z], [kx, top, z]));
+  }
+  for (let c = 1; c < 11; c++) {
+    const x = -kx + (2 * kx * c) / 11;
+    base.lines.push(...lineSeg([x, top, kz0], [x, top, kz1]));
+  }
+  // trackpad
+  base.lines.push(...rectY(-0.045, 0.045, top, 0.035, 0.083));
+  // lid, built upright from the hinge line, then leant back
+  const lid = box({ c: [0, 0.09, 0], s: [W, 0.18, 0.006] });
+  lid.lines.push(...rectZ(-0.126, 0.126, 0.012, 0.172, 0.003 + LIFT));
+  const lean = translate(rotateX(lid, -0.314), [0, H, -D / 2]);
+  return { body: mergeAll([base, lean]), nodes: [] };
+}
+
+/** A beach-ball style sphere with an equator and two meridians. Rests on y = 0. */
+function ballModel(r: number): () => ModelParts {
+  return () => {
+    const p = ball(r, 20, 12);
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'y'));
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'x'));
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'z'));
+    return { body: p, nodes: [] };
+  };
+}
+
+/** Pac-Man: a disc with a 70 degree wedge cut out of its right side, standing, 0.04 m thick. */
+function pacman(): ModelParts {
+  const R = 0.06;
+  const half = (35 * Math.PI) / 180;
+  const steps = 16;
+  const pts: [number, number][] = [[0, R]];
+  for (let i = 0; i <= steps; i++) {
+    const a = half + (i / steps) * (2 * Math.PI - 2 * half);
+    pts.push([Math.cos(a) * R, R + Math.sin(a) * R]);
+  }
+  const p = extrude(pts, 0.04, { corners: [0, 1, pts.length - 1] });
+  for (const z of [-0.02 - LIFT, 0.02 + LIFT])
+    p.lines.push(...ringLines([0.01, R + 0.032, z], 0.005, 8, 'z'));
+  return { body: p, nodes: [] };
+}
+
+type P2 = [number, number];
+const LETTER_DEPTH = 0.04;
+const letter = (outline: P2[], holes?: P2[][]): (() => ModelParts) => {
+  return () => ({
+    body: extrude(outline, LETTER_DEPTH, holes ? { holes } : {}),
+    nodes: [],
+  });
+};
+
+const LETTERS: Record<string, () => ModelParts> = {
+  n: letter([
+    [-0.055, 0],
+    [-0.027, 0],
+    [-0.027, 0.085],
+    [0.02, 0],
+    [0.055, 0],
+    [0.055, 0.15],
+    [0.027, 0.15],
+    [0.027, 0.065],
+    [-0.02, 0.15],
+    [-0.055, 0.15],
+  ]),
+  i: letter([
+    [-0.02, 0],
+    [0.02, 0],
+    [0.02, 0.15],
+    [-0.02, 0.15],
+  ]),
+  h: letter([
+    [-0.055, 0],
+    [-0.027, 0],
+    [-0.027, 0.062],
+    [0.027, 0.062],
+    [0.027, 0],
+    [0.055, 0],
+    [0.055, 0.15],
+    [0.027, 0.15],
+    [0.027, 0.088],
+    [-0.027, 0.088],
+    [-0.027, 0.15],
+    [-0.055, 0.15],
+  ]),
+  a: letter(
+    [
+      [-0.065, 0],
+      [-0.02, 0.15],
+      [0.02, 0.15],
+      [0.065, 0],
+      [0.028, 0],
+      [0.02, 0.035],
+      [-0.02, 0.035],
+      [-0.028, 0],
+    ],
+    [
+      [
+        [-0.012, 0.072],
+        [0.012, 0.072],
+        [0, 0.115],
+      ],
+    ],
+  ),
+  l: letter([
+    [-0.045, 0],
+    [0.045, 0],
+    [0.045, 0.03],
+    [-0.015, 0.03],
+    [-0.015, 0.15],
+    [-0.045, 0.15],
+  ]),
+};
+
 export const models: ModelDef[] = [
   def('sheet', sheet),
   def('arduino', arduino),
@@ -536,4 +665,10 @@ export const models: ModelDef[] = [
   def('calendar', calendar),
   def('ghost', ghost),
   def('cruiser', cruiser),
+  def('laptop', laptop),
+  def('ball-s', ballModel(0.035)),
+  def('ball-m', ballModel(0.05)),
+  def('ball-l', ballModel(0.07)),
+  def('pacman', pacman),
+  ...Object.entries(LETTERS).map(([k, f]) => def(`letter-${k}`, f)),
 ];

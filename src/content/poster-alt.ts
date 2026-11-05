@@ -21,7 +21,15 @@ export function buildPosterAlt(shown: readonly BodyDef[]): string {
         : `${NUMBER_WORDS[clocks] ?? String(clocks)} desk clocks`,
     );
   if (ids.has('calendar')) parts.push('a Nepali desk calendar');
+  if (ids.has('laptop')) parts.push('an open laptop');
   if (ids.has('ghost')) parts.push('a Pac-Man ghost');
+  const pacmen = shown.filter((o) => o.id.startsWith('pacman')).length;
+  if (pacmen > 0)
+    parts.push(pacmen === 1 ? 'a Pac-Man' : 'two Pac-Man figures');
+  const balls = shown.filter((o) => o.id.startsWith('ball')).length;
+  if (balls > 0) parts.push(`${NUMBER_WORDS[balls] ?? String(balls)} balls`);
+  if (shown.some((o) => o.id.startsWith('letter')))
+    parts.push('the letters N, I, H, A and L');
   // Candidate phrase: only when the cruiser is in the shown set (confirmed or preview build).
   if (ids.has('cruiser')) parts.push(pending.candidates.cruiserAltPhrase);
   const list =

@@ -57,31 +57,37 @@
   position: relative;
 }
 
-/* Phones: a fixed-height frame the canvas will fill, so swapping poster for canvas moves nothing.
-   The poster frame, the canvas layer and the caption overlay share these rules. */
-.poster-frame,
-.desk-live,
-.desk-overlay {
-  height: clamp(320px, 48svh, 420px);
+/* The table. The poster frame has the poster's aspect at every width and sits below the title
+   block with room around it; the live canvas is a fixed layer that draws the same table where
+   this frame is, so swapping poster for canvas moves nothing. */
+.desk {
+  margin-block-start: 1rem;
+}
+
+.poster-frame {
+  aspect-ratio: 12 / 7;
 }
 
 .poster {
   display: block;
   width: 100%;
   height: 100%;
+  color: var(--stroke, #fff);
 }
 
-/* The canvas layer (Desk island) sits exactly over the poster and fades in once the first frame
-   is drawn (300 ms; none under reduced motion, see global.css). It takes no pointer events until
-   live so it can never block the page, and it stays out of the accessibility tree: the object
+/* The canvas layer (Desk island): the whole viewport, above the page, transparent and never an
+   event target (the Scene listens on `window` and ray-casts, so only a hit on a drawn object starts
+   a drag and everything else reaches the page). It fades in once the first frame is drawn (300 ms;
+   none under reduced motion, see global.css) and stays out of the accessibility tree: the object
    list is the way in. */
 .desk-island {
   display: contents;
 }
 
 .desk-live {
-  position: absolute;
-  inset: 0 0 auto 0;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
   opacity: 0;
   pointer-events: none;
   transition: opacity 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -95,16 +101,11 @@
 
 .desk-canvas canvas {
   display: block;
-  /* Touch: the page always scrolls; a grab (E-05) takes over with press-and-hold. */
-  touch-action: pan-y;
-  /* A held object must not select text or open the long-press menu. */
-  user-select: none;
-  -webkit-touch-callout: none;
+  pointer-events: none;
 }
 
 .desk[data-desk-state='live'] .desk-live {
   opacity: 1;
-  pointer-events: auto;
 }
 
 /* The poster stays underneath for the fade, then leaves the paint. It is `inert` too (Poster.astro).
@@ -114,15 +115,16 @@
   transition: visibility 0s linear 300ms;
 }
 
-/* Caption layer for the OLED ("demo values"), positioned over the screen by the Scene. */
+/* Caption layer for the OLED ("demo values"), positioned over the screen by the Scene. It covers the
+   viewport like the canvas does. */
 .desk-overlay {
-  position: absolute;
-  inset: 0 0 auto 0;
+  position: fixed;
+  inset: 0;
   pointer-events: none;
   overflow: hidden;
   visibility: hidden;
-  /* Above the canvas layer, which comes later in the DOM. */
-  z-index: 1;
+  /* Above the canvas layer. */
+  z-index: 41;
 }
 
 .oled-caption {
@@ -165,8 +167,8 @@
   transition: none;
 }
 
-/* Hint and reset button, under the drawing. Space is reserved in every state (visibility, not
-   display) so the canvas arriving moves nothing. */
+/* Hint under the drawing; the reset button is a fixed corner button (below). Space is reserved in
+   every state (visibility, not display) so the canvas arriving moves nothing. */
 .desk-controls {
   display: flex;
   align-items: center;
@@ -185,17 +187,25 @@
   margin: 0;
 }
 
+/* "put everything back": fixed in the bottom corner, shown only while something is off the table. */
 .desk-reset {
+  position: fixed;
+  inset-inline-end: 1rem;
+  inset-block-end: 1rem;
+  z-index: 45;
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0.5rem 0;
-  background: none;
-  border: 0;
+  padding: 0.5rem 1rem;
+  background: var(--page, var(--blue));
+  border: 1px solid currentColor;
   color: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.3em;
+  visibility: hidden;
+}
+
+.desk[data-desk-state='live'][data-desk-free='true'] .desk-reset {
+  visibility: visible;
 }
 
 /* The island mounts this live region after first paint. While empty it must take no space, or
@@ -224,15 +234,6 @@
   transition: opacity 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-@media (min-width: 768px) {
-  .poster-frame,
-  .desk-live,
-  .desk-overlay {
-    height: auto;
-    aspect-ratio: 3 / 2;
-  }
-}
-
 @media (min-width: 1024px) {
   .desk-stage {
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -241,21 +242,25 @@
     align-items: start;
   }
 
-  /* Left of the drawing, so it never covers a drawn object. Top-aligned on purpose: the browser
-     can paint before the later siblings are parsed, and an end-aligned block would then jump. */
+  /* Above the drawing. Top-aligned on purpose: the browser can paint before the later siblings are
+     parsed, and an end-aligned block would then jump. */
   .title-block {
-    grid-column: 1 / 6;
-    grid-row: 1 / span 2;
+    grid-column: 1 / 9;
+    grid-row: 1;
+    max-width: none;
   }
 
+  /* The table is lower in the hero, under the title block, across the full width. */
   .desk {
-    grid-column: 6 / 13;
-    grid-row: 1;
+    grid-column: 1 / 13;
+    grid-row: 2;
+    /* The poster has empty margin above the table; pull the frame up into the gap. */
+    margin-block-start: -2rem;
   }
 
   .object-list {
-    grid-column: 6 / 13;
-    grid-row: 2;
+    grid-column: 1 / 13;
+    grid-row: 3;
   }
 
   /* E-01: once the canvas has replaced the poster, the object list is quiet on desktop until it

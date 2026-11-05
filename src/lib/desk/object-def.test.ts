@@ -10,7 +10,6 @@ const good = {
   mass: 1.2,
   callouts: [{ anchor: [0.16, 0.02, 0], text: 'uno r4' }],
   target: '#work-car-sensors',
-  explode: [0, 0.42, 0],
 };
 
 describe('parseObjects', () => {

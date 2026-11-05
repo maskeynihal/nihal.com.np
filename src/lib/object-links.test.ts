@@ -12,21 +12,26 @@ describe('objectLinks', () => {
       'clocks → contact',
       'calendar → open source',
       'pac-man ghost → pac-man',
+      'laptop → work',
     ]);
     expect(links.map((l) => l.href)).toEqual([
       '#work-car-sensors',
       '#contact',
       '#open-source',
       '#work-pac-man',
+      '#work',
     ]);
   });
   it('follows the shown set: nothing for hidden objects', () => {
     const links = objectLinks(getObjects(), getWork());
     expect(links.map((l) => l.id)).not.toContain('cruiser');
-    expect(links).toHaveLength(getObjects().length);
+    // Decorative objects (balls, letters, pac-man figures) have no target and no link.
+    expect(links).toHaveLength(getObjects().filter((o) => o.target).length);
   });
   it('resolves every object in the full set when all panels exist', () => {
-    expect(objectLinks(objects, work)).toHaveLength(objects.length);
+    expect(objectLinks(objects, work)).toHaveLength(
+      objects.filter((o) => o.target).length,
+    );
   });
   it('throws when a target panel is not rendered', () => {
     const noCar = getWork().filter((w) => w.id !== 'car-sensors');

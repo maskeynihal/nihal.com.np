@@ -55,11 +55,6 @@ interface DeskSceneHooks {
   hovered(): string | null;
   /** Hover lift of the model root, metres. */
   hoverLift(id: string): number;
-  /** Exploded view: scroll target, shown (lerped) factor and the range in px it is read over. */
-  explode(): { target: number; factor: number; range: number };
-  /** Offset applied to an object by the exploded view, metres (zero while it is awake). */
-  explodeOffset(id: string): [number, number, number];
-  explodeLeaders(): { id: string; visible: boolean; opacity: number }[];
   /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
   callouts(): {
     id: string;

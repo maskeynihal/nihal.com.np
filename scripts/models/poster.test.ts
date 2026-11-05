@@ -25,7 +25,7 @@ describe('poster', () => {
     );
     expect(poster).not.toMatch(/NaN|Infinity|undefined/);
     expect(poster).toContain('stroke-width="1.5"');
-    expect(poster).toContain('stroke="#ded9fa"'); // secondary, 1 px by default
+    expect(poster).toContain('stroke-opacity=".55"'); // secondary, 1 px by default
   });
   it('draws more with unconfirmed objects shown', () => {
     expect(buildPoster({ includeUnconfirmed: true }).length).toBeGreaterThan(

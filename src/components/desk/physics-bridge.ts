@@ -10,17 +10,20 @@ export interface BodyInfo {
   p: [number, number, number];
 }
 
+/** Pointer positions are on the z = 0 world plane, metres (x right, y up). */
 export interface PhysicsApi {
-  /** Starts holding `id`; (x, z) is the pointer on the desk plane. False if it cannot. */
-  grab(id: string, x: number, z: number): boolean;
-  /** The pointer moved on the desk plane. */
-  move(x: number, z: number): void;
-  /** Lets go, throwing with this velocity (m/s on the desk plane). */
-  release(vx: number, vz: number): void;
+  /** Starts holding `id`; (x, y) is the pointer. False if it cannot. */
+  grab(id: string, x: number, y: number): boolean;
+  /** The pointer moved. */
+  move(x: number, y: number): void;
+  /** Lets go, throwing with this velocity (m/s). */
+  release(vx: number, vy: number): void;
   /** Lets go with no throw (pointer cancelled). */
   drop(): void;
-  /** Every body back to its home pose, asleep. */
+  /** Every free object back on the table at its home pose. */
   reset(): void;
+  /** A page scroll of `dy` px: free objects get a small hop the other way. */
+  jolt(dy: number): void;
   grabbed(): string | null;
   /** True while the body is held or still moving (not asleep). */
   awake(id: string): boolean;

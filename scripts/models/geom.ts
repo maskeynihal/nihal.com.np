@@ -7,8 +7,10 @@ import {
   BoxGeometry,
   BufferGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
   Matrix4,
   PlaneGeometry,
+  Shape,
   SphereGeometry,
   TorusGeometry,
   Vector2,
@@ -350,4 +352,52 @@ export function lathe(
     }
   }
   return part;
+}
+
+type P2 = [number, number];
+
+/**
+ * A flat outline (x right, y up, metres) extruded along z, centred on z = 0. `holes` are cut out.
+ * Creases: every outline edge on both faces, plus a vertical edge at each corner listed in
+ * `corners` (indices into `outline`; default all), so a faceted arc can stay smooth.
+ */
+export function extrude(
+  outline: P2[],
+  depth: number,
+  opts: { holes?: P2[][]; corners?: number[] } = {},
+): Part {
+  const shape = new Shape(outline.map(([x, y]) => new Vector2(x, y)));
+  for (const h of opts.holes ?? [])
+    shape.holes.push(new Shape(h.map(([x, y]) => new Vector2(x, y))));
+  const part = fromGeometry(
+    new ExtrudeGeometry(shape, { depth, bevelEnabled: false, steps: 1 }),
+    new Matrix4().makeTranslation(0, 0, -depth / 2),
+  );
+  const z = depth / 2;
+  const loops = [outline, ...(opts.holes ?? [])];
+  loops.forEach((loopPts, li) => {
+    const n = loopPts.length;
+    for (let i = 0; i < n; i++) {
+      const a = loopPts[i]!;
+      const b = loopPts[(i + 1) % n]!;
+      for (const s of [-z, z])
+        part.lines.push(...lineSeg([a[0], a[1], s], [b[0], b[1], s]));
+      if (li === 0 && opts.corners && !opts.corners.includes(i)) continue;
+      part.lines.push(...lineSeg([a[0], a[1], -z], [a[0], a[1], z]));
+    }
+  });
+  return part;
+}
+
+/** A full sphere resting on y = 0 (radius `r`), built as a lathe. */
+export function ball(r: number, segments: number, rings: number): Part {
+  const profile: [number, number][] = [];
+  for (let i = 0; i <= rings; i++) {
+    const a = -Math.PI / 2 + (i / rings) * Math.PI;
+    profile.push([
+      i === 0 || i === rings ? 0 : Math.cos(a) * r,
+      r + Math.sin(a) * r,
+    ]);
+  }
+  return lathe([0, 0, 0], profile, segments);
 }

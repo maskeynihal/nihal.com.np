@@ -1,4 +1,4 @@
-import type { PerspectiveCamera, WebGLRenderer } from 'three';
+import type { OrthographicCamera, WebGLRenderer } from 'three';
 import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
 import { physicsBridge } from './physics-bridge';
@@ -7,7 +7,7 @@ import { audioProbe } from '../../lib/sound';
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
 export interface SceneProbe {
   frames: number;
-  camera: PerspectiveCamera | null;
+  camera: OrthographicCamera | null;
   oled: { ticks: number; text: () => string };
   clocks: Map<string, { hour: () => number; minute: () => number }>;
   calendar: { face: () => unknown };
@@ -23,11 +23,6 @@ export interface SceneProbe {
     pick: (id: string) => { x: number; y: number } | null;
     hovered: () => string | null;
     lift: (id: string) => number;
-  };
-  explode: {
-    state: () => { target: number; factor: number; range: number };
-    offset: (id: string) => [number, number, number];
-    leaders: () => { id: string; visible: boolean; opacity: number }[];
   };
   callouts: () => {
     id: string;
@@ -51,11 +46,6 @@ export const probe: SceneProbe = {
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
   interaction: { pick: () => null, hovered: () => null, lift: () => 0 },
-  explode: {
-    state: () => ({ target: 0, factor: 0, range: 1 }),
-    offset: () => [0, 0, 0],
-    leaders: () => [],
-  },
   callouts: () => [],
   gl: null,
   quiet: false,
@@ -103,9 +93,6 @@ export function installSceneHooks(): () => void {
     pick: (id) => probe.interaction.pick(id),
     hovered: () => probe.interaction.hovered(),
     hoverLift: (id) => probe.interaction.lift(id),
-    explode: () => probe.explode.state(),
-    explodeOffset: (id) => probe.explode.offset(id),
-    explodeLeaders: () => probe.explode.leaders(),
     callouts: () => probe.callouts(),
     audio: () => audioProbe(),
     memory: () => {
@@ -158,13 +145,13 @@ export function countFrame(): void {
   probe.frames += 1;
 }
 export function setCameraProbe(
-  camera: PerspectiveCamera,
+  camera: OrthographicCamera,
   size: { width: number; height: number },
 ): void {
   probe.camera = camera;
   probe.size = () => ({ width: size.width, height: size.height });
 }
-export function getProbeCamera(): PerspectiveCamera | null {
+export function getProbeCamera(): OrthographicCamera | null {
   return probe.camera;
 }
 export function setSphereProbe(fn: SceneProbe['probeSphere']): void {
@@ -179,11 +166,4 @@ export function setInteractionProbe(i: SceneProbe['interaction'] | null): void {
 }
 export function setCalloutProbe(fn: SceneProbe['callouts'] | null): void {
   probe.callouts = fn ?? (() => []);
-}
-export function setExplodeProbe(e: SceneProbe['explode'] | null): void {
-  probe.explode = e ?? {
-    state: () => ({ target: 0, factor: 0, range: 1 }),
-    offset: () => [0, 0, 0],
-    leaders: () => [],
-  };
 }

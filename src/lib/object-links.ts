@@ -19,23 +19,28 @@ export function objectLinks(
   objects: readonly BodyDef[],
   panels: readonly Pick<WorkItem, 'id' | 'title'>[],
 ): ObjectLink[] {
-  return objects.map((o) => {
+  return objects.flatMap((o) => {
+    if (!o.target) return [];
     const hash = o.target.slice(1);
     const panel = panels.find((p) => `work-${p.id}` === hash);
     if (panel)
-      return {
-        id: o.id,
-        href: o.target,
-        label: o.label,
-        targetLabel: panel.title,
-      };
+      return [
+        {
+          id: o.id,
+          href: o.target,
+          label: o.label,
+          targetLabel: panel.title,
+        },
+      ];
     if ((SECTION_IDS as readonly string[]).includes(hash))
-      return {
-        id: o.id,
-        href: o.target,
-        label: o.label,
-        targetLabel: rowLabel(hash as SectionId),
-      };
+      return [
+        {
+          id: o.id,
+          href: o.target,
+          label: o.label,
+          targetLabel: rowLabel(hash as SectionId),
+        },
+      ];
     throw new Error(
       `object ${o.id} targets ${o.target}, which is not a rendered section or work panel`,
     );

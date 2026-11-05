@@ -2,25 +2,23 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Raycaster, Vector2, Vector3, type Object3D } from 'three';
 import {
-  DOUBLE_TAP_MS,
   HOLD_MS,
   HOLD_SLOP_PX,
   RingBuffer,
   TAP_SLOP_PX,
   isTap,
-  planePoint,
 } from '../../lib/desk/drag';
+import { pxToWorld } from '../../lib/desk/view';
 import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { entryIdOf, registry } from './registry';
 import { activity } from './activity';
 import { physicsBridge } from './physics-bridge';
+import { table } from './table';
 import { setInteractionProbe } from './scene-hooks';
 import { armSound } from '../../lib/sound';
 import { CALLOUT_EVENT, type FlightLabel } from '../../lib/shared-callout';
 
-/** Height of the plane the pointer is projected onto while dragging, metres. */
-const PLANE_Y = 0.03;
 /** Hover lift of the drawn model (not the body), metres. */
 const HOVER_LIFT = 0.004;
 
@@ -38,15 +36,11 @@ interface Press {
   timer: number | undefined;
   /** Page scroll position at pointerdown: a page that moved is a swipe, not a hold. */
   scrollY: number;
-  last: { x: number; z: number };
+  /** Pointer on the z = 0 world plane. */
+  last: { x: number; y: number };
   ring: RingBuffer;
-}
-
-interface Empty {
-  x0: number;
-  y0: number;
-  t0: number;
-  pointerId: number;
+  /** The element that got the pointerdown (it holds the capture). */
+  target: Element | null;
 }
 
 function sendDrag(active: boolean): void {
@@ -54,10 +48,12 @@ function sendDrag(active: boolean): void {
 }
 
 /**
- * Pointer, touch and keyboard input for the desk (design 4.6). It lives in the Scene chunk
- * and talks to the physics chunk only through `physicsBridge`. Without physics a press still
- * works as a tap; a drag asks for the engine (first grab only) and waits for it with the
- * pointer still down.
+ * Pointer, touch and keyboard input for the desk. The canvas is a fixed layer that never takes
+ * events, so everything is listened to on `window`: a press is ours only when a ray from the
+ * pointer hits a drawn object; any other press goes on to the page untouched. It lives in the
+ * Scene chunk and talks to the physics chunk only through `physicsBridge`. Without physics a
+ * press still works as a tap; a drag asks for the engine (first grab only) and waits for it with
+ * the pointer still down.
  */
 export function Interaction() {
   const { gl, camera, scene, invalidate } = useThree();
@@ -82,58 +78,59 @@ export function Interaction() {
 
   useEffect(() => {
     const el = gl.domElement;
-    const figure = el.closest<HTMLElement>('[data-desk]');
+    const figure = document.querySelector<HTMLElement>('[data-desk]');
+    const html = document.documentElement;
     const raycaster = new Raycaster();
     const ndc = new Vector2();
     let press: Press | null = null;
-    let empty: Empty | null = null;
-    let lastTap = 0;
-    let overCanvas = false;
+    let swallowClick = false;
+    let hoverRaf = 0;
+    let hoverAt: { x: number; y: number } | null = null;
 
-    const aim = (e: PointerEvent) => {
+    const canvasPoint = (cx: number, cy: number) => {
       const r = el.getBoundingClientRect();
-      ndc.set(
-        ((e.clientX - r.left) / r.width) * 2 - 1,
-        -((e.clientY - r.top) / r.height) * 2 + 1,
-      );
-      camera.updateMatrixWorld();
-      raycaster.setFromCamera(ndc, camera);
+      return { x: cx - r.left, y: cy - r.top, w: r.width, h: r.height };
     };
 
-    const pick = (e: PointerEvent): string | null => {
-      aim(e);
+    const pick = (cx: number, cy: number): string | null => {
+      // Nothing is drawn where the table is off screen and nothing is free: skip the ray.
+      if (!table.visible && !registry.anyFree()) return null;
+      const p = canvasPoint(cx, cy);
+      ndc.set((p.x / p.w) * 2 - 1, -(p.y / p.h) * 2 + 1);
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(ndc, camera);
       scene.updateMatrixWorld();
       const roots: Object3D[] = registry.all().map((x) => x.obj);
       const hit = raycaster.intersectObjects(roots, true)[0];
       return hit ? entryIdOf(hit.object) : null;
     };
 
-    const onPlane = (e: PointerEvent): { x: number; z: number } | null => {
-      aim(e);
-      const { origin, direction } = raycaster.ray;
-      return planePoint(
-        [origin.x, origin.y, origin.z],
-        [direction.x, direction.y, direction.z],
-        PLANE_Y,
-      );
+    const toWorld = (cx: number, cy: number) => {
+      const p = canvasPoint(cx, cy);
+      return pxToWorld(p.x, p.y, table.viewport, table.layout.ppm);
+    };
+
+    const setCursor = (c: string) => {
+      html.style.cursor = c;
     };
 
     const setHover = (id: string | null) => {
       if (hover.current.id === id) return;
       hover.current.id = id;
       activity.set({ hover: id });
-      el.style.cursor = id ? 'grab' : '';
+      setCursor(id ? 'grab' : '');
       invalidate();
     };
 
     const navigate = (id: string) => {
       const target = registry.get(id)?.def.target;
+      if (!target) return;
       // The label that flies to the section (C-03); the navigate handler picks it up.
       const label = figure?.querySelector<HTMLElement>(
         `[data-callout="${id}"]`,
       );
       const rect = label?.getBoundingClientRect();
-      if (target && label?.textContent && rect && rect.width > 0)
+      if (label?.textContent && rect && rect.width > 0)
         window.dispatchEvent(
           new CustomEvent<FlightLabel>(CALLOUT_EVENT, {
             detail: {
@@ -148,10 +145,9 @@ export function Interaction() {
             },
           }),
         );
-      if (target)
-        window.dispatchEvent(
-          new CustomEvent('nihal:navigate', { detail: target }),
-        );
+      window.dispatchEvent(
+        new CustomEvent('nihal:navigate', { detail: target }),
+      );
     };
 
     const reset = () => {
@@ -159,10 +155,24 @@ export function Interaction() {
       setHover(null);
     };
 
+    const release = (p: Press) => {
+      try {
+        p.target?.releasePointerCapture(p.pointerId);
+      } catch {
+        // Already released.
+      }
+      html.style.userSelect = '';
+    };
+
     const endPress = () => {
-      if (press) window.clearTimeout(press.timer);
+      if (press) {
+        window.clearTimeout(press.timer);
+        release(press);
+      }
       press = null;
-      el.style.cursor = hover.current.id ? 'grab' : '';
+      // The click that may follow has been and gone by the next task.
+      window.setTimeout(() => (swallowClick = false), 0);
+      setCursor(hover.current.id ? 'grab' : '');
     };
 
     const tryGrab = () => {
@@ -171,20 +181,15 @@ export function Interaction() {
       if (!p || !api || p.mode === 'grabbed') return;
       const wants = p.touch ? p.mode === 'holding' : p.dragging;
       if (!wants) return;
-      if (!api.grab(p.id, p.last.x, p.last.z)) return;
+      if (!api.grab(p.id, p.last.x, p.last.y)) return;
       p.mode = 'grabbed';
       p.ring.clear();
-      p.ring.push(p.last.x, p.last.z, performance.now());
-      try {
-        el.setPointerCapture(p.pointerId);
-      } catch {
-        // The pointer may already be gone; the release path handles it.
-      }
-      el.style.cursor = 'grabbing';
+      p.ring.push(p.last.x, p.last.y, performance.now());
+      setCursor('grabbing');
       setHover(null);
       activity.set({ grabbed: p.id });
       sendDrag(true);
-      if (p.id === 'ghost') ghostLook.set({ x: p.last.x, z: p.last.z });
+      if (p.id === 'ghost') ghostLook.set({ x: p.last.x, z: 1 });
     };
 
     const finishGrab = (throwIt: boolean, now: number) => {
@@ -202,25 +207,25 @@ export function Interaction() {
       sendDrag(false);
     };
 
+    const capture = (e: PointerEvent) => {
+      try {
+        (e.target as Element | null)?.setPointerCapture(e.pointerId);
+      } catch {
+        // The pointer may already be gone; the release path handles it.
+      }
+    };
+
     const onDown = (e: PointerEvent) => {
       if (press) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const t = e.target;
+      // The put-back button is the page's, even where an object floats over it.
+      if (t instanceof Element && t.closest('[data-desk-reset]')) return;
+      const id = pick(e.clientX, e.clientY);
+      if (!id) return;
       // A press is the gesture that lets a visitor who left sound on hear the desk.
       armSound();
-      const id = pick(e);
       const touch = e.pointerType !== 'mouse';
-      if (!id) {
-        empty = touch
-          ? {
-              x0: e.clientX,
-              y0: e.clientY,
-              t0: e.timeStamp,
-              pointerId: e.pointerId,
-            }
-          : null;
-        return;
-      }
-      const pt = onPlane(e) ?? { x: 0, z: 0 };
       const p: Press = {
         id,
         pointerId: e.pointerId,
@@ -232,12 +237,19 @@ export function Interaction() {
         dragging: false,
         timer: undefined,
         scrollY: window.scrollY,
-        last: pt,
+        last: toWorld(e.clientX, e.clientY),
         ring: new RingBuffer(),
+        target: e.target instanceof Element ? e.target : null,
       };
       press = p;
-      if (touch) {
-        // A swipe over the canvas must not cost a 600 KB download: ask only once held.
+      swallowClick = true;
+      html.style.userSelect = 'none';
+      if (!touch) {
+        e.preventDefault();
+        physicsBridge.request();
+        capture(e);
+      } else {
+        // A swipe over an object must not cost a 600 KB download: ask only once held.
         p.timer = window.setTimeout(() => {
           if (press !== p || p.mode !== 'pending') return;
           // A busy main thread can run this before the pointercancel of a swipe arrives.
@@ -247,27 +259,30 @@ export function Interaction() {
           }
           p.mode = 'holding';
           physicsBridge.request();
-          try {
-            el.setPointerCapture(p.pointerId);
-          } catch {
-            // see tryGrab
-          }
+          if (p.target)
+            try {
+              p.target.setPointerCapture(p.pointerId);
+            } catch {
+              // see capture
+            }
           tryGrab();
         }, HOLD_MS);
-      } else {
-        physicsBridge.request();
-        try {
-          el.setPointerCapture(e.pointerId);
-        } catch {
-          // see tryGrab
-        }
       }
+    };
+
+    const hoverPick = () => {
+      hoverRaf = 0;
+      if (press || !hoverAt) return;
+      setHover(pick(hoverAt.x, hoverAt.y));
     };
 
     const onMove = (e: PointerEvent) => {
       const p = press;
       if (!p) {
-        if (e.pointerType === 'mouse') setHover(pick(e));
+        if (e.pointerType === 'mouse') {
+          hoverAt = { x: e.clientX, y: e.clientY };
+          if (!hoverRaf) hoverRaf = requestAnimationFrame(hoverPick);
+        }
         return;
       }
       if (e.pointerId !== p.pointerId) return;
@@ -277,53 +292,40 @@ export function Interaction() {
         endPress();
         return;
       }
-      const pt = onPlane(e);
-      if (pt) p.last = pt;
+      const pt = toWorld(e.clientX, e.clientY);
+      p.last = pt;
       if (!p.touch && !p.dragging && dist >= TAP_SLOP_PX) p.dragging = true;
       if (p.mode === 'grabbed') {
-        if (pt) {
-          p.ring.push(pt.x, pt.z, e.timeStamp);
-          physicsBridge.api()?.move(pt.x, pt.z);
-          if (p.id === 'ghost') ghostLook.set({ x: pt.x, z: pt.z });
-        }
+        p.ring.push(pt.x, pt.y, e.timeStamp);
+        physicsBridge.api()?.move(pt.x, pt.y);
+        if (p.id === 'ghost') ghostLook.set({ x: pt.x, z: 1 });
       } else tryGrab();
     };
 
     const onUp = (e: PointerEvent) => {
       const p = press;
-      if (!p) {
-        if (empty && e.pointerId === empty.pointerId) {
-          const dist = Math.hypot(e.clientX - empty.x0, e.clientY - empty.y0);
-          if (isTap(dist, e.timeStamp - empty.t0)) {
-            if (e.timeStamp - lastTap < DOUBLE_TAP_MS) {
-              lastTap = 0;
-              reset();
-            } else lastTap = e.timeStamp;
-          }
-          empty = null;
-        }
-        return;
-      }
-      if (e.pointerId !== p.pointerId) return;
+      if (!p || e.pointerId !== p.pointerId) return;
       if (p.mode === 'grabbed') finishGrab(true, e.timeStamp);
       else {
         const dist = Math.hypot(e.clientX - p.x0, e.clientY - p.y0);
         if (isTap(dist, e.timeStamp - p.t0)) navigate(p.id);
       }
-      try {
-        el.releasePointerCapture(p.pointerId);
-      } catch {
-        // Already released.
-      }
       endPress();
     };
 
     const onCancel = (e: PointerEvent) => {
-      empty = null;
       const p = press;
       if (!p || e.pointerId !== p.pointerId) return;
       finishGrab(false, e.timeStamp);
       endPress();
+    };
+
+    // The click that follows a press on an object is not for the page underneath.
+    const onClick = (e: MouseEvent) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     // Touch: the page scrolls unless a body is held. Listened to non-passively so a held
@@ -344,12 +346,8 @@ export function Interaction() {
     const onContext = (e: Event) => {
       if (press) e.preventDefault();
     };
-    const onLeave = () => {
-      overCanvas = false;
-      if (!press) setHover(null);
-    };
-    const onEnter = () => {
-      overCanvas = true;
+    const onSelect = (e: Event) => {
+      if (press) e.preventDefault();
     };
 
     const isTyping = (t: EventTarget | null) =>
@@ -360,11 +358,8 @@ export function Interaction() {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
       reset();
     };
-    const onWindowKey = (e: KeyboardEvent) => {
-      if (overCanvas) onKey(e);
-    };
 
-    // A held body stops when the pointer or the page goes away.
+    // A held body stops when the page goes away.
     const onVisibility = () => {
       if (document.hidden && press) {
         finishGrab(false, performance.now());
@@ -372,16 +367,15 @@ export function Interaction() {
       }
     };
 
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', onCancel);
-    el.addEventListener('pointerleave', onLeave);
-    el.addEventListener('pointerenter', onEnter);
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('contextmenu', onContext);
-    figure?.addEventListener('keydown', onKey);
-    window.addEventListener('keydown', onWindowKey);
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('click', onClick, true);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('contextmenu', onContext);
+    window.addEventListener('selectstart', onSelect);
+    window.addEventListener('keydown', onKey);
     window.addEventListener(DESK_RESET_EVENT, reset);
     document.addEventListener('visibilitychange', onVisibility);
     // A grab that was waiting for the engine starts as soon as it is there.
@@ -409,20 +403,21 @@ export function Interaction() {
     return () => {
       if (press?.mode === 'grabbed') finishGrab(false, performance.now());
       endPress();
+      cancelAnimationFrame(hoverRaf);
       unsubscribe();
-      el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onCancel);
-      el.removeEventListener('pointerleave', onLeave);
-      el.removeEventListener('pointerenter', onEnter);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('contextmenu', onContext);
-      figure?.removeEventListener('keydown', onKey);
-      window.removeEventListener('keydown', onWindowKey);
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('click', onClick, true);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('contextmenu', onContext);
+      window.removeEventListener('selectstart', onSelect);
+      window.removeEventListener('keydown', onKey);
       window.removeEventListener(DESK_RESET_EVENT, reset);
       document.removeEventListener('visibilitychange', onVisibility);
-      el.style.cursor = '';
+      setCursor('');
+      html.style.userSelect = '';
       activity.set({ hover: null, grabbed: null });
       setInteractionProbe(null);
     };
