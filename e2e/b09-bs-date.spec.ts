@@ -26,12 +26,14 @@ test.describe('Bikram Sambat date and holidays @B-09', () => {
     expect(bsFromAd('2026-04-13')).toEqual({ year: 2082, month: 12, day: 30 });
   });
 
-  test('no holiday or Bikram Sambat data reaches the page or its scripts yet @B-09', async ({
+  test('holiday and Bikram Sambat data reaches only the lazy Scene chunk, never the page or the initial scripts @B-09', async ({
     page,
   }) => {
     const urls: string[] = [];
     page.on('response', (r) => {
-      if (/\.(js|css|html)$|\/$/.test(new URL(r.url()).pathname))
+      const path = new URL(r.url()).pathname;
+      // E-04: the desk's calendar texture reads holidays.json, so the lazy Scene chunk holds it.
+      if (/\.(js|css|html)$|\/$/.test(path) && !/\/Scene\./.test(path))
         urls.push(r.url());
     });
     await page.goto('/');

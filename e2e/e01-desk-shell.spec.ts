@@ -70,7 +70,7 @@ test.describe('desk island shell @E-01', () => {
     // The crossfade ends with the poster out of the paint.
     await expect(poster(page)).toHaveCSS('visibility', 'hidden');
     await expect(page.locator('.desk-live')).toHaveCSS('opacity', '1');
-    await expect(page.getByRole('status')).toHaveText('');
+    await expect(figure(page).getByRole('status')).toHaveText('');
     await expectNoAxeViolations(page, { label: '/ with the live canvas' });
   });
 

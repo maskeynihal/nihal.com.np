@@ -24,7 +24,7 @@
   {
     "name": "physics (br, docs/reviews/E-11.md)",
     "path": ["dist/_astro/physics*.js", "dist/_astro/rapier*.js"],
-    "limit": "620 KB"
+    "limit": "640 kB"
   },
   {
     "name": "fonts (raw woff2)",

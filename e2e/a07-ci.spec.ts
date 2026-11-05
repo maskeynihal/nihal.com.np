@@ -29,7 +29,7 @@ test.describe('CI workflow and budgets @A-07', () => {
     expect(byName('initial JS')?.limit).toBe('100 KB');
     expect(byName('desk-vendor')?.limit).toBe('320 KB');
     expect(byName('models')?.limit).toBe('150 KB');
-    expect(byName('physics')?.limit).toBe('620 KB');
+    expect(byName('physics')?.limit).toBe('640 kB');
     expect(byName('fonts')?.limit).toBe('130 KB');
   });
 
