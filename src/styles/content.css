@@ -442,3 +442,28 @@
 .writing-list li:has(:focus-visible)::before {
   transform: scaleX(1);
 }
+
+/* v3 WS1: about facts, CV bullets, title-block kicker */
+.about-facts {
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  margin: 1.5rem 0 0;
+}
+.about-facts > div {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 1rem;
+}
+.about-facts dd {
+  margin: 0;
+}
+.cv-details {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+.cv-details li {
+  margin: 0.15rem 0;
+}
+.title-block-kicker {
+  margin: 0.25rem 0 0.75rem;
+}

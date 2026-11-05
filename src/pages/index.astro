@@ -28,7 +28,7 @@ import {
 import { site } from '../content/site';
 import { rowLabel } from '../lib/sections';
 
-const { titleBlock, headings, writing, cv, contact, colophon } = getCopy();
+const { titleBlock, headings, about, work: workCopy, writing, cv, contact, colophon } = getCopy();
 const work = getWork();
 const oss = getOss();
 const posts = getWriting();
@@ -55,7 +55,29 @@ const year = String(new Date().getFullYear());
       </div>
     </Section>
 
+    <Section id="about" heading={headings.about} side="right">
+      <p>{about.paragraphs[0]}</p>
+      <p>{about.paragraphs[1]}</p>
+      <p>{about.paragraphs[2]}</p>
+      <p>
+        {about.daboo.before}<a
+          class="sheet-link"
+          href={about.daboo.link.href}
+          rel="noopener">{about.daboo.link.label}</a
+        >{about.daboo.after}
+      </p>
+      <dl class="about-facts">
+        {about.facts.map((f) => (
+          <div>
+            <dt class="label">{f.label}</dt>
+            <dd>{f.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Section>
+
     <Section id="work" heading={headings.work} side="left">
+      <p>{workCopy.intro}</p>
       {work.map((item) => (
         <WorkPanel item={item} />
       ))}
@@ -75,6 +97,7 @@ const year = String(new Date().getFullYear());
     </Section>
 
     <Section id="cv" heading={headings.cv} side="right">
+      <p>{cv.intro}</p>
       <p>{cv.note}</p>
       <PaperPanel>
         <CvTable rows={cvRows} />
@@ -119,6 +142,7 @@ const year = String(new Date().getFullYear());
     <!-- B-07 closes the sheet under the colophon. -->
     <Section id="colophon" heading={rowLabel('colophon')} side="right">
       <p class="small">{colophon.copyright.replace('{year}', year)}</p>
+      <p class="small">{colophon.built}</p>
       <p class="small">
         <a class="sheet-link" href={colophon.sourceHref} rel="noopener">
           {colophon.source}

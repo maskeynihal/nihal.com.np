@@ -3,6 +3,7 @@ import { copy } from '../content/copy';
 /** Section ids in page order. The sheet index rows (`copy.nav.rows`) map onto them one to one. */
 export const SECTION_IDS = [
   'desk',
+  'about',
   'work',
   'open-source',
   'writing',

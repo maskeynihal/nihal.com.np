@@ -52,12 +52,14 @@ export const CvRow = z.strictObject({
   when: text,
   role: text,
   org: text,
+  /** Short bullets under the role; plain list, readable without JS. */
+  details: z.array(text).optional(),
   confirmed: z.boolean(),
 });
 
 /** Exactly: #desk #work #work-<work id> #open-source #writing #cv #contact. */
 export const SECTION_TARGET = new RegExp(
-  `^#(desk|work|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
+  `^#(desk|about|work|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
 );
 
 /** An IANA zone the runtime can format (checked with Intl, no zone table). */
@@ -125,7 +127,7 @@ export const Holiday = z.strictObject({
 export const Copy = z.strictObject({
   nav: z.strictObject({
     label: text,
-    rows: z.array(text).length(7),
+    rows: z.array(text).length(8),
   }),
   prefs: z.strictObject({
     motion: text,
@@ -136,25 +138,37 @@ export const Copy = z.strictObject({
   }),
   titleBlock: z.strictObject({
     name: text,
+    /** Visible line under the name, above the intro. */
+    kicker: text,
     selected: z.enum(['A', 'B', 'C']),
     options: z.strictObject({ A: text, B: text, C: text }),
     email: z.email(),
     timeLabel: text,
     /** Template; {rev} is the build month as YYYY.MM. */
     revLine: text,
+    /** Second action next to the email: link to #work. */
+    seeWork: text,
     dragHint: text,
     reset: text,
     skip: text,
     oledCaption: text,
   }),
   headings: z.strictObject({
+    about: text,
     work: text,
     openSource: text,
     writing: text,
     cv: text,
     contact: text,
   }),
+  about: z.strictObject({
+    paragraphs: z.tuple([text, text, text]),
+    /** Fourth paragraph with a link in the middle: before + link + after. */
+    daboo: z.strictObject({ before: text, link: Link, after: text }),
+    facts: z.array(z.strictObject({ label: text, value: text })),
+  }),
   work: z.strictObject({
+    intro: text,
     play: text,
     leave: text,
     openNewTab: text,
@@ -165,7 +179,7 @@ export const Copy = z.strictObject({
     footer: text,
   }),
   writing: z.strictObject({ intro: text, all: text, allHref: url }),
-  cv: z.strictObject({ note: text }),
+  cv: z.strictObject({ note: text, intro: text, skillsLabel: text, skills: text }),
   contact: z.strictObject({
     lead: text,
     copied: text,
@@ -190,8 +204,14 @@ export const Copy = z.strictObject({
     copyright: text,
     source: text,
     sourceHref: url,
+    built: text,
   }),
-  meta: z.strictObject({ title: text, description: text, ogAlt: text }),
+  meta: z.strictObject({
+    title: text,
+    description: text,
+    keywords: text,
+    ogAlt: text,
+  }),
   notFound: z.strictObject({
     title: text,
     description: text,
