@@ -1,1 +1,0 @@
-{"version":"0.0.1","configurations":[{"name":"prototype","runtimeExecutable":"python3","runtimeArgs":["-m","http.server","8731","--directory","/private/tmp/claude-501/-Users-leapfrog-Projects-maskeynihal-nihal-com-np/4690d64d-be73-4522-92da-aae22bbc8763/scratchpad/preview"],"port":8731}]}
