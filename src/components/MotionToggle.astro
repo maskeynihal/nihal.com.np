@@ -2,14 +2,21 @@
 import { copy } from '../content/copy';
 ---
 
-<button
-  type="button"
-  class="label pref-toggle"
-  data-motion-toggle
-  aria-pressed="false"
->
-  {copy.prefs.motion}
-</button>
+<span class="pref-row">
+  <button
+    type="button"
+    class="label pref-toggle"
+    data-motion-toggle
+    aria-pressed="false"
+    aria-describedby="motion-note"
+  >
+    {copy.prefs.motion}
+  </button>
+  <span class="label pref-note" id="motion-note" data-motion-note data-off>
+    <span aria-hidden="true">· </span>
+    {copy.prefs.system}
+  </span>
+</span>
 
 <script>
   import {
@@ -17,18 +24,26 @@ import { copy } from '../content/copy';
     setMotion,
     subscribeMotion,
     initPrefs,
+    osReduces,
   } from '../lib/prefs';
 
   initPrefs();
+  const note = document.querySelector<HTMLElement>('[data-motion-note]');
   document
     .querySelectorAll<HTMLButtonElement>('[data-motion-toggle]')
     .forEach((btn) => {
-      const sync = (m: 'reduce' | 'full') =>
-        btn.setAttribute('aria-pressed', String(m === 'reduce'));
-      sync(getMotion());
+      const sync = () => {
+        const os = osReduces();
+        btn.setAttribute('aria-pressed', String(getMotion() === 'reduce'));
+        if (os) btn.setAttribute('aria-disabled', 'true');
+        else btn.removeAttribute('aria-disabled');
+        if (note) note.toggleAttribute('data-off', !os);
+      };
+      sync();
       subscribeMotion(sync);
-      btn.addEventListener('click', () =>
-        setMotion(getMotion() === 'reduce' ? 'full' : 'reduce'),
-      );
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('aria-disabled') === 'true') return;
+        setMotion(getMotion() === 'reduce' ? 'full' : 'reduce');
+      });
     });
 </script>

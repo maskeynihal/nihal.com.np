@@ -63,6 +63,7 @@ function stubWebGL(available: boolean) {
 beforeEach(() => {
   localStorage.clear();
   prefs.resetCapabilityCache();
+  prefs.resetChoice();
   document.documentElement.dataset['motion'] = 'full';
   document.documentElement.dataset['sound'] = 'off';
   stubMatchMedia({ '(pointer: coarse)': false });
@@ -76,47 +77,85 @@ afterEach(() => {
   delProp(globalThis, 'requestIdleCallback');
 });
 
-describe('canRun3D / dprFor matrix', () => {
+describe('canRun3D matrix', () => {
   const motions = ['full', 'reduce'] as const;
   const gls = [true, false];
-  const mems = [undefined, 2, 8];
+  const mems = [undefined, 2, 3.99, 4, 8];
   const saves = [true, false, undefined];
-  const widths = [320, 1024];
-  const cores = [undefined, 2, 8];
-  const coarse = [true, false];
+  const widths = [320, 359, 360, 1024];
 
   for (const motion of motions)
     for (const gl of gls)
       for (const mem of mems)
         for (const save of saves)
-          for (const width of widths)
-            for (const hc of cores)
-              for (const c of coarse) {
-                const name = `motion=${motion} gl=${gl} mem=${mem} save=${save} w=${width} cores=${hc} coarse=${c}`;
-                it(name, () => {
-                  document.documentElement.dataset['motion'] = motion;
-                  stubWebGL(gl);
-                  stubMatchMedia({ '(pointer: coarse)': c });
-                  setProp(navigator, 'deviceMemory', mem);
-                  setProp(navigator, 'hardwareConcurrency', hc);
-                  setProp(
-                    navigator,
-                    'connection',
-                    save === undefined ? undefined : { saveData: save },
-                  );
-                  setProp(window, 'innerWidth', width);
-                  const want3D =
-                    motion === 'full' &&
-                    gl &&
-                    mem !== 2 &&
-                    save !== true &&
-                    width >= 360;
-                  expect(prefs.canRun3D()).toBe(want3D);
-                  expect(prefs.canRunPhysics()).toBe(want3D);
-                  const wantDpr = (hc ?? 4) <= 4 || c ? 1 : 1.5;
-                  expect(prefs.dprFor()).toBe(wantDpr);
-                });
-              }
+          for (const width of widths) {
+            const name = `motion=${motion} gl=${gl} mem=${mem} save=${save} w=${width}`;
+            it(name, () => {
+              document.documentElement.dataset['motion'] = motion;
+              stubWebGL(gl);
+              setProp(navigator, 'deviceMemory', mem);
+              setProp(
+                navigator,
+                'connection',
+                save === undefined ? undefined : { saveData: save },
+              );
+              setProp(window, 'innerWidth', width);
+              const want3D =
+                motion === 'full' &&
+                gl &&
+                (mem === undefined || mem >= 4) &&
+                save !== true &&
+                width >= 360;
+              expect(prefs.canRun3D()).toBe(want3D);
+              expect(prefs.canRunPhysics()).toBe(want3D);
+            });
+          }
+});
+
+describe('dprFor (literal table)', () => {
+  // [hardwareConcurrency, coarse pointer, expected dpr]
+  const table: [number | undefined, boolean, number][] = [
+    [undefined, false, 1],
+    [undefined, true, 1],
+    [1, false, 1],
+    [2, false, 1],
+    [4, false, 1],
+    [4, true, 1],
+    [5, false, 1.5],
+    [8, false, 1.5],
+    [8, true, 1],
+    [16, false, 1.5],
+    [16, true, 1],
+  ];
+  it.each(table)('cores=%s coarse=%s -> %s', (hc, coarse, want) => {
+    stubMatchMedia({ '(pointer: coarse)': coarse });
+    setProp(navigator, 'hardwareConcurrency', hc);
+    expect(prefs.dprFor()).toBe(want);
+  });
+});
+
+describe('canRun3D boundaries', () => {
+  const base = () => {
+    stubWebGL(true);
+    setProp(window, 'innerWidth', 1024);
+    setProp(navigator, 'deviceMemory', undefined);
+  };
+  it.each([
+    [3.99, false],
+    [4, true],
+  ])('deviceMemory %s -> %s', (mem, want) => {
+    base();
+    setProp(navigator, 'deviceMemory', mem);
+    expect(prefs.canRun3D()).toBe(want);
+  });
+  it.each([
+    [359, false],
+    [360, true],
+  ])('width %s -> %s', (w, want) => {
+    base();
+    setProp(window, 'innerWidth', w);
+    expect(prefs.canRun3D()).toBe(want);
+  });
 });
 
 describe('hasWebGL2', () => {
@@ -243,20 +282,65 @@ describe('motion and sound', () => {
   });
 });
 
-describe('initPrefs OS follow', () => {
+describe('initPrefs OS follow (OS reduce is a floor)', () => {
   const Q = '(prefers-reduced-motion: reduce)';
-  it('updates the attribute when nothing is stored', () => {
-    const stop = prefs.initPrefs();
-    fireMq(Q, true);
+  type Stored = null | 'reduce' | 'full' | 'throw';
+  const stores: Stored[] = [null, 'reduce', 'full', 'throw'];
+  const initialOs = [true, false];
+
+  for (const stored of stores)
+    for (const os0 of initialOs)
+      it(`stored=${stored} os0=${os0}: live changes`, () => {
+        stubMatchMedia({ '(pointer: coarse)': false, [Q]: os0 });
+        let spy: { mockRestore(): void } | undefined;
+        if (stored === 'throw') {
+          spy = vi
+            .spyOn(window, 'localStorage', 'get')
+            .mockImplementation(() => {
+              throw new DOMException('denied', 'SecurityError');
+            });
+        } else if (stored) localStorage.setItem('nihal:motion', stored);
+        const stop = prefs.initPrefs();
+        const reduces = stored === 'reduce';
+        // OS switches to reduce: always reduce
+        fireMq(Q, true);
+        expect(prefs.getMotion()).toBe('reduce');
+        // OS switches back: follows stored (only 'reduce' counts)
+        fireMq(Q, false);
+        expect(prefs.getMotion()).toBe(reduces ? 'reduce' : 'full');
+        // and again
+        fireMq(Q, true);
+        expect(prefs.getMotion()).toBe('reduce');
+        stop();
+        spy?.mockRestore();
+      });
+
+  it('stored full + OS reduce: setMotion(full) stays reduce', () => {
+    stubMatchMedia({ '(pointer: coarse)': false, [Q]: true });
+    prefs.setMotion('full');
     expect(prefs.getMotion()).toBe('reduce');
-    fireMq(Q, false);
-    expect(prefs.getMotion()).toBe('full');
-    stop();
+    expect(prefs.osReduces()).toBe(true);
   });
-  it('ignores OS changes once the user chose', () => {
+  it('session choice survives OS flip with blocked storage', () => {
+    const spy = vi
+      .spyOn(window, 'localStorage', 'get')
+      .mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+      });
     const stop = prefs.initPrefs();
+    prefs.setMotion('reduce');
+    fireMq(Q, true);
+    fireMq(Q, false);
+    expect(prefs.getMotion()).toBe('reduce');
+    stop();
+    spy.mockRestore();
+  });
+  it('choosing full after reduce restores full when OS allows', () => {
+    const stop = prefs.initPrefs();
+    prefs.setMotion('reduce');
     prefs.setMotion('full');
     fireMq(Q, true);
+    fireMq(Q, false);
     expect(prefs.getMotion()).toBe('full');
     stop();
   });

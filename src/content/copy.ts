@@ -5,5 +5,6 @@ export const copy = {
     sound: 'sound',
     on: 'on',
     off: 'off',
+    system: 'set by your system',
   },
 } as const;

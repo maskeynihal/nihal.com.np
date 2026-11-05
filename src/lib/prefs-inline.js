@@ -1,7 +1,9 @@
 /* Shipped inline in <head> (see PrefsScript.astro); unit-tested as-is.
-   Motion rule: stored 'reduce' wins; stored 'full' overrides the
-   prefers-reduced-motion media query ONLY because the user explicitly chose
-   it; with nothing stored the media query decides. Sound defaults to off.
+   Motion rule: the OS setting is a floor. effective = reduce if stored is
+   'reduce' OR prefers-reduced-motion matches, else full; a stored 'full'
+   never overrides the OS. Sound defaults to off.
+   Legacy map: #projects #about #blog #experience #education are the specified
+   ones; #skills and #home are intentional extras.
    Legacy fragments are rewritten in place: replaceState (no extra history
    entry), then the hash is re-applied so the browser scrolls to the target. */
 (function () {
@@ -19,8 +21,7 @@
     try {
       q = matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch {}
-    d.dataset.motion =
-      m === 'reduce' || (m !== 'full' && q) ? 'reduce' : 'full';
+    d.dataset.motion = m === 'reduce' || q ? 'reduce' : 'full';
     d.dataset.sound = s === 'on' ? 'on' : 'off';
     var t = {
       '#projects': '#work',

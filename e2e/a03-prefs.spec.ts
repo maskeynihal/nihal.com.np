@@ -29,7 +29,11 @@ test.describe('preferences @A-03', () => {
         w.__a03['atDcl'] = document.documentElement.dataset['motion'];
       });
     });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await info.attach('domcontentloaded', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
     await page.waitForLoadState('load');
     const r = await page.evaluate(() => {
       const w = window as unknown as {
@@ -80,24 +84,96 @@ test.describe('preferences @A-03', () => {
     await expect(soundBtn(page)).toBeHidden();
   });
 
-  test('motion toggle flips attribute and aria-pressed, persists', async ({
+  test('motion toggle: default projects flip, persist, no note', async ({
     page,
     javaScriptEnabled,
   }, info) => {
     test.skip(!javaScriptEnabled, 'needs JS');
+    test.skip(info.project.name === 'reduced-motion', 'OS reduce project');
     await page.goto('/');
-    const startReduce = info.project.name === 'reduced-motion';
     const btn = motionBtn(page);
-    await expect(btn).toHaveAttribute('aria-pressed', String(startReduce));
+    const note = page.locator('[data-motion-note]');
+    await expect(btn).toHaveAttribute('aria-pressed', 'false');
+    await expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(note).toBeHidden();
     await btn.click();
-    const flipped = startReduce ? 'full' : 'reduce';
-    await expect(page.locator('html')).toHaveAttribute('data-motion', flipped);
-    await expect(btn).toHaveAttribute('aria-pressed', String(!startReduce));
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-motion', flipped);
-    await expect(motionBtn(page)).toHaveAttribute(
-      'aria-pressed',
-      String(!startReduce),
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
+    await expect(motionBtn(page)).toHaveAttribute('aria-pressed', 'true');
+    await motionBtn(page).click();
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'full');
+    await expect(note).toBeHidden();
+  });
+
+  test('motion toggle under OS reduce: pressed, aria-disabled, focusable, inert, note', async ({
+    page,
+    javaScriptEnabled,
+  }, info) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    test.skip(info.project.name !== 'reduced-motion', 'OS reduce project');
+    await page.goto('/');
+    const btn = motionBtn(page);
+    const html = page.locator('html');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toHaveAttribute('aria-disabled', 'true');
+    await expect(btn).not.toHaveAttribute('disabled', /.*/);
+    const note = page.locator('#motion-note');
+    await expect(note).toBeVisible();
+    await expect(note).toHaveText(/set by your system/);
+    await expect(btn).toHaveAttribute('aria-describedby', 'motion-note');
+    await btn.focus();
+    await expect(btn).toBeFocused();
+    await btn.click({ force: true });
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
+    await expect(html).toHaveAttribute('data-motion', 'reduce');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      await page.evaluate(() => localStorage.getItem('nihal:motion')),
+    ).toBeNull();
+  });
+
+  test('OS reduce is a floor: stored full + live emulate reduce', async ({
+    page,
+    javaScriptEnabled,
+  }, info) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    test.skip(info.project.name === 'reduced-motion', 'starts as reduce');
+    await page.addInitScript(() =>
+      localStorage.setItem('nihal:motion', 'full'),
+    );
+    await page.goto('/');
+    const html = page.locator('html');
+    const btn = motionBtn(page);
+    await expect(html).toHaveAttribute('data-motion', 'full');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(html).toHaveAttribute('data-motion', 'reduce');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.locator('#motion-note')).toBeVisible();
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(html).toHaveAttribute('data-motion', 'full');
+    await expect(btn).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#motion-note')).toBeHidden();
+  });
+
+  test('toggle labels have a visible gap (no "SOUNDOFF")', async ({
+    page,
+    javaScriptEnabled,
+  }) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    await page.goto('/');
+    const btn = soundBtn(page);
+    const [label, state] = await Promise.all([
+      btn.locator('span').first().boundingBox(),
+      btn.locator('[data-sound-state]').boundingBox(),
+    ]);
+    expect(state!.x - (label!.x + label!.width)).toBeGreaterThanOrEqual(4);
+    await expect(btn.locator('.pref-sep')).toHaveAttribute(
+      'aria-hidden',
+      'true',
     );
   });
 
@@ -139,7 +215,7 @@ test.describe('preferences @A-03', () => {
   test('blocked localStorage: no errors, toggles work for the session', async ({
     page,
     javaScriptEnabled,
-  }) => {
+  }, info) => {
     test.skip(!javaScriptEnabled, 'needs JS');
     await page.addInitScript(() => {
       Object.defineProperty(window, 'localStorage', {
@@ -153,12 +229,13 @@ test.describe('preferences @A-03', () => {
     await soundBtn(page).click();
     await expect(page.locator('html')).toHaveAttribute('data-sound', 'on');
     await expect(soundBtn(page)).toHaveAttribute('aria-pressed', 'true');
-    const before = await page.locator('html').getAttribute('data-motion');
-    await motionBtn(page).click();
-    await expect(page.locator('html')).not.toHaveAttribute(
-      'data-motion',
-      before!,
-    );
+    if (info.project.name !== 'reduced-motion') {
+      await motionBtn(page).click();
+      await expect(page.locator('html')).toHaveAttribute(
+        'data-motion',
+        'reduce',
+      );
+    }
     // consoleGuard (auto fixture) fails the test on any console error.
   });
 
@@ -190,10 +267,15 @@ test.describe('preferences @A-03', () => {
     await tabTo('data-motion-toggle');
     const m = motionBtn(page);
     const m0 = await m.getAttribute('aria-pressed');
+    await expect(m).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(m).not.toHaveAttribute('aria-pressed', m0!);
-    await page.keyboard.press('Space');
-    await expect(m).toHaveAttribute('aria-pressed', m0!);
+    if (info.project.name === 'reduced-motion') {
+      await expect(m).toHaveAttribute('aria-pressed', 'true');
+    } else {
+      await expect(m).not.toHaveAttribute('aria-pressed', m0!);
+      await page.keyboard.press('Space');
+      await expect(m).toHaveAttribute('aria-pressed', m0!);
+    }
 
     await tabTo('data-sound-toggle');
     const s = soundBtn(page);

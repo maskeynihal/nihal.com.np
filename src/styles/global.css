@@ -136,7 +136,8 @@ a {
   text-underline-offset: 0.2em;
 }
 
-/* Motion off: attribute (user toggle) and media query. Opacity <= 200ms
+/* Motion off: attribute (user toggle or OS) and media query. They always
+   agree: the OS setting is a floor (prefs-inline.js, prefs.ts). Opacity <= 200ms
    transitions survive. */
 [data-motion='reduce'],
 [data-motion='reduce'] *,
@@ -181,11 +182,31 @@ a {
 
 .page-prefs {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
   margin-top: 1rem;
 }
 
+.pref-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.pref-note {
+  white-space: nowrap;
+}
+
+/* visibility (not display): reserves the space so the note causes no layout
+   shift when it appears, and drops it from the accessibility tree. */
+.pref-note[data-off] {
+  visibility: hidden;
+}
+
 .pref-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   background: none;
   border: 0;
   padding: 0.5rem 0;
@@ -197,4 +218,8 @@ a {
 .pref-toggle[aria-pressed='true'] {
   text-decoration: underline;
   text-underline-offset: 0.3em;
+}
+
+.pref-toggle[aria-disabled='true'] {
+  cursor: default;
 }

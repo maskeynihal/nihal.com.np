@@ -29,18 +29,18 @@ describe('inline prefs script', () => {
   it('stays under 1.2 KB', () => {
     expect(new TextEncoder().encode(code).length).toBeLessThan(1200);
   });
-  it.each([
-    [null, false, 'full'],
-    [null, true, 'reduce'],
-    ['reduce', false, 'reduce'],
-    ['reduce', true, 'reduce'],
-    ['full', true, 'full'],
-    ['full', false, 'full'],
-    ['bogus', true, 'reduce'],
-    ['bogus', false, 'full'],
-  ])('stored=%s mq=%s -> %s', (stored, mq, want) => {
-    if (stored) localStorage.setItem('nihal:motion', stored);
-    media(mq);
+  type Stored = null | 'reduce' | 'full' | 'bogus' | 'throw';
+  const cases: [Stored, boolean, string][] = [];
+  for (const stored of [null, 'reduce', 'full', 'bogus', 'throw'] as const)
+    for (const os of [true, false])
+      cases.push([stored, os, stored === 'reduce' || os ? 'reduce' : 'full']);
+  it.each(cases)('stored=%s os-reduce=%s -> %s', (stored, os, want) => {
+    if (stored === 'throw') {
+      vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+    } else if (stored) localStorage.setItem('nihal:motion', stored);
+    media(os);
     run();
     expect(html.dataset['motion']).toBe(want);
   });

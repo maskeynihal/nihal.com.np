@@ -8,8 +8,9 @@ const code = minifyInline(src);
 <script is:inline set:html={code} />
 <noscript>
   <style>
-    .pref-toggle {
-      display: none;
+    .pref-toggle,
+    .pref-note {
+      display: none !important;
     }
   </style>
 </noscript>

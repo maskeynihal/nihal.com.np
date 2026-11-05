@@ -34,6 +34,14 @@ function writeStored(key: string, value: string): void {
   }
 }
 
+function removeStored(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // storage blocked
+  }
+}
+
 // ---- capability -----------------------------------------------------------
 
 let cached: boolean | undefined;
@@ -96,6 +104,27 @@ export function onIdle(cb: () => void, timeout = 1500): void {
 
 // ---- preferences ----------------------------------------------------------
 
+const OS_REDUCE = '(prefers-reduced-motion: reduce)';
+
+/** True while the OS asks for reduced motion. */
+export function osReduces(): boolean {
+  if (!hasWindow() || typeof window.matchMedia !== 'function') return false;
+  try {
+    return window.matchMedia(OS_REDUCE).matches;
+  } catch {
+    return false;
+  }
+}
+
+// The visitor's choice this session (storage may be blocked).
+let chosen: Motion | null = null;
+
+/** The OS setting is a floor: reduce if stored says reduce OR the OS does. */
+function effectiveMotion(): Motion {
+  const stored = chosen ?? readStored(MOTION_KEY);
+  return stored === 'reduce' || osReduces() ? 'reduce' : 'full';
+}
+
 export function getMotion(): Motion {
   if (!hasWindow()) return 'full';
   return document.documentElement.dataset['motion'] === 'reduce'
@@ -112,10 +141,16 @@ function applyMotion(m: Motion): void {
   );
 }
 
+/**
+ * Only 'reduce' is persisted; 'full' clears the key. Under OS reduce the
+ * attribute stays 'reduce' whatever is chosen.
+ */
 export function setMotion(m: Motion): void {
   if (!hasWindow()) return;
-  writeStored(MOTION_KEY, m);
-  applyMotion(m);
+  chosen = m;
+  if (m === 'reduce') writeStored(MOTION_KEY, m);
+  else removeStored(MOTION_KEY);
+  applyMotion(m === 'reduce' || osReduces() ? 'reduce' : 'full');
 }
 
 export function getSound(): Sound {
@@ -150,21 +185,24 @@ export function subscribeSound(cb: (s: Sound) => void): () => void {
 let stopOs: (() => void) | undefined;
 
 /**
- * Follows live OS reduced-motion changes unless the user stored an explicit
- * choice. Idempotent; returns a disposer. Called by the toggles.
+ * Follows live OS reduced-motion changes: OS reduce forces the attribute to
+ * reduce; when it clears, the attribute follows the stored choice. Idempotent;
+ * returns a disposer. Called by the toggles.
  */
 export function initPrefs(): () => void {
   if (stopOs) return stopOs;
   if (!hasWindow() || typeof window.matchMedia !== 'function') return () => {};
-  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const onChange = (e: MediaQueryListEvent) => {
-    if (readStored(MOTION_KEY) !== null) return;
-    applyMotion(e.matches ? 'reduce' : 'full');
-  };
+  const mq = window.matchMedia(OS_REDUCE);
+  const onChange = () => applyMotion(effectiveMotion());
   mq.addEventListener('change', onChange);
   stopOs = () => {
     mq.removeEventListener('change', onChange);
     stopOs = undefined;
   };
   return stopOs;
+}
+
+/** Test seam: forget the in-memory choice. */
+export function resetChoice(): void {
+  chosen = null;
 }
