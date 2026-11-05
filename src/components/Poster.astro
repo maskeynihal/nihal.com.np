@@ -11,7 +11,7 @@ import { buildPosterAlt } from '../content/poster-alt';
  * while the canvas is live (the object list is the keyboard path) and restores it otherwise.
  *
  * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
- * moves) until `data-desk-state="live"`: the drag hint and the reset button.
+ * moves) until `data-desk-state="live"`: the drag hint, the reset button and the OLED caption.
  * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
  * so the shown objects are handed to it as `data-objects`: id, model file and home pose only.
  */
@@ -34,6 +34,11 @@ const svg = posterSvg
 ---
 
 <div class="poster-frame" data-poster data-objects={objects} set:html={svg} />
+<div class="desk-overlay" aria-hidden="true">
+  <span class="label oled-caption" data-oled-caption>
+    {titleBlock.oledCaption}
+  </span>
+</div>
 <div class="desk-controls" data-desk-controls>
   <p class="label desk-hint">{titleBlock.dragHint}</p>
   <button type="button" class="label desk-reset" data-desk-reset>

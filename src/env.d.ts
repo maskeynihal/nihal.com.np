@@ -21,6 +21,9 @@ type DeskFailKind = 'scene' | 'shell' | 'chunk' | 'async';
 interface DeskSceneHooks {
   /** Frames the canvas has rendered. */
   frames(): number;
+  /** OLED ticks so far (500 ms each, only while visible and motion is full). */
+  oledTicks(): number;
+  oledText(): string;
   /** Canvas size in CSS px. */
   size(): { width: number; height: number };
   /** Swaps the desk for one lit sphere; returns its screen circle in canvas CSS px. */

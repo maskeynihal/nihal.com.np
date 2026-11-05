@@ -60,7 +60,8 @@
 /* Phones: a fixed-height frame the canvas will fill, so swapping poster for canvas moves nothing.
    The poster frame, the canvas layer and the caption overlay share these rules. */
 .poster-frame,
-.desk-live {
+.desk-live,
+.desk-overlay {
   height: clamp(320px, 48svh, 420px);
 }
 
@@ -108,6 +109,29 @@
 .desk[data-desk-state='live'] .poster-frame {
   visibility: hidden;
   transition: visibility 0s linear 300ms;
+}
+
+/* Caption layer for the OLED ("demo values"), positioned over the screen by the Scene. */
+.desk-overlay {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+  overflow: hidden;
+  visibility: hidden;
+  /* Above the canvas layer, which comes later in the DOM. */
+  z-index: 1;
+}
+
+.oled-caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  transform: translate(-9999px, 0);
+}
+
+.desk[data-desk-state='live'] .desk-overlay {
+  visibility: visible;
 }
 
 /* Hint and reset button, under the drawing. Space is reserved in every state (visibility, not
@@ -171,7 +195,8 @@
 
 @media (min-width: 768px) {
   .poster-frame,
-  .desk-live {
+  .desk-live,
+  .desk-overlay {
     height: auto;
     aspect-ratio: 3 / 2;
   }

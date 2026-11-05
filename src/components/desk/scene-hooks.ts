@@ -1,10 +1,12 @@
 import type { PerspectiveCamera } from 'three';
 import { testHooks } from '../../lib/env';
+import { oledText } from '../../lib/desk/oled';
 
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
 interface SceneProbe {
   frames: number;
   camera: PerspectiveCamera | null;
+  oled: { ticks: number; text: () => string };
   size: () => { width: number; height: number };
   probeSphere: (on: boolean) => { cx: number; cy: number; r: number } | null;
 }
@@ -12,6 +14,7 @@ interface SceneProbe {
 const probe: SceneProbe = {
   frames: 0,
   camera: null,
+  oled: { ticks: 0, text: () => '' },
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
 };
@@ -27,6 +30,8 @@ export function installSceneHooks(): () => void {
   });
   desk.scene = {
     frames: () => probe.frames,
+    oledTicks: () => probe.oled.ticks,
+    oledText: () => probe.oled.text(),
     size: () => probe.size(),
     probeSphere: (on) => probe.probeSphere(on),
   };
@@ -51,4 +56,13 @@ export function getProbeCamera(): PerspectiveCamera | null {
 }
 export function setSphereProbe(fn: SceneProbe['probeSphere']): void {
   probe.probeSphere = fn;
+}
+export function setOledProbe(tick: () => number): void {
+  probe.oled.text = () => {
+    const t = oledText(tick());
+    return `${t.label} ${t.value}`;
+  };
+}
+export function countOledTick(): void {
+  probe.oled.ticks += 1;
 }

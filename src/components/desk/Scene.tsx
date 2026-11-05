@@ -18,9 +18,11 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { dprFor } from '../../lib/prefs';
+import { dprFor, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
 import { cameraFor, type CameraPose } from '../../lib/desk/camera';
+import { OLED_TICK_MS } from '../../lib/desk/oled';
+import { readToken } from '../../lib/desk/tokens';
 import {
   createLineArt,
   prepareLineArt,
@@ -28,12 +30,20 @@ import {
   type LineArt,
 } from './line-art';
 import { resolveModelUrls } from './models';
-import { ActiveContext, LineArtContext, useLineArt } from './scene-context';
+import { createOledTexture } from './textures';
+import {
+  ActiveContext,
+  LineArtContext,
+  useActive,
+  useLineArt,
+} from './scene-context';
 import {
   countFrame,
+  countOledTick,
   getProbeCamera,
   installSceneHooks,
   setCameraProbe,
+  setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
 
@@ -113,6 +123,12 @@ function useActiveState(host: React.RefObject<HTMLElement | null>): boolean {
   return near && shown;
 }
 
+function useMotionFull(): boolean {
+  const [full, setFull] = useState(() => getMotion() === 'full');
+  useEffect(() => subscribeMotion((m) => setFull(m === 'full')), []);
+  return full;
+}
+
 // ---- camera, resolution, ready ------------------------------------------------------------
 
 function Rig({ art }: { art: LineArt }) {
@@ -126,6 +142,32 @@ function Rig({ art }: { art: LineArt }) {
   useEffect(() => {
     gl.domElement.setAttribute('aria-hidden', 'true');
   }, [gl]);
+  return null;
+}
+
+/** Puts the "demo values" caption under the Arduino's screen, in canvas CSS px. */
+function OledCaption({ target }: { target: React.RefObject<Object3D | null> }) {
+  const { camera, size, gl } = useThree();
+  useLayoutEffect(() => {
+    const node = target.current;
+    const caption = gl.domElement
+      .closest('[data-desk]')
+      ?.querySelector<HTMLElement>('[data-oled-caption]');
+    if (!node || !caption) return;
+    camera.updateMatrixWorld();
+    node.updateWorldMatrix(true, false);
+    // Just in front of the board's lower edge, below the screen.
+    const p = node
+      .getWorldPosition(new Vector3())
+      .add(new Vector3(0, -0.05, 0.1));
+    p.project(camera);
+    const x = ((p.x + 1) / 2) * size.width;
+    const y = ((1 - p.y) / 2) * size.height;
+    caption.style.transform = `translate(${Math.round(x - caption.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
+    return () => {
+      caption.style.transform = '';
+    };
+  });
   return null;
 }
 
@@ -164,12 +206,14 @@ function Model({
   def,
   textured,
   sheet,
+  onRoot,
   children,
 }: {
   url: string;
   def: ObjectDef;
   textured?: Record<string, Material>;
   sheet?: boolean;
+  onRoot?: (root: Object3D) => void;
   children?: (root: Object3D) => ReactNode;
 }) {
   const art = useLineArt();
@@ -179,6 +223,7 @@ function Model({
     prepareLineArt(clone, art, { textured, sheet: sheet ?? false });
     return clone;
   }, [gltf, art, textured, sheet]);
+  useLayoutEffect(() => onRoot?.(root), [root, onRoot]);
   return (
     <group name={def.id} position={def.p} quaternion={def.q}>
       <primitive object={root} />
@@ -187,11 +232,87 @@ function Model({
   );
 }
 
+// ---- OLED -----------------------------------------------------------------------------------
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function useOled() {
+  const { invalidate } = useThree();
+  const active = useActive();
+  const motion = useMotionFull();
+  const tick = useRef(0);
+  const oled = useMemo(
+    () =>
+      createOledTexture({
+        background: hexToRgb(readToken('--blue-ink')),
+        ink: hexToRgb(readToken('--white')),
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    oled.draw(tick.current);
+    invalidate();
+    setOledProbe(() => tick.current);
+  }, [oled, invalidate]);
+
+  // 500 ms, only while the desk is on screen, the tab shows and motion is allowed.
+  useEffect(() => {
+    if (!active || !motion) return;
+    const id = setInterval(() => {
+      tick.current += 1;
+      countOledTick();
+      oled.draw(tick.current);
+      invalidate();
+    }, OLED_TICK_MS);
+    return () => clearInterval(id);
+  }, [active, motion, oled, invalidate]);
+
+  useEffect(() => () => oled.dispose(), [oled]);
+  return oled.material;
+}
+
 // ---- the desk ---------------------------------------------------------------------------------
 
-function ObjectNode({ def, url }: { def: ObjectDef; url: string }) {
-  // Behaviours (OLED, clock hands, calendar face, ghost eyes) arrive in E-03 and E-04.
+function ObjectNode({
+  def,
+  url,
+  captionTargetRef,
+}: {
+  def: ObjectDef;
+  url: string;
+  captionTargetRef: React.RefObject<Object3D | null>;
+}) {
+  // Clock hands, the calendar face and the ghost's eyes arrive in E-04.
+  if (def.model === 'arduino')
+    return <Arduino def={def} url={url} captionTargetRef={captionTargetRef} />;
   return <Model url={url} def={def} />;
+}
+
+function Arduino({
+  def,
+  url,
+  captionTargetRef,
+}: {
+  def: ObjectDef;
+  url: string;
+  captionTargetRef: React.RefObject<Object3D | null>;
+}) {
+  const material = useOled();
+  const textured = useMemo(() => ({ 'screen-mesh': material }), [material]);
+  return (
+    <Model
+      url={url}
+      def={def}
+      textured={textured}
+      onRoot={(root) => {
+        captionTargetRef.current = root.getObjectByName('screen') ?? null;
+      }}
+    />
+  );
 }
 
 function Desk({
@@ -205,6 +326,7 @@ function Desk({
   probeOn: boolean;
   onReady: () => void;
 }) {
+  const captionTargetRef = useRef<Object3D | null>(null);
   const sheetUrl = urls['sheet'];
   return (
     <>
@@ -218,9 +340,17 @@ function Desk({
         ) : null}
         {objects.map((def) => {
           const url = urls[def.model];
-          return url ? <ObjectNode key={def.id} def={def} url={url} /> : null;
+          return url ? (
+            <ObjectNode
+              key={def.id}
+              def={def}
+              url={url}
+              captionTargetRef={captionTargetRef}
+            />
+          ) : null;
         })}
       </group>
+      <OledCaption target={captionTargetRef} />
       <Ready onReady={onReady} />
     </>
   );
