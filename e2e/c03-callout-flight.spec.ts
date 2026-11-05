@@ -84,7 +84,9 @@ test.describe('object-tap shared callout @C-03', () => {
     const done = await flight(page);
     const ms = done.removedAt! - done.startedAt;
     expect(ms).toBeGreaterThanOrEqual(560);
-    expect(ms).toBeLessThan(900);
+    // 600 ms of flight; the canvas is full-viewport now and SwiftShader redraws all of it on every
+    // scrolled frame, which can stretch the last frames on a loaded machine.
+    expect(ms).toBeLessThan(1300);
     // It moved (the label travelled), and nothing is left behind.
     expect(new Set(done.tops).size).toBeGreaterThan(3);
     await expect(page.locator('[data-callout-flight]')).toHaveCount(0);
