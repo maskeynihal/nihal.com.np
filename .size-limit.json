@@ -1,0 +1,35 @@
+[
+  {
+    "name": "initial JS (br)",
+    "path": [
+      "dist/_astro/*.js",
+      "!dist/_astro/Scene.*.js",
+      "!dist/_astro/desk-vendor*.js",
+      "!dist/_astro/physics*.js",
+      "!dist/_astro/rapier*.js"
+    ],
+    "limit": "100 KB"
+  },
+  {
+    "name": "desk-vendor (br)",
+    "path": "dist/_astro/desk-vendor*.js",
+    "limit": "320 KB"
+  },
+  {
+    "name": "models (raw, already meshopt-compressed)",
+    "path": "src/assets/models/*.glb",
+    "brotli": false,
+    "limit": "150 KB"
+  },
+  {
+    "name": "physics (br, docs/reviews/E-11.md)",
+    "path": ["dist/_astro/physics*.js", "dist/_astro/rapier*.js"],
+    "limit": "620 KB"
+  },
+  {
+    "name": "fonts (raw woff2)",
+    "path": "dist/fonts/*.woff2",
+    "brotli": false,
+    "limit": "130 KB"
+  }
+]

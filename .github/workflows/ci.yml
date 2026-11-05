@@ -1,0 +1,134 @@
+# A-07 CI. Every job is a required check (branch protection, A-12). Written locally; pushing it
+# needs the owner's approval.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: 'true'
+
+jobs:
+  static:
+    name: lint, unit, build, budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version comes from "packageManager" in package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+      - run: pnpm format
+      - run: pnpm typecheck
+      - run: pnpm test # unit tests, including the docs link check
+      - run: pnpm copy-gate
+
+      # Production build, then everything that reads dist/.
+      - run: pnpm build
+      - run: pnpm check:graph
+      - run: pnpm check:leaks
+      - run: pnpm check:dist-copy
+      # vercel.json carries the CSP hashes of the inline scripts: stale means a broken CSP.
+      - run: pnpm check:vercel-json
+
+      # Generated assets must be reproducible: regenerating changes nothing.
+      - run: pnpm assets
+      - run: git diff --exit-code src/assets
+
+      - name: Size budgets
+        id: size
+        run: |
+          set -o pipefail
+          pnpm size | tee size.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+      - name: Comment sizes on the PR
+        if: github.event_name == 'pull_request' && always() && steps.size.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ci-sizes -->';
+            const body = `${marker}\n### Bundle sizes\n\`\`\`\n${fs.readFileSync('size.txt', 'utf8')}\n\`\`\``;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const mine = data.find((c) => c.body && c.body.startsWith(marker));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
+  e2e:
+    name: e2e (all Playwright projects)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      # `pnpm review:all` is the only supported Playwright entry: it builds the e2e dist
+      # (test hooks on) before running every project.
+      - run: pnpm review:all
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  lighthouse:
+    name: lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # lighthouserc.cjs serves ./dist (staticDistDir). Performance, a11y and CLS apply to every
+      # page; the SEO assertion is for `/` only (404 and /sent are noindex by design).
+      #
+      # Linux re-measure (A-13 r3): the CLS and LCP numbers here are the first on Linux. The
+      # fallback faces use local('Georgia') / local('Menlo'), which exist on macOS only; if CLS is
+      # above 0.05 here, add Linux-present local() alternatives (DejaVu Serif / DejaVu Sans Mono,
+      # Liberation) with their own metric overrides, and widen the a13 CLS test to all Chromium
+      # projects (skip reason naming WebKit).
+      - run: pnpm lhci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: .lighthouseci
+          retention-days: 7

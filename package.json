@@ -16,6 +16,7 @@
     "github:fetch": "tsx scripts/fetch-github.ts",
     "build:e2e": "cross-env PUBLIC_TEST_HOOKS=1 astro build",
     "check:graph": "tsx scripts/check-initial-graph.ts",
+    "check:vercel-json": "tsx scripts/check-vercel-json.ts",
     "check:leaks": "tsx scripts/check-dist-leaks.ts",
     "copy-gate": "tsx scripts/copy-gate.ts",
     "check:dist-copy": "tsx scripts/check-dist-copy.ts",
@@ -27,6 +28,7 @@
     "assets": "tsx scripts/models/build.ts",
     "sounds": "tsx scripts/assets/sounds.ts",
     "og": "tsx scripts/assets/render-og.ts",
+    "size": "tsx scripts/size.ts",
     "lhci": "lhci autorun --config=lighthouserc.cjs"
   },
   "dependencies": {
