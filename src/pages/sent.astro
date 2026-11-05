@@ -1,0 +1,18 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCopy } from '../content';
+
+const { sent } = getCopy();
+---
+
+<Base noindex>
+  <main class="page-main">
+    <div class="paper page-sheet">
+      <h1 class="page-title">{sent.heading}</h1>
+      <p class="page-sheet-contact">{sent.body}</p>
+      <p class="page-sheet-contact">
+        <a href="/">{sent.back}</a>
+      </p>
+    </div>
+  </main>
+</Base>

@@ -2,12 +2,19 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   ALLOWED_TOKENS,
   BANNED_PHRASES,
   BANNED_WORDS,
+  ScanError,
   astroStrings,
   contentEntries,
+  formatHits,
+  locate,
+  verbForms,
   gate,
   headingCaseViolations,
   runGate,
@@ -56,8 +63,8 @@ describe('banned words', () => {
   it('respects word boundaries', () => {
     expect(has('It is dynamic.', 'banned-word')).toBe(true);
     expect(has('It runs dynamically.', 'banned-word')).toBe(false);
-    expect(has('A harnessed river', 'banned-word')).toBe(false);
-    expect(has('unlocked', 'banned-word')).toBe(false);
+    expect(has('A harnessed river', 'banned-word')).toBe(true);
+    expect(has('unlocked', 'banned-word')).toBe(true);
     expect(has('Unlock the door', 'banned-word')).toBe(true);
     expect(has('the realm', 'banned-word')).toBe(true);
     expect(has('surrealm', 'banned-word')).toBe(false);
@@ -66,6 +73,69 @@ describe('banned words', () => {
     expect(
       scanText('I lead a team that builds healthcare software on AWS.'),
     ).toEqual([]);
+  });
+});
+
+describe('inflections', () => {
+  it.each([
+    ['We are reaching out.', 'banned-phrase'],
+    ['She reached out.', 'banned-phrase'],
+    ['He reaches out.', 'banned-phrase'],
+    ['We leveraged it.', 'banned-word'],
+    ['Leveraging AWS', 'banned-word'],
+    ['It leverages X', 'banned-word'],
+    ['harnessing power', 'banned-word'],
+    ['a harnessed river', 'banned-word'],
+    ['showcasing work', 'banned-word'],
+    ['It showcases', 'banned-word'],
+    ['a streamlined flow', 'banned-word'],
+    ['streamlining it', 'banned-word'],
+    ['empowering teams', 'banned-word'],
+    ['empowered', 'banned-word'],
+    ['an elevated view', 'banned-word'],
+    ['elevating', 'banned-word'],
+    ['unlocked the door', 'banned-word'],
+    ['unlocking it', 'banned-word'],
+    ['delved into', 'banned-word'],
+    ['facilitated', 'banned-word'],
+    ['utilizing', 'banned-word'],
+    ['fostered', 'banned-word'],
+    ['it served as a bridge', 'banned-phrase'],
+  ])('%s', (t, rule) => {
+    expect(has(t, rule)).toBe(true);
+  });
+  it.each([
+    'database in the cloud',
+    'DynamoDB table',
+    'a dynamically typed language',
+    'the harnessed-free test',
+    'unlockable',
+    'elevator',
+    'delvery',
+    'The Loop Harness repo',
+  ])('stays clean: %s', (t) => {
+    expect(
+      scanText(t).filter(
+        (h) => h.rule !== 'banned-word' || !/harness/i.test(h.match),
+      ),
+    ).toEqual([]);
+  });
+  it('dynamic is a hit, DynamoDB is not', () => {
+    expect(has('dynamic', 'banned-word')).toBe(true);
+    expect(has('DynamoDB', 'banned-word')).toBe(false);
+  });
+  it('verbForms', () => {
+    expect(verbForms('leverage')).toEqual([
+      'leverages',
+      'leveraged',
+      'leveraging',
+    ]);
+    expect(verbForms('harness')).toEqual([
+      'harnesses',
+      'harnessed',
+      'harnessing',
+    ]);
+    expect(verbForms('unlock')).toEqual(['unlocks', 'unlocked', 'unlocking']);
   });
 });
 
@@ -107,7 +177,8 @@ describe('phrases across punctuation and spacing', () => {
   });
   it('does not match when punctuation separates the words', () => {
     expect(has('reach. out', 'banned-phrase')).toBe(false);
-    expect(has('reached out', 'banned-phrase')).toBe(false);
+    expect(has('reached out', 'banned-phrase')).toBe(true);
+    expect(has('breached out', 'banned-phrase')).toBe(false);
   });
 });
 
@@ -223,6 +294,84 @@ describe('astro scanner', () => {
     expect(strings(`<a aria-label={x ? 'one!' : 'two'}>t</a>`)).toEqual(
       expect.arrayContaining(['one!', 'two']),
     );
+  });
+});
+
+describe('astro scanner: attributes, ld+json, loud failures', () => {
+  const strings = (src: string) =>
+    astroStrings(src, 'x.astro').map((e) => e.text);
+  it('reads content attributes', () => {
+    expect(
+      strings('<meta name="description" content="Be seamless" />'),
+    ).toContain('Be seamless');
+  });
+  it('reads application/ld+json string values with their line', () => {
+    const src =
+      '<p>a</p>\n<script type="application/ld+json">{"name":"A — B","@type":"Person"}</script>';
+    const e = astroStrings(src, 'x.astro');
+    expect(e.map((x) => x.text)).toEqual(expect.arrayContaining(['A — B']));
+    expect(gate(e).map((h) => `${h.path}:${h.rule}`)).toContain(
+      'x.astro:2:em-dash',
+    );
+  });
+  it('still ignores other scripts and self-closing scripts do not swallow the file', () => {
+    const src =
+      '<script type="application/ld+json" set:html={x} />\n<p>{ok && "Yes!"}</p><script>alert("Hi!")</script>';
+    expect(strings(src)).toEqual(['Yes!']);
+  });
+  it('fails loudly on an unbalanced quote inside braces, with file:line', () => {
+    const src = "<p>a</p>\n<p>b</p>\n<p>{ok && 'Yes}</p>";
+    expect(() => astroStrings(src, 'f.astro')).toThrow(ScanError);
+    expect(() => astroStrings(src, 'f.astro')).toThrow(
+      /f\.astro:3: unbalanced/,
+    );
+  });
+  it('fails loudly on an unclosed brace and on an unbalanced quote in a tag', () => {
+    expect(() => astroStrings('<p>{a</p>', 'f.astro')).toThrow(
+      /f\.astro:1: unbalanced brace/,
+    );
+    expect(() => astroStrings('<p>x</p>\n<a href="x>y</a>', 'f.astro')).toThrow(
+      /f\.astro:2: unbalanced " quote inside a tag/,
+    );
+  });
+  it('does not trip on apostrophes in JS comments or text', () => {
+    expect(strings("<p>don't {/* it's */ 'ok'}</p>")).toEqual(
+      expect.arrayContaining(['ok']),
+    );
+  });
+});
+
+describe('content hits print file:line', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  writeFileSync(
+    join(dir, 'copy.ts'),
+    "export const copy = {\n  a: 'fine',\n  b: 'We are seamless here.',\n};\n",
+  );
+  it('locates the string line', () => {
+    const hit = {
+      path: 'copy.ts:b',
+      rule: 'banned-word' as const,
+      match: 'seamless',
+    };
+    expect(locate(hit, 'We are seamless here.', dir)).toBe(
+      'src/content/copy.ts:3 (copy.ts:b)',
+    );
+  });
+  it('falls back to the entry path for runtime strings', () => {
+    const hit = {
+      path: 'poster-alt.ts:buildPosterAlt',
+      rule: 'banned-word' as const,
+      match: 'x',
+    };
+    expect(locate(hit, 'built at runtime', dir)).toBe(
+      'poster-alt.ts:buildPosterAlt',
+    );
+  });
+  it('formatHits keeps astro paths as they are', () => {
+    const e = [{ path: 'src/a.astro:4', text: 'seamless' }];
+    expect(formatHits(e, gate(e))).toEqual([
+      'src/a.astro:4: banned-word: seamless',
+    ]);
   });
 });
 

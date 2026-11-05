@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCopy } from '../content';
+
+const { notFound } = getCopy();
+---
+
+<Base noindex>
+  <main class="page-main">
+    <div class="paper page-sheet">
+      <p class="label">{notFound.sheet}</p>
+      <h1 class="page-title">{notFound.heading}</h1>
+      <p class="page-sheet-contact">{notFound.body}</p>
+      <p class="page-sheet-contact">
+        <a href="/">{notFound.back}</a>
+      </p>
+    </div>
+  </main>
+</Base>

@@ -98,6 +98,12 @@ export const copy = {
     source: 'Source on GitHub.',
     sourceHref: 'https://github.com/maskeynihal/nihal.com.np',
   },
+  meta: {
+    title: 'nihal maskey · lead engineer, kathmandu',
+    description:
+      'Lead engineer in Kathmandu. Leads a team at Leapfrog Technology that builds healthcare software on AWS, and makes small tools on the side.',
+    ogAlt: 'nihal maskey, lead engineer, kathmandu',
+  },
   notFound: {
     heading: 'nothing here',
     sheet: 'sheet not found',

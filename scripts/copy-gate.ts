@@ -15,6 +15,9 @@
  *  - frontmatter, <script>, <style> and HTML comments are ignored;
  *  - in `{...}` expressions only quoted string literals are checked, not code and not
  *    markup nested inside the expression (e.g. text inside a `.map(() => <li>..</li>)`);
+ *    `pnpm check` also runs scripts/check-dist-copy.ts over the built HTML, which sees that text;
+ *  - an unbalanced quote or brace inside `{...}` or a tag is an error (exit 1, file:line);
+ *  - `<script type="application/ld+json">` bodies are read (quoted values), other scripts are not;
  *  - dynamic attribute values are checked only through their quoted literals;
  *  - only the attributes in ASTRO_ATTRS are read; title-case is not checked in .astro files
  *    (the e2e spec checks rendered h1-h3 instead);
@@ -31,6 +34,7 @@ import { writing } from '../src/content/writing';
 import { cv } from '../src/content/cv';
 import { objects } from '../src/content/objects';
 import { buildPosterAlt } from '../src/content/poster-alt';
+import { buildPerson } from '../src/lib/jsonld';
 
 /** Source of truth is docs/specs/02-copy.md section 2; copy-gate.test.ts asserts equality. */
 export const BANNED_WORDS = [
@@ -208,8 +212,55 @@ function phraseRegex(phrase: string): RegExp {
   return new RegExp(`${LEFT}${body}${RIGHT}`, 'giu');
 }
 
-const WORD_RES = BANNED_WORDS.map((w) => [w, phraseRegex(w)] as const);
-const PHRASE_RES = BANNED_PHRASES.map((p) => [p, phraseRegex(p)] as const);
+/**
+ * Banned verbs whose inflections are banned too (spec section 2 lists the base form).
+ * `dynamic` and the like are not verbs and get no stem rule: `dynamically` stays clean.
+ */
+const VERB_ROOTS = [
+  'leverage',
+  'elevate',
+  'unlock',
+  'delve',
+  'empower',
+  'harness',
+  'foster',
+  'facilitate',
+  'utilize',
+  'showcase',
+  'streamline',
+  'revolutionize',
+  'supercharge',
+  'unleash',
+] as const;
+
+/** Phrases with a verb head: head -> its other forms. */
+const PHRASE_INFLECTIONS: Record<string, string[]> = {
+  'reach out': ['reaches out', 'reached out', 'reaching out'],
+  'serves as': ['serve as', 'served as', 'serving as'],
+};
+
+export function verbForms(root: string): string[] {
+  const e = root.endsWith('e');
+  const stem = e ? root.slice(0, -1) : root;
+  const third = /(s|sh|ch|x|z)$/.test(root) ? `${root}es` : `${root}s`;
+  return [third, e ? `${root}d` : `${root}ed`, `${stem}ing`];
+}
+
+const listed = new Set<string>(BANNED_WORDS);
+const WORD_FORMS = [
+  ...BANNED_WORDS.map((w) => [w, w] as const),
+  ...VERB_ROOTS.flatMap((r) =>
+    verbForms(r)
+      .filter((f) => !listed.has(f))
+      .map((f) => [r, f] as const),
+  ),
+];
+const WORD_RES = WORD_FORMS.map(([, f]) => [f, phraseRegex(f)] as const);
+const PHRASE_RES = BANNED_PHRASES.flatMap((p) =>
+  [p, ...(PHRASE_INFLECTIONS[p] ?? [])].map(
+    (f) => [f, phraseRegex(f)] as const,
+  ),
+);
 // ©, ® are Extended_Pictographic but are plain typography here.
 const EMOJI_RE = /(?![©®])[\p{Extended_Pictographic}♥]/gu;
 
@@ -334,6 +385,8 @@ export function contentEntries(): Entry[] {
     ...walkStrings('writing.ts', writing),
     ...walkStrings('cv.ts', cv),
     ...objectEntries(),
+    // JSON-LD Person, as rendered in the head (URLs are skipped by walkStrings).
+    ...walkStrings('jsonld', buildPerson()),
     // All objects, so the not-yet-confirmed cruiser phrase is gated before it is confirmed.
     { path: 'poster-alt.ts:buildPosterAlt', text: buildPosterAlt(objects) },
   ];
@@ -349,6 +402,7 @@ const ASTRO_ATTRS = [
   'alt',
   'title',
   'placeholder',
+  'content',
 ];
 
 function blank(s: string): string {
@@ -367,8 +421,12 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/gi, '&');
 }
 
-/** Index just after the `}` that closes the `{` at `start`, honoring quotes. */
-function closeBrace(src: string, start: number): number {
+export class ScanError extends Error {}
+
+const lineOf = (src: string, i: number) => src.slice(0, i).split('\n').length;
+
+/** Index just after the `}` that closes the `{` at `start`, honoring quotes and JS comments. */
+function closeBrace(src: string, start: number, file: string): number {
   let depth = 0;
   let quote = '';
   for (let i = start; i < src.length; i++) {
@@ -376,26 +434,52 @@ function closeBrace(src: string, start: number): number {
     if (quote) {
       if (c === '\\') i++;
       else if (c === quote) quote = '';
+    } else if (c === '/' && src[i + 1] === '*') {
+      const end = src.indexOf('*/', i + 2);
+      if (end < 0) break;
+      i = end + 1;
+    } else if (c === '/' && src[i + 1] === '/' && src[i - 1] !== ':') {
+      const end = src.indexOf('\n', i);
+      if (end < 0) break;
+      i = end;
     } else if (c === '"' || c === "'" || c === '`') quote = c;
     else if (c === '{') depth++;
     else if (c === '}' && --depth === 0) return i + 1;
   }
-  return src.length;
+  throw new ScanError(
+    `${file}:${lineOf(src, start)}: unbalanced ${quote ? `${quote} quote` : 'brace'} inside {...}`,
+  );
 }
 
 function literalsIn(expr: string): string[] {
   const out: string[] = [];
-  for (const m of expr.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g))
+  // Comments may hold apostrophes; they are not displayed.
+  const code = expr.replace(/\/\*[\s\S]*?\*\//g, blank);
+  for (const m of code.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g))
     out.push(m[2] ?? '');
   return out;
 }
 
 export function astroStrings(source: string, file: string): Entry[] {
   let src = source;
+  const out: Entry[] = [];
+  // JSON-LD bodies: their quoted values are displayed to crawlers. Keep them before scripts are blanked.
+  for (const m of source.matchAll(
+    /<script\b(?=(?:[^>/]|\/(?!>))*\btype=["']application\/ld\+json["'])(?:[^>/]|\/(?!>))*>([\s\S]*?)<\/script>/gi,
+  )) {
+    const at = (m.index ?? 0) + m[0].indexOf(m[1] ?? '');
+    for (const lit of literalsIn(m[1] ?? ''))
+      if (!URL_RE.test(lit) && lit.trim())
+        out.push({
+          path: `${file}:${lineOf(source, at)}`,
+          text: decodeEntities(lit),
+        });
+  }
   src = src.replace(/^---\r?\n[\s\S]*?\r?\n---/, blank);
   src = src.replace(/<!--[\s\S]*?-->/g, blank);
+  // Self-closing first (`<script ... />`), or the lazy match below would run into the next script.
+  src = src.replace(/<(script|style)\b(?:[^>/]|\/(?!>))*\/>/gi, blank);
   src = src.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, blank);
-  const out: Entry[] = [];
   const lineAt = (i: number) => src.slice(0, i).split('\n').length;
   const push = (i: number, text: string) => {
     const t = decodeEntities(text).trim();
@@ -414,7 +498,7 @@ export function astroStrings(source: string, file: string): Entry[] {
     const c = src[i];
     if (c === '{') {
       flushText(i);
-      const end = closeBrace(src, i);
+      const end = closeBrace(src, i, file);
       for (const lit of literalsIn(src.slice(i, end))) push(i, lit);
       i = textStart = end;
     } else if (c === '<' && src[i + 1] === '!') {
@@ -429,9 +513,13 @@ export function astroStrings(source: string, file: string): Entry[] {
       while (j < src.length && src[j] !== '>') {
         if (src[j] === '"' || src[j] === "'") {
           const q = src[j] as string;
-          j = src.indexOf(q, j + 1);
-          if (j < 0) j = src.length;
-        } else if (src[j] === '{') j = closeBrace(src, j) - 1;
+          const end = src.indexOf(q, j + 1);
+          if (end < 0)
+            throw new ScanError(
+              `${file}:${lineAt(j)}: unbalanced ${q} quote inside a tag`,
+            );
+          j = end;
+        } else if (src[j] === '{') j = closeBrace(src, j, file) - 1;
         j++;
       }
       const tag = src.slice(i, j);
@@ -439,7 +527,7 @@ export function astroStrings(source: string, file: string): Entry[] {
       for (let m = attrRe.exec(tag); m; m = attrRe.exec(tag)) {
         if (m[2] === '{') {
           const start = tag.indexOf('{', m.index + m[0].length - 1);
-          const end = closeBrace(tag, start);
+          const end = closeBrace(tag, start, `${file}:${lineAt(i)}`);
           for (const lit of literalsIn(tag.slice(start, end))) push(i, lit);
           attrRe.lastIndex = end;
         } else push(i, m[3] ?? m[4] ?? '');
@@ -471,12 +559,59 @@ export function runGate(): Hit[] {
   return gate([...contentEntries(), ...astroEntries()]);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const hits = runGate();
-  if (hits.length) {
-    console.error('copy-gate FAILED:');
-    for (const h of hits) console.error(`${h.path}: ${h.rule}: ${h.match}`);
-    process.exit(1);
+/**
+ * `src/content/<file>:<line>` for a content entry path such as `copy.ts:titleBlock.name`:
+ * the line holding the string (whole text, else its first 30 characters, else the match).
+ * Falls back to the entry path when the string is built at runtime (poster alt, JSON-LD).
+ */
+export function locate(
+  hit: Hit,
+  text: string,
+  srcDir = resolve('src/content'),
+): string {
+  const [file] = hit.path.split(':');
+  if (!file || /:\d+$/.test(hit.path)) return hit.path;
+  let source: string;
+  try {
+    source = readFileSync(join(srcDir, file), 'utf8');
+  } catch {
+    return hit.path;
   }
-  console.log('copy-gate ok');
+  const esc = (t: string) => t.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const needles = [text, esc(text), text.slice(0, 30), esc(text.slice(0, 30))];
+  for (const n of needles) {
+    const at = n ? source.indexOf(n) : -1;
+    if (at >= 0) {
+      const line = source.slice(0, at).split('\n').length;
+      // A long string may wrap: point at the line holding the match when it is nearby.
+      return `src/content/${file}:${line} (${hit.path})`;
+    }
+  }
+  return hit.path;
+}
+
+export function formatHits(entries: Entry[], hits: Hit[]): string[] {
+  const text = new Map(entries.map((e) => [e.path, e.text]));
+  return hits.map(
+    (h) => `${locate(h, text.get(h.path) ?? '')}: ${h.rule}: ${h.match}`,
+  );
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  try {
+    const entries = [...contentEntries(), ...astroEntries()];
+    const hits = gate(entries);
+    if (hits.length) {
+      console.error('copy-gate FAILED:');
+      for (const line of formatHits(entries, hits)) console.error(line);
+      process.exit(1);
+    }
+    console.log('copy-gate ok');
+  } catch (e) {
+    if (e instanceof ScanError) {
+      console.error(`copy-gate FAILED: ${e.message}`);
+      process.exit(1);
+    }
+    throw e;
+  }
 }

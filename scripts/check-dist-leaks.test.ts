@@ -24,6 +24,21 @@ function dist(files: Record<string, string>) {
 }
 
 describe('check-dist-leaks', () => {
+  it('reports each file and match once, whatever the number of forms and sources', () => {
+    const v = 'A pending sentence here';
+    const d = dist({
+      'index.html': `<p>${v}</p><script>var a="${v}"</script> TODO TODO`,
+    });
+    const leaks = checkLeaks(d, {
+      pendingValues: [v, v],
+      unconfirmedValues: [v],
+    });
+    expect(leaks).toEqual([
+      { file: 'index.html', match: 'TODO' },
+      { file: 'index.html', match: v },
+    ]);
+  });
+
   it('passes a clean dist', () => {
     const d = dist({
       'index.html': '<h1>nihal maskey</h1>',

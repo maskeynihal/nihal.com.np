@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import type { AstroIntegration } from 'astro';
 import react from '@astrojs/react';
+import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { validateAll } from './src/content/validate';
 
@@ -16,6 +17,14 @@ const validateContent: AstroIntegration = {
 
 export default defineConfig({
   output: 'static',
-  integrations: [validateContent, react()],
+  site: 'https://nihal.com.np',
+  integrations: [
+    validateContent,
+    react(),
+    // /sent and /404 are noindex pages; keep them out of the sitemap.
+    sitemap({
+      filter: (page) => !/\/(sent|404)\/?$/.test(new URL(page).pathname),
+    }),
+  ],
   vite: { plugins: [tailwindcss()] },
 });

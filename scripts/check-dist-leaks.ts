@@ -91,8 +91,10 @@ export function checkLeaks(
   const values = opts.allowPending
     ? []
     : [
-        ...(opts.pendingValues ?? pendingStrings()),
-        ...(opts.unconfirmedValues ?? unconfirmedStrings()),
+        ...new Set([
+          ...(opts.pendingValues ?? pendingStrings()),
+          ...(opts.unconfirmedValues ?? unconfirmedStrings()),
+        ]),
       ];
   for (const file of walk(dist)) {
     const buf = readFileSync(file);
@@ -112,7 +114,14 @@ export function checkLeaks(
         leaks.push({ file: rel, match: v });
     }
   }
-  return leaks;
+  // One report per file and match, however many forms (raw, escaped, html) of it were found.
+  const seen = new Set<string>();
+  return leaks.filter((l) => {
+    const key = `${l.file}\0${l.match}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -161,6 +161,7 @@ export const Copy = z.strictObject({
     source: text,
     sourceHref: url,
   }),
+  meta: z.strictObject({ title: text, description: text, ogAlt: text }),
   notFound: z.strictObject({
     heading: text,
     sheet: text,

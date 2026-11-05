@@ -5,10 +5,10 @@ import MotionToggle from '../components/MotionToggle.astro';
 import SoundToggle from '../components/SoundToggle.astro';
 import { getCopy } from '../content';
 
-const { titleBlock } = getCopy();
+const { titleBlock, headings } = getCopy();
 ---
 
-<Base title="nihal maskey · lead engineer, kathmandu">
+<Base skipTo="work" jsonLd>
   <main class="page-main">
     <h1 class="name">{titleBlock.name}</h1>
     <p class="label page-rev">rev 2026.11 · sheet 1 of 1</p>
@@ -22,6 +22,12 @@ const { titleBlock } = getCopy();
         <a href={`mailto:${titleBlock.email}`}>{titleBlock.email}</a>
       </p>
     </div>
+    <!-- Placeholder target for the skip link; B-04 replaces it with the real work section. -->
+    <section id="work" tabindex="-1" aria-labelledby="work-heading">
+      <h2 id="work-heading" class="sr-only">
+        {headings.work}
+      </h2>
+    </section>
     {testHooks && (
       <div
         id="motion-probe"
