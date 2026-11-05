@@ -1,5 +1,13 @@
 import type { BodyDef, CvRow, Holiday, PR, Post, WorkItem } from './schema';
-import { validateAll } from './validate';
+import type { GithubData } from './schema';
+import { copy } from './copy';
+import { work } from './work';
+import { oss } from './oss';
+import { writing } from './writing';
+import { cv } from './cv';
+import { objects } from './objects';
+import holidays from './holidays.json';
+import github from './generated/github.json';
 
 /**
  * Owner preview builds (`pnpm build:preview-unconfirmed`) set PUBLIC_SHOW_UNCONFIRMED=1.
@@ -11,16 +19,16 @@ const showUnconfirmed = (): boolean =>
 const visible = <T extends { confirmed: boolean }>(rows: readonly T[]): T[] =>
   showUnconfirmed() ? [...rows] : rows.filter((r) => r.confirmed);
 
-// Parsed once at import. An invalid row throws a readable error and fails the build.
-const data = validateAll();
-
-export const getCopy = () => data.copy;
-export const getWork = (): WorkItem[] => visible(data.work);
-export const getCv = (): CvRow[] => visible(data.cv);
-export const getObjects = (): BodyDef[] => visible(data.objects);
-export const getOss = (): PR[] => [...data.oss];
-export const getWriting = (): Post[] => [...data.writing];
-export const getHolidays = (): Holiday[] => [...data.holidays];
-export const getGithub = () => data.github;
+// Validation is not done here: the `validate-content` Astro integration runs
+// `validateAll()` (src/content/validate.ts) before every build, so it cannot be
+// skipped by dropping this import from a page. Server-side use only.
+export const getCopy = () => copy;
+export const getWork = (): WorkItem[] => visible(work);
+export const getCv = (): CvRow[] => visible(cv);
+export const getObjects = (): BodyDef[] => visible(objects);
+export const getOss = (): PR[] => [...oss];
+export const getWriting = (): Post[] => [...writing];
+export const getHolidays = (): Holiday[] => [...(holidays as Holiday[])];
+export const getGithub = (): GithubData => github as GithubData;
 
 export type { BodyDef, CvRow, Holiday, PR, Post, WorkItem };

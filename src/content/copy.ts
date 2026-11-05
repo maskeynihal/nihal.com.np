@@ -2,8 +2,9 @@ import type { Copy } from './schema';
 
 /**
  * Interface copy, from docs/specs/02-copy.md section 3. Validated by `Copy` at build.
- * Fragments still marked [CONFIRM]/[ASK] in the spec are not displayed: they are
- * listed in `pending` and the displayed sentence keeps only its confirmed part.
+ * Fragments still marked [CONFIRM]/[ASK] in the spec are not here: they live in
+ * `pending.ts` (build-time only) and the displayed sentence keeps only its confirmed part.
+ * Client scripts must not import this file; use `client-copy.ts`.
  * Templates use {braces}: {merged} {closed} {date} {year}.
  */
 export const copy = {
@@ -39,12 +40,7 @@ export const copy = {
     dragHint: 'drag things around. tap one to jump to its section.',
     reset: 'reset the desk',
     skip: 'skip the 3D desk',
-    posterAlt:
-      'Line drawing of an Arduino board with a small OLED screen, three desk clocks, a Nepali desk calendar and a Pac-Man ghost laid out on blueprint paper.',
-    posterAltWithCruiser:
-      'Line drawing of an Arduino board with a small OLED screen, three desk clocks, a Nepali desk calendar, a Pac-Man ghost and a toy Land Cruiser laid out on blueprint paper.',
     oledCaption: 'demo values',
-    objectListLabel: 'objects on the desk',
   },
   headings: {
     work: 'work',
@@ -57,7 +53,6 @@ export const copy = {
     play: 'play',
     leave: 'esc to leave',
     openNewTab: 'open the game in a new tab',
-    playStandalone: 'play standalone',
   },
   openSource: {
     intro:
@@ -121,12 +116,4 @@ export const copy = {
   },
   consoleLine:
     'hi. source: github.com/maskeynihal/nihal.com.np. press R with the desk focused to reset it.',
-  pending: [
-    '[CONFIRM] contact.lead: append "I reply within a day or two."',
-    '[ASK] contact clocks: cities 2 and 3 (Kathmandu is the only confirmed clock).',
-    '[CONFIRM] contact.overlap: regions sentence ("My mornings are Australia\'s afternoon and the US West Coast\'s evening.")',
-    '[CONFIRM] colophon: analytics statement ("Analytics: Vercel only, no cookies.")',
-    '[Q5] cv: resume (pdf) link only if a live PDF exists (live URL returned 404 on 2026-11-05).',
-    '[CONFIRM] poster/objects: Land Cruiser (see objects.ts cruiser).',
-  ],
 } satisfies Copy;

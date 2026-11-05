@@ -8,9 +8,11 @@ const OUT = fileURLToPath(
   new URL('../src/content/generated/github.json', import.meta.url),
 );
 const API = 'https://api.github.com';
-const MERGED_Q = 'author:maskeynihal type:pr is:merged -user:maskeynihal';
-const CLOSED_Q =
-  'author:maskeynihal type:pr is:unmerged is:closed -user:maskeynihal';
+/** `is:public` keeps private-repo activity out of the counts, even with a token. */
+export const MERGED_Q =
+  'author:maskeynihal type:pr is:merged is:public -user:maskeynihal';
+export const CLOSED_Q =
+  'author:maskeynihal type:pr is:unmerged is:closed is:public -user:maskeynihal';
 
 type Fetch = typeof fetch;
 
@@ -64,7 +66,9 @@ export async function buildGithubData(
     const j = (await getJson(f, `${API}/repos/${name}`, token)) as {
       stargazers_count: number;
       pushed_at: string;
+      private?: boolean;
     };
+    if (j.private === true) continue; // public repos only
     repos[name] = { stars: j.stargazers_count, pushedAt: j.pushed_at };
   }
   return GithubData.parse({

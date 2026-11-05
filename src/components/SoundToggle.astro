@@ -19,7 +19,7 @@ import { copy } from '../content/copy';
 
 <script>
   import { getSound, setSound, subscribeSound } from '../lib/prefs';
-  import { copy } from '../content/copy';
+  import { soundLabel } from '../content/client-copy';
 
   document
     .querySelectorAll<HTMLButtonElement>('[data-sound-toggle]')
@@ -27,7 +27,7 @@ import { copy } from '../content/copy';
       const state = btn.querySelector<HTMLElement>('[data-sound-state]');
       const sync = (s: 'on' | 'off') => {
         btn.setAttribute('aria-pressed', String(s === 'on'));
-        if (state) state.textContent = copy.prefs[s];
+        if (state) state.textContent = soundLabel[s];
       };
       sync(getSound());
       subscribeSound(sync);

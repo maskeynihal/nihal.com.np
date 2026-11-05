@@ -47,7 +47,6 @@ export const objects: BodyDef[] = [
     explode: [-0.26, 0.3, 0],
     label: 'clock two',
     confirmed: false,
-    pending: ['[ASK] city 2 for the second desk clock and its callout.'],
   },
   {
     id: 'clock-3',
@@ -60,7 +59,6 @@ export const objects: BodyDef[] = [
     explode: [-0.22, 0.34, 0.16],
     label: 'clock three',
     confirmed: false,
-    pending: ['[ASK] city 3 for the third desk clock and its callout.'],
   },
   {
     id: 'calendar',
@@ -106,8 +104,5 @@ export const objects: BodyDef[] = [
     explode: [0.1, 0.38, 0.2],
     label: 'land cruiser',
     confirmed: false,
-    pending: [
-      "[CONFIRM] toy Land Cruiser (HJ60) is the owner's; no generic fallback if unconfirmed.",
-    ],
   },
 ];

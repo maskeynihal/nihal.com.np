@@ -89,10 +89,32 @@ describe('BodyDef', () => {
   it('accepts', () => accepts(BodyDef, o));
   it('rejects a wrong target', () =>
     rejects(BodyDef, { ...o, target: '#nowhere' }));
-  it('rejects a bare #work target', () =>
-    rejects(BodyDef, { ...o, target: '#work' }));
-  it('accepts #work-* targets', () =>
-    accepts(BodyDef, { ...o, target: '#work-pac-man' }));
+  it('accepts exactly the allowed targets', () => {
+    for (const t of [
+      '#desk',
+      '#work',
+      '#work-trayt',
+      '#work-tz-converter',
+      '#work-space-hog',
+      '#work-car-sensors',
+      '#work-pac-man',
+      '#open-source',
+      '#writing',
+      '#cv',
+      '#contact',
+    ])
+      accepts(BodyDef, { ...o, target: t });
+  });
+  it('rejects #work-<unknown id> and near misses', () => {
+    for (const t of [
+      '#work-nope',
+      '#work-',
+      '#work-pac-man-2',
+      '#Work',
+      'work',
+    ])
+      rejects(BodyDef, { ...o, target: t });
+  });
   it('rejects a wrong collider kind', () =>
     rejects(BodyDef, { ...o, collider: { ...o.collider, kind: 'mesh' } }));
   it('rejects a short vector', () =>

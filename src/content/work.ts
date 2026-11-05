@@ -14,11 +14,6 @@ export const work: WorkItem[] = [
     frameNote: 'Client work, so there is no code to link. Ask me about it.',
     links: [],
     confirmed: false,
-    pending: [
-      '[CONFIRM] whether the client name "Trayt Health" may appear (title, meta, cv).',
-      "[ASK] one sentence on what was actually hard, in the owner's words.",
-      '[CONFIRM] numbers before adding: 20% smaller frontend bundle, API response times over 200% faster, and how each was measured.',
-    ],
   },
   {
     id: 'tz-converter',
@@ -41,7 +36,6 @@ export const work: WorkItem[] = [
       { label: 'GitHub', href: 'https://github.com/maskeynihal/tz-extension' },
     ],
     confirmed: true,
-    pending: ['[ASK] hardest part, one sentence.'],
   },
   {
     id: 'space-hog',
@@ -55,7 +49,6 @@ export const work: WorkItem[] = [
       { label: 'GitHub', href: 'https://github.com/maskeynihal/space-hog' },
     ],
     confirmed: true,
-    pending: ['[ASK] hardest part; largest volume tested.'],
   },
   {
     id: 'car-sensors',
@@ -76,9 +69,6 @@ export const work: WorkItem[] = [
       },
     ],
     confirmed: true,
-    pending: [
-      '[CONFIRM] vehicle details held back: two Land Cruisers; LC78 for the UNO R4 unit; HJ60 with an ESP32-S3 reading the factory coolant sender and drawing temperature on a TFT. Vehicle ownership is unverified in the profile.',
-    ],
   },
   {
     id: 'pac-man',
@@ -96,9 +86,5 @@ export const work: WorkItem[] = [
       },
     ],
     confirmed: true,
-    pending: [
-      '[ASK] who gets frozen in two-player mode.',
-      '[ASK] which path-finding algorithm.',
-    ],
   },
 ];

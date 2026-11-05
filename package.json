@@ -16,6 +16,8 @@
     "github:fetch": "tsx scripts/fetch-github.ts",
     "build:e2e": "cross-env PUBLIC_TEST_HOOKS=1 astro build",
     "check:graph": "tsx scripts/check-initial-graph.ts",
+    "check:leaks": "tsx scripts/check-dist-leaks.ts",
+    "check": "pnpm check:graph && pnpm check:leaks",
     "review": "tsx scripts/review.ts",
     "review:all": "tsx scripts/review.ts --all",
     "fonts": "tsx scripts/fonts/build-fonts.ts",

@@ -7,14 +7,12 @@ export const cv: CvRow[] = [
     role: 'lead engineer',
     org: 'Leapfrog Technology',
     confirmed: true,
-    pending: ['[CONFIRM] append ", for Trayt Health" to org.'],
   },
   {
     when: '2023 → 2025',
     role: 'senior software engineer',
     org: 'Leapfrog Technology',
     confirmed: true,
-    pending: ['[CONFIRM] append ", for Trayt Health" to org.'],
   },
   {
     when: '2021 → 2023',

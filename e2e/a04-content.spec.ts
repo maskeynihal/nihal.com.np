@@ -19,3 +19,34 @@ test('title block option A comes from content @A-04', async ({ page }) => {
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/\[(CONFIRM|ASK)/);
 });
+
+test('no script or stylesheet the page loads contains unconfirmed notes @A-04', async ({
+  page,
+  baseURL,
+}) => {
+  await page.goto('/');
+  const urls = await page.evaluate(() => {
+    const out = new Set<string>();
+    document
+      .querySelectorAll<HTMLScriptElement>('script[src]')
+      .forEach((s) => out.add(s.src));
+    document
+      .querySelectorAll<HTMLLinkElement>(
+        'link[rel~="stylesheet"], link[rel~="modulepreload"]',
+      )
+      .forEach((l) => out.add(l.href));
+    performance.getEntriesByType('resource').forEach((r) => out.add(r.name));
+    return [...out];
+  });
+  const origin = new URL(baseURL ?? page.url()).origin;
+  const same = urls.filter(
+    (u) => new URL(u).origin === origin && /\.(js|mjs|css)(\?|$)/.test(u),
+  );
+  expect(same.length).toBeGreaterThan(0);
+  for (const u of same) {
+    const res = await page.request.get(u);
+    const text = await res.text();
+    expect(text, u).not.toContain('[CONFIRM');
+    expect(text, u).not.toContain('[ASK');
+  }
+});

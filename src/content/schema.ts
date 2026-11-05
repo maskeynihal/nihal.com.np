@@ -11,13 +11,18 @@ const text = z.string().min(1);
 const vec3 = z.tuple([z.number(), z.number(), z.number()]);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
 
-/** Notes for [CONFIRM]/[ASK] fragments that are held back from display. */
-const pending = z.array(text).optional();
-
 export const Link = z.strictObject({ label: text, href: url });
 
+export const WORK_IDS = [
+  'trayt',
+  'tz-converter',
+  'space-hog',
+  'car-sensors',
+  'pac-man',
+] as const;
+
 export const WorkItem = z.strictObject({
-  id: z.enum(['trayt', 'tz-converter', 'space-hog', 'car-sensors', 'pac-man']),
+  id: z.enum(WORK_IDS),
   title: text,
   dateLine: text,
   meta: text,
@@ -25,7 +30,6 @@ export const WorkItem = z.strictObject({
   frameNote: text.optional(),
   links: z.array(Link),
   confirmed: z.boolean(),
-  pending,
 });
 
 export const PR = z.strictObject({
@@ -47,11 +51,12 @@ export const CvRow = z.strictObject({
   role: text,
   org: text,
   confirmed: z.boolean(),
-  pending,
 });
 
-export const SECTION_TARGET =
-  /^#(desk|work-[a-z0-9-]+|open-source|writing|cv|contact)$/;
+/** Exactly: #desk #work #work-<work id> #open-source #writing #cv #contact. */
+export const SECTION_TARGET = new RegExp(
+  `^#(desk|work|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
+);
 
 export const BodyDef = z.strictObject({
   id: z.enum([
@@ -80,7 +85,6 @@ export const BodyDef = z.strictObject({
   explode: vec3,
   label: text,
   confirmed: z.boolean(),
-  pending,
 });
 
 export const Holiday = z.strictObject({
@@ -111,10 +115,7 @@ export const Copy = z.strictObject({
     dragHint: text,
     reset: text,
     skip: text,
-    posterAlt: text,
-    posterAltWithCruiser: text,
     oledCaption: text,
-    objectListLabel: text,
   }),
   headings: z.strictObject({
     work: text,
@@ -127,7 +128,6 @@ export const Copy = z.strictObject({
     play: text,
     leave: text,
     openNewTab: text,
-    playStandalone: text,
   }),
   openSource: z.strictObject({
     intro: text,
@@ -174,8 +174,6 @@ export const Copy = z.strictObject({
     lost: text,
   }),
   consoleLine: text,
-  /** [CONFIRM]/[ASK] fragments held back from display. Never rendered. */
-  pending: z.array(text),
 });
 
 /** `generated/github.json`, written by `scripts/fetch-github.ts`. */

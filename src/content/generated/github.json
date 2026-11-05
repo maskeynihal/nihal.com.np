@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-05T08:57:11.129Z",
+  "fetchedAt": "2026-11-05T09:11:43.682Z",
   "merged": 41,
   "closed": 13,
   "repos": {
@@ -40,8 +40,8 @@
       "pushedAt": "2026-11-04T15:43:31Z"
     },
     "supabase/supabase": {
-      "stars": 114551,
-      "pushedAt": "2026-11-05T08:14:04Z"
+      "stars": 114554,
+      "pushedAt": "2026-11-05T09:11:13Z"
     }
   }
 }
