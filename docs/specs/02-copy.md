@@ -28,7 +28,7 @@ Reviewer-only (not grep): "craft"/"underscore" as verbs; rule-of-three where thr
 
 ### Sheet index (nav)
 Rows: desk · work · open source · writing · cv · contact · colophon
-Toggles: "reduce motion" (`aria-pressed`) · "sound" (`aria-pressed`, state text "on" / "off")
+Toggles: "reduce motion" (`aria-pressed`) · "sound" (`aria-pressed`, state text "on" / "off") · note when the OS forces reduced motion: "set by your system"
 
 ### #desk: title block
 h1: **nihal maskey**
