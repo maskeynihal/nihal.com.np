@@ -1,5 +1,6 @@
 import {
   Suspense,
+  lazy,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -26,6 +27,7 @@ import { calendarFace } from '../../lib/desk/calendar';
 import { eyeYaw } from '../../lib/desk/eyes';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { OLED_TICK_MS } from '../../lib/desk/oled';
+import { parseObjects, type ObjectDef } from '../../lib/desk/object-def';
 import { readToken } from '../../lib/desk/tokens';
 import holidays from '../../content/holidays.json';
 import type { Holiday } from '../../content/schema';
@@ -47,6 +49,7 @@ import {
   countOledTick,
   getProbeCamera,
   installSceneHooks,
+  isQuiet,
   setCalendarProbe,
   setCameraProbe,
   setClockProbe,
@@ -54,6 +57,10 @@ import {
   setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
+import { Interaction } from './Interaction';
+import { IslandBoundary } from './IslandBoundary';
+import { physicsBridge } from './physics-bridge';
+import { registry } from './registry';
 import { createCalendarTexture, createOledTexture } from './textures';
 
 // R3F 9.8 builds a `THREE.Clock` for each root, and three 0.187 warns (console.warn) on every one.
@@ -76,25 +83,28 @@ setTimeout(restoreWarn, 10_000);
  * `frameloop="demand"`: anything that changes a pixel calls `invalidate()`.
  */
 
-interface ObjectDef {
-  id: string;
-  model: string;
-  p: [number, number, number];
-  q: [number, number, number, number];
-}
-
 /** The shown objects, written into the HTML by Poster.astro (Scene never imports objects.ts). */
 function readObjects(): ObjectDef[] {
-  const raw = document
-    .querySelector('[data-poster]')
-    ?.getAttribute('data-objects');
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as ObjectDef[];
-  } catch {
-    return [];
-  }
+  return parseObjects(
+    document.querySelector('[data-poster]')?.getAttribute('data-objects'),
+  );
 }
+
+/** The sheet is drawn like an object but is never registered, picked or given a body. */
+const SHEET_DEF: ObjectDef = {
+  id: 'sheet',
+  model: 'sheet',
+  p: [0, 0, 0],
+  q: [0, 0, 0, 1],
+  collider: { kind: 'cuboid', args: [0.8, 0.01, 0.6], offset: [0, 0, 0] },
+  mass: 1,
+  callouts: [],
+  target: '#desk',
+  explode: [0, 0, 0],
+};
+
+// The physics layer is its own chunk: requested on the first grab, never with the Scene.
+const PhysicsWorld = lazy(() => import('./physics/physics-world'));
 
 function applyPose(cam: PerspectiveCamera, pose: CameraPose): void {
   cam.fov = pose.fov;
@@ -154,29 +164,44 @@ function Rig({ art }: { art: LineArt }) {
   return null;
 }
 
-/** Puts the "demo values" caption under the Arduino's screen, in canvas CSS px. */
+/**
+ * Puts the "demo values" caption under the Arduino's screen, in canvas CSS px. It follows the
+ * board: recomputed on every frame that is drawn (a grab, a throw or a resize each draw one).
+ */
 function OledCaption({ target }: { target: React.RefObject<Object3D | null> }) {
   const { camera, size, gl } = useThree();
+  const caption = useRef<HTMLElement | null>(null);
+  const last = useRef('');
   useLayoutEffect(() => {
+    caption.current =
+      gl.domElement
+        .closest('[data-desk]')
+        ?.querySelector<HTMLElement>('[data-oled-caption]') ?? null;
+    const el = caption.current;
+    return () => {
+      if (el) el.style.transform = '';
+      last.current = '';
+    };
+  }, [gl]);
+  const at = useMemo(() => new Vector3(), []);
+  const place = () => {
     const node = target.current;
-    const caption = gl.domElement
-      .closest('[data-desk]')
-      ?.querySelector<HTMLElement>('[data-oled-caption]');
-    if (!node || !caption) return;
+    const el = caption.current;
+    if (!node || !el) return;
     camera.updateMatrixWorld();
     node.updateWorldMatrix(true, false);
     // Just in front of the board's lower edge, below the screen.
-    const p = node
-      .getWorldPosition(new Vector3())
-      .add(new Vector3(0, -0.05, 0.1));
-    p.project(camera);
-    const x = ((p.x + 1) / 2) * size.width;
-    const y = ((1 - p.y) / 2) * size.height;
-    caption.style.transform = `translate(${Math.round(x - caption.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
-    return () => {
-      caption.style.transform = '';
-    };
-  });
+    node.getWorldPosition(at).add(new Vector3(0, -0.05, 0.1));
+    at.project(camera);
+    const x = ((at.x + 1) / 2) * size.width;
+    const y = ((1 - at.y) / 2) * size.height;
+    const t = `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
+    if (t === last.current) return;
+    last.current = t;
+    el.style.transform = t;
+  };
+  useLayoutEffect(place);
+  useFrame(place);
   return null;
 }
 
@@ -227,14 +252,27 @@ function Model({
 }) {
   const art = useLineArt();
   const gltf = useGltf(url);
+  const group = useRef<Group>(null);
   const root = useMemo(() => {
     const clone = gltf.scene.clone(true);
     prepareLineArt(clone, art, { textured, sheet: sheet ?? false });
     return clone;
   }, [gltf, art, textured, sheet]);
   useLayoutEffect(() => onRoot?.(root), [root, onRoot]);
+  // Every object (not the sheet) goes in the registry: picking, physics and explode read it.
+  useLayoutEffect(() => {
+    const obj = group.current;
+    if (sheet || !obj) return;
+    return registry.register({ id: def.id, def, obj, lift: root });
+  }, [def, root, sheet]);
   return (
-    <group name={def.id} position={def.p} quaternion={def.q}>
+    <group
+      ref={group}
+      name={def.id}
+      userData={sheet ? {} : { deskId: def.id }}
+      position={def.p}
+      quaternion={def.q}
+    >
       <primitive object={root} />
       {children?.(root)}
     </group>
@@ -275,7 +313,7 @@ function useOled() {
       tick.current += 1;
       countOledTick();
       oled.draw(tick.current);
-      invalidate();
+      if (!isQuiet()) invalidate();
     }, OLED_TICK_MS);
     return () => clearInterval(id);
   }, [active, motion, oled, invalidate]);
@@ -310,7 +348,7 @@ function ClockHands({ id, root }: { id: string; root: Object3D }) {
       if (hour.rotation.y !== h || minute.rotation.y !== m) {
         hour.rotation.y = h;
         minute.rotation.y = m;
-        invalidate();
+        if (!isQuiet()) invalidate();
       }
     };
     set();
@@ -340,7 +378,7 @@ function useCalendarMaterial() {
       if (!force && key === last) return;
       last = key;
       calendar.draw(face);
-      invalidate();
+      if (!isQuiet()) invalidate();
     };
     refresh(true);
     // Web fonts may land after the first draw.
@@ -458,13 +496,7 @@ function Desk({
   return (
     <>
       <group visible={!probeOn}>
-        {sheetUrl ? (
-          <Model
-            url={sheetUrl}
-            def={{ id: 'sheet', model: 'sheet', p: [0, 0, 0], q: [0, 0, 0, 1] }}
-            sheet
-          />
-        ) : null}
+        {sheetUrl ? <Model url={sheetUrl} def={SHEET_DEF} sheet /> : null}
         {objects.map((def) => {
           const url = urls[def.model];
           return url ? (
@@ -502,8 +534,21 @@ export default function Scene({ onReady }: { onReady: () => void }) {
   const objects = useMemo(() => readObjects(), []);
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
   const [probeOn, setProbeOn] = useState(false);
+  const [physicsOn, setPhysicsOn] = useState(false);
 
   useEffect(() => () => art.dispose(), [art]);
+
+  // The engine is requested by the first grab (Interaction), never earlier. A fresh Scene starts
+  // from a clean bridge; physics follows `loading`, and a failed load leaves taps working.
+  useEffect(() => {
+    physicsBridge.reset();
+    const sync = () => setPhysicsOn(physicsBridge.state() !== 'idle');
+    const off = physicsBridge.subscribe(sync);
+    return () => {
+      off();
+      physicsBridge.reset();
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -561,6 +606,18 @@ export default function Scene({ onReady }: { onReady: () => void }) {
             }}
           >
             <Rig art={art} />
+            <Interaction />
+            {physicsOn ? (
+              <IslandBoundary
+                island="physics"
+                fallback={() => null}
+                onError={() => physicsBridge.fail()}
+              >
+                <Suspense fallback={null}>
+                  <PhysicsWorld paused={!active} />
+                </Suspense>
+              </IslandBoundary>
+            ) : null}
             <Suspense fallback={null}>
               {urls ? (
                 <Desk

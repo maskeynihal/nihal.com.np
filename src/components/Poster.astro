@@ -13,7 +13,9 @@ import { buildPosterAlt } from '../content/poster-alt';
  * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
  * moves) until `data-desk-state="live"`: the drag hint, the reset button and the OLED caption.
  * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
- * so the shown objects are handed to it as `data-objects`: id, model file and home pose only.
+ * so the shown objects are handed to it as `data-objects`: the confirmed ones only, with their
+ * pose, collider, mass, callouts, target and explode offset (everything the physics needs).
+ * The script below also owns `nihal:navigate`: the one scroll owner (design 5, impl spec 4).
  */
 const { titleBlock } = getCopy();
 const objects = JSON.stringify(
@@ -22,6 +24,12 @@ const objects = JSON.stringify(
     model: o.model.replace(/\.glb$/, ''),
     p: o.home.p,
     q: o.home.q,
+    collider: o.collider,
+    mass: o.mass,
+    ...(o.kinematicWhenIdle ? { kinematicWhenIdle: true } : {}),
+    callouts: o.callouts,
+    target: o.target,
+    explode: o.explode,
   })),
 );
 const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
@@ -59,4 +67,21 @@ const svg = posterSvg
       attributeFilter: ['data-desk-state'],
     });
   }
+
+  // A drawn object was tapped: scroll to its section and put focus on the section's heading.
+  // Smooth only when motion is on; no global `scroll-behavior` (it would fight the sheet index).
+  window.addEventListener('nihal:navigate', (e) => {
+    const target = (e as CustomEvent<unknown>).detail;
+    if (typeof target !== 'string' || !/^#[\w-]+$/.test(target)) return;
+    const section = document.querySelector<HTMLElement>(target);
+    if (!section) return;
+    const smooth = document.documentElement.dataset['motion'] === 'full';
+    section.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      block: 'start',
+    });
+    const heading = section.querySelector<HTMLElement>('h1, h2, h3') ?? section;
+    if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  });
 </script>

@@ -1,6 +1,7 @@
 import type { PerspectiveCamera } from 'three';
 import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
+import { physicsBridge } from './physics-bridge';
 
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
 export interface SceneProbe {
@@ -16,6 +17,14 @@ export interface SceneProbe {
   };
   size: () => { width: number; height: number };
   probeSphere: (on: boolean) => { cx: number; cy: number; r: number } | null;
+  /** Set by Interaction. */
+  interaction: {
+    pick: (id: string) => { x: number; y: number } | null;
+    hovered: () => string | null;
+    lift: (id: string) => number;
+  };
+  /** While true the 1 s / 500 ms timers keep running but stop requesting frames (tests only). */
+  quiet: boolean;
 }
 
 export const probe: SceneProbe = {
@@ -27,7 +36,12 @@ export const probe: SceneProbe = {
   ghost: { look: () => {}, release: () => {}, eyes: () => [] },
   size: () => ({ width: 0, height: 0 }),
   probeSphere: () => null,
+  interaction: { pick: () => null, hovered: () => null, lift: () => 0 },
+  quiet: false,
 };
+
+/** True when a test asked for the idle timers to stay off the frame counter. Always false in a plain build. */
+export const isQuiet = (): boolean => testHooks && probe.quiet;
 
 /** Merges the probe into `__hooks.desk.scene`. A plain build drops this (testHooks is a constant). */
 export function installSceneHooks(): () => void {
@@ -54,6 +68,20 @@ export function installSceneHooks(): () => void {
     ghostEyes: () => probe.ghost.eyes(),
     size: () => probe.size(),
     probeSphere: (on) => probe.probeSphere(on),
+    physics: () => ({
+      state: physicsBridge.state(),
+      grabbed: physicsBridge.api()?.grabbed() ?? null,
+      bodies: physicsBridge.api()?.bodies() ?? [],
+    }),
+    requestPhysics: () => physicsBridge.request(),
+    teleport: (id, x, y, z) =>
+      physicsBridge.api()?.teleport(id, x, y, z) ?? false,
+    pick: (id) => probe.interaction.pick(id),
+    hovered: () => probe.interaction.hovered(),
+    hoverLift: (id) => probe.interaction.lift(id),
+    quiet: (on) => {
+      probe.quiet = on;
+    },
   };
   return () => {
     delete desk.scene;
@@ -98,4 +126,11 @@ export function getProbeCamera(): PerspectiveCamera | null {
 }
 export function setSphereProbe(fn: SceneProbe['probeSphere']): void {
   probe.probeSphere = fn;
+}
+export function setInteractionProbe(i: SceneProbe['interaction'] | null): void {
+  probe.interaction = i ?? {
+    pick: () => null,
+    hovered: () => null,
+    lift: () => 0,
+  };
 }

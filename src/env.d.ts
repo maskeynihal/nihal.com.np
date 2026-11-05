@@ -35,6 +35,28 @@ interface DeskSceneHooks {
   size(): { width: number; height: number };
   /** Swaps the desk for one lit sphere; returns its screen circle in canvas CSS px. */
   probeSphere(on: boolean): { cx: number; cy: number; r: number } | null;
+  /** The physics layer: 'idle' until the first grab, then 'loading', 'ready' or 'failed'. */
+  physics(): {
+    state: 'idle' | 'loading' | 'ready' | 'failed';
+    grabbed: string | null;
+    bodies: {
+      id: string;
+      asleep: boolean;
+      type: 'dynamic' | 'kinematic';
+      p: [number, number, number];
+    }[];
+  };
+  /** Asks for the physics chunk as a first grab would. */
+  requestPhysics(): void;
+  /** Moves a body (waking it); false while physics is not loaded. */
+  teleport(id: string, x: number, y: number, z: number): boolean;
+  /** Canvas CSS px of a point inside the object, or null. */
+  pick(id: string): { x: number; y: number } | null;
+  hovered(): string | null;
+  /** Hover lift of the model root, metres. */
+  hoverLift(id: string): number;
+  /** Idle timers (OLED, clocks, calendar) stop requesting frames while on. */
+  quiet(on: boolean): void;
 }
 
 interface DeskHooks {
