@@ -27,4 +27,11 @@ describe('check-initial-graph', () => {
       ),
     );
   });
+  it('fails when the leak is reached only through an inline module script', () => {
+    const r = run('leaky-inline');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(
+      'index.html#inline-module-1 -> assets/mid.js -> assets/desk-vendor-abc.js',
+    );
+  });
 }, 60_000);

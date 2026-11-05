@@ -1,12 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { isTicketId } from './review-id.ts';
 
 const id = process.argv[2];
 const run = (args: string[]) => spawnSync('pnpm', args, { stdio: 'inherit' });
 
 if (id === '--all') {
   // fall through to full suite
-} else if (!id || !/^[A-Z]-\d{2}$/.test(id)) {
+} else if (!id || !isTicketId(id)) {
   console.error('usage: pnpm review <ID>   (e.g. A-08)   |   pnpm review:all');
   process.exit(2);
 }

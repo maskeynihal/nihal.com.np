@@ -29,15 +29,15 @@ function resolveUrl(
   return isHtml ? resolve(dirname(fromFile), clean) : null; // bare specifier in JS
 }
 
-function htmlEntries(html: string): string[] {
+function htmlEntries(html: string): { urls: string[]; inline: string[] } {
   const out: string[] = [];
-  const scriptRe = /<script\b[^>]*>/gi;
-  for (const m of html.matchAll(scriptRe)) {
-    const tag = m[0];
-    if (/type=["']module["']/i.test(tag)) {
-      const src = /\bsrc=["']([^"']+)["']/i.exec(tag)?.[1];
-      if (src) out.push(src);
-    }
+  const inline: string[] = [];
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attrs = m[1] ?? '';
+    if (!/type=["']module["']/i.test(attrs)) continue;
+    const src = /\bsrc=["']([^"']+)["']/i.exec(attrs)?.[1];
+    if (src) out.push(src);
+    else if (m[2]) inline.push(m[2]);
   }
   for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
     const tag = m[0];
@@ -47,11 +47,11 @@ function htmlEntries(html: string): string[] {
     }
   }
   for (const m of html.matchAll(
-    /\b(?:component-url|renderer-url)=["']([^"']+)["']/gi,
+    /\b(?:component-url|renderer-url|before-hydration-url)=["']([^"']+)["']/gi,
   )) {
     if (m[1]) out.push(m[1]);
   }
-  return out;
+  return { urls: out, inline };
 }
 
 export async function checkGraph(
@@ -67,28 +67,43 @@ export async function checkGraph(
     const html = readFileSync(htmlFile, 'utf8');
     const queue: { file: string; chain: string[] }[] = [];
     const seen = new Set<string>();
-    for (const spec of htmlEntries(html)) {
-      const file = resolveUrl(dist, htmlFile, spec, true);
-      if (file) queue.push({ file, chain: [rel(htmlFile), rel(file)] });
-    }
-    while (queue.length > 0) {
-      const { file, chain } = queue.shift()!;
-      if (seen.has(file)) continue;
-      seen.add(file);
-      if (!existsSync(file)) continue;
-      const code = readFileSync(file, 'utf8');
-      if (FORBIDDEN_NAME.test(file) || FORBIDDEN_CONTENT.test(code)) {
-        failures.push(`forbidden code in initial graph: ${chain.join(' -> ')}`);
-        continue;
-      }
-      if (!/\.m?js$/.test(file)) continue;
+    const entries = htmlEntries(html);
+    const enqueueImports = (code: string, from: string, chain: string[]) => {
       const [imports] = parse(code);
       for (const imp of imports) {
         if (imp.type !== 'static' && imp.type !== 'reexport-star') continue; // dynamic imports and import.meta are not followed
         if (!imp.specifier) continue;
-        const next = resolveUrl(dist, file, imp.specifier, false);
+        const next = resolveUrl(dist, from, imp.specifier, false);
         if (next) queue.push({ file: next, chain: [...chain, rel(next)] });
       }
+    };
+    for (const spec of entries.urls) {
+      const file = resolveUrl(dist, htmlFile, spec, true);
+      if (file) queue.push({ file, chain: [rel(htmlFile), rel(file)] });
+    }
+    entries.inline.forEach((body, i) => {
+      const label = `${rel(htmlFile)}#inline-module-${i + 1}`;
+      if (FORBIDDEN_CONTENT.test(body)) {
+        failures.push(`forbidden code in initial graph: ${label}`);
+        return;
+      }
+      enqueueImports(body, htmlFile, [label]);
+    });
+    while (queue.length > 0) {
+      const { file, chain } = queue.shift()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      if (!existsSync(file)) {
+        failures.push(`missing file in initial graph: ${chain.join(' -> ')}`);
+        continue;
+      }
+      const code = readFileSync(file, 'utf8');
+      if (FORBIDDEN_NAME.test(rel(file)) || FORBIDDEN_CONTENT.test(code)) {
+        failures.push(`forbidden code in initial graph: ${chain.join(' -> ')}`);
+        continue;
+      }
+      if (!/\.m?js$/.test(file)) continue;
+      enqueueImports(code, file, chain);
     }
   }
 

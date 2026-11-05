@@ -52,6 +52,8 @@ export default defineConfig({
       },
     },
   ],
+  // Serves whatever is in dist/. Run via `pnpm review` (it builds the e2e dist
+  // with test hooks first); running `playwright test` directly is unsupported.
   webServer: {
     command: 'pnpm preview --port 4321 --ignore-lock',
     url: 'http://localhost:4321',
