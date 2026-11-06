@@ -43,6 +43,8 @@ function resolveFile(pathname: string): string | null {
   return null;
 }
 
+const port = Number(process.env['E2E_HEADER_PORT'] ?? '4391');
+
 createServer((req, res) => {
   const { pathname } = new URL(req.url ?? '/', 'http://x');
   const file = resolveFile(pathname);
@@ -55,4 +57,4 @@ createServer((req, res) => {
     'Content-Type': types[extname(target)] ?? 'application/octet-stream',
   });
   createReadStream(target).pipe(res);
-}).listen(4391, () => console.log('header server on http://localhost:4391'));
+}).listen(port, () => console.log(`header server on http://localhost:${port}`));

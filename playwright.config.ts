@@ -3,7 +3,6 @@ import { defineConfig, devices } from '@playwright/test';
 // Ports can be overridden so two checkouts can run e2e side by side. Defaults are unchanged.
 const PORT = process.env['E2E_PORT'] ?? '4321';
 const HEADER_PORT = process.env['E2E_HEADER_PORT'] ?? '4391';
-const DEFAULT_HEADER_PORT = '4391';
 
 export default defineConfig({
   testDir: './e2e',
@@ -70,20 +69,15 @@ export default defineConfig({
       command: `pnpm preview --port ${PORT} --ignore-lock`,
       url: `http://localhost:${PORT}`,
       reuseExistingServer: !process.env['CI'],
-      timeout: 60_000,
+      timeout: 180_000,
     },
     // Same dist with the production response headers (CSP) applied; used by @A-09 specs.
-    // e2e/header-server.ts listens on 4391 only, so with an overridden port it is not started
-    // (the @A-09 specs then cannot run; use the default port for them).
-    ...(HEADER_PORT === DEFAULT_HEADER_PORT
-      ? [
-          {
-            command: 'pnpm exec tsx e2e/header-server.ts',
-            url: `http://localhost:${HEADER_PORT}`,
-            reuseExistingServer: !process.env['CI'],
-            timeout: 60_000,
-          },
-        ]
-      : []),
+    {
+      command: 'pnpm exec tsx e2e/header-server.ts',
+      url: `http://localhost:${HEADER_PORT}`,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      env: { E2E_HEADER_PORT: HEADER_PORT },
+    },
   ],
 });
