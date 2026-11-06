@@ -78,24 +78,36 @@
 }
 
 @media (max-width: 767px) {
-  /* The drawing is the full width of the screen. */
-  .desk {
-    margin-inline: calc(var(--gutter) * -1);
-    margin-block-start: -0.5rem;
+  /* The drawing is wider than the screen (150 %, centred): the table has an empty margin either
+     side, so it can bleed past the column and still show whole. The stage clips the overflow so the
+     page never scrolls sideways. */
+  .desk-stage {
+    overflow-x: clip;
   }
 
-  /* Smaller type and tighter rows so the top of the table shows on the first screen. */
+  .desk {
+    width: 150vw;
+    margin-inline-start: calc(50% - 75vw);
+    margin-block-start: -1.25rem;
+  }
+
+  /* The name keeps its size (two lines: it is 6.4 em wide in Fraunces at this optical size). */
   .title-block .name {
     font-size: 3.5rem;
   }
 
+  .title-block-kicker {
+    margin-block-start: 0.25rem;
+  }
+
   .title-block-line {
     margin-block-start: 0.75rem;
+    font-size: 1.0625rem;
   }
 
   .title-block-rows {
     margin-block-start: 0.75rem;
-    padding-block-start: 0.75rem;
+    padding-block-start: 0.5rem;
     gap: 0;
   }
 }
@@ -289,12 +301,59 @@
     align-items: start;
   }
 
-  /* Above the drawing. Top-aligned on purpose: the browser can paint before the later siblings are
-     parsed, and an end-aligned block would then jump. */
+  /* Above the drawing, full width of the column, name and sentence on the left, the rows and the
+     toggles on the right, so the card is about 300 px tall and the table starts on the first screen.
+     Top-aligned on purpose: the browser can paint before the later siblings are parsed, and an
+     end-aligned block would then jump. */
   .title-block {
-    grid-column: 1 / 9;
+    grid-column: 1 / 13;
     grid-row: 1;
     max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    column-gap: 2rem;
+    padding-block: 1.25rem;
+    align-items: start;
+  }
+
+  .title-block .name {
+    grid-column: 1;
+    line-height: 0.95;
+  }
+
+  .title-block-kicker,
+  .title-block-line {
+    grid-column: 1;
+  }
+
+  .title-block-kicker {
+    margin-block-start: 0.25rem;
+  }
+
+  .title-block-line {
+    margin-block-start: 0.75rem;
+    /* The fallback face wraps the sentence onto fewer lines than Fraunces does: reserve four lines so
+       the font arriving moves nothing. */
+    min-block-size: 4lh;
+  }
+
+  .title-block-side {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: end;
+    padding-inline-start: 1.5rem;
+    border-inline-start: 1px solid var(--hairline);
+  }
+
+  .title-block-rows {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 0;
+  }
+
+  .title-block-rows a {
+    min-height: 36px;
   }
 
   /* The table is lower in the hero, under the title block, across the full width. */
@@ -303,38 +362,16 @@
     grid-row: 2;
     /* The drawing has empty margin above the table; pull the frame up into the gap. */
     margin-block-start: -2rem;
+    /* Capped by the screen height as well, so on a short laptop the whole table fits under the
+       title block (about 19 rem is the title block and the sheet padding). */
+    width: clamp(36rem, (100svh - 21rem) * 12 / 7, 58rem);
+    max-width: 100%;
+    justify-self: center;
   }
 
   .object-list {
     grid-column: 1 / 13;
     grid-row: 3;
-  }
-
-  /* A compact title block so the table is on the first screen: the rows run two across. */
-  .title-block {
-    max-width: 44rem;
-  }
-
-  /* The fallback face wraps the sentence onto fewer lines than Fraunces does: reserve four lines so
-     the font arriving moves nothing. */
-  .title-block-line {
-    min-block-size: 4lh;
-  }
-
-  .title-block-rows {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 1.5rem;
-  }
-
-  .title-block-rows a {
-    min-height: 36px;
-  }
-
-  /* The drawing is capped so the whole table fits a laptop screen below the title block. */
-  .desk {
-    max-width: 58rem;
-    width: 100%;
-    justify-self: center;
   }
 }
 

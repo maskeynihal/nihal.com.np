@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
 import {
   boundsFor,
+  floorPad,
+  liftForFloor,
   foldDepthVelocity,
   project,
   reanchor,
@@ -166,5 +168,38 @@ describe('materials', () => {
       feelFor('ball-m').friction,
     );
     expect(feelFor('unknown-model').restitution).toBeLessThan(0.1);
+  });
+});
+
+describe('floorPad', () => {
+  it('is the border inset plus the index strip below 1024 px', () => {
+    expect(floorPad(390, 12, 44)).toBe(56);
+    expect(floorPad(768, 12, 44)).toBe(56);
+    expect(floorPad(1023, 12, 44)).toBe(56);
+    expect(floorPad(1024, 24, 44)).toBe(24);
+  });
+});
+
+describe('liftForFloor', () => {
+  const f = frame(120, 60);
+  const tall = boundsFor(f, 390, 844, 2, 3.3, 56);
+  const short = boundsFor(f, 390, 744, 2, 3.3, 56);
+
+  it('lifts a resting body by the amount the floor rose, so it keeps its screen distance from the floor', () => {
+    const depth = 2.5;
+    const y = tall.floorSlope * depth + 0.1;
+    const dy = liftForFloor(tall, short, y, depth);
+    expect(dy).toBeGreaterThan(0);
+    const before = project(new Vector3(0, y, -depth), f).y;
+    const after = project(new Vector3(0, y + dy, -depth), f).y;
+    // 100 px shorter viewport: the body rests 100 px higher on screen.
+    expect(before - after).toBeCloseTo(100, 4);
+  });
+
+  it('leaves a body in the air alone, and does nothing when the floor went down', () => {
+    expect(liftForFloor(tall, short, 5, 2.5)).toBe(0);
+    expect(liftForFloor(short, tall, short.floorSlope * 2.5 + 0.1, 2.5)).toBe(
+      0,
+    );
   });
 });

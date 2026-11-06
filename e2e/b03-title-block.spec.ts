@@ -87,9 +87,13 @@ test.describe('title block and poster @B-03', () => {
       (await page.locator(sel).first().boundingBox())!.y;
     const title = await y('.title-block');
     const drawing = await y('[data-desk]');
-    const objects = await y('[data-object-list]');
     expect(title).toBeLessThan(drawing);
-    expect(drawing).toBeLessThan(objects);
+    // While the 3D desk is on the way the list is visually hidden (still in the tab order); it is
+    // below the drawing wherever it is shown, so check the position only then.
+    const hidden = await page
+      .locator('[data-object-list]')
+      .evaluate((e) => getComputedStyle(e).position === 'absolute');
+    if (!hidden) expect(drawing).toBeLessThan(await y('[data-object-list]'));
     // DOM order matches (one list node for every viewport).
     await expect(page.locator('[data-object-list]')).toHaveCount(1);
     const order = await page
@@ -109,7 +113,106 @@ test.describe('title block and poster @B-03', () => {
     // The table sits lower in the hero, under the title block, across the width.
     expect(tb.y + tb.height).toBeLessThanOrEqual(dk.y + dk.height * 0.2);
     expect(dk.y).toBeGreaterThan(tb.y + tb.height * 0.6);
-    expect(ls.y).toBeGreaterThanOrEqual(dk.y + dk.height - 1);
+    // The list is visually hidden (but focusable) while the 3D desk is on the way, and below the
+    // drawing otherwise.
+    const hidden = await page
+      .locator('[data-object-list]')
+      .evaluate((e) => getComputedStyle(e).position === 'absolute');
+    if (!hidden) expect(ls.y).toBeGreaterThanOrEqual(dk.y + dk.height - 1);
+  });
+
+  test('the table is on the first screen and the title block stays above it @B-03', async ({
+    page,
+  }) => {
+    for (const [width, height, shownMin] of [
+      [1440, 900, 0.9],
+      [1280, 720, 0.95],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      const tb = (await page.locator('.title-block').boundingBox())!;
+      const dk = (await page.locator('[data-poster]').boundingBox())!;
+      // The table starts below the title block text, and most of the drawing is on the screen.
+      expect(dk.y).toBeGreaterThan(tb.y + tb.height * 0.9);
+      const visible = (Math.min(dk.y + dk.height, height) - dk.y) / dk.height;
+      expect(visible, `${width}x${height}`).toBeGreaterThanOrEqual(shownMin);
+      expect(tb.height).toBeLessThan(330);
+    }
+  });
+
+  test('phone: the table is big, nothing scrolls sideways, the layout does not shift @B-03', async ({
+    page,
+    javaScriptEnabled,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      const w = window as unknown as { __cls: number };
+      w.__cls = 0;
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) {
+          const ls = e as unknown as {
+            value: number;
+            hadRecentInput: boolean;
+          };
+          if (!ls.hadRecentInput) w.__cls += ls.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+    await page.goto('/');
+    const dk = (await page.locator('[data-poster]').boundingBox())!;
+    expect(dk.height).toBeGreaterThanOrEqual(300);
+    const wide = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    );
+    expect(wide).toBe(false);
+    if (javaScriptEnabled) {
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-desk]')
+            ?.getAttribute('data-desk-state') !== null,
+      );
+      await page.waitForTimeout(1500);
+    }
+    const cls = await page.evaluate(
+      () => (window as unknown as { __cls: number }).__cls,
+    );
+    expect(cls).toBe(0);
+  });
+
+  test('the fall floor is the sheet bottom edge: border plus the strip below 1024 px @B-03', async ({
+    page,
+  }) => {
+    for (const [width, height] of [
+      [320, 568],
+      [390, 844],
+      [768, 1024],
+      [1280, 800],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      const pad = await page.evaluate(() => {
+        const css = getComputedStyle(document.documentElement);
+        const inset = parseFloat(css.getPropertyValue('--inset'));
+        const strip = parseFloat(css.getPropertyValue('--strip-h'));
+        const el = document
+          .querySelector('.sheet-index')!
+          .getBoundingClientRect();
+        return { inset, strip, fromBottom: window.innerHeight - el.top };
+      });
+      const { floorPad } = await import('../src/lib/desk/fall');
+      // Below 1024 px the strip's top edge is where things rest; above it the border line is.
+      if (width < 1024) {
+        expect(pad.fromBottom, `${width}`).toBeCloseTo(
+          floorPad(width, pad.inset, pad.strip),
+          0,
+        );
+      } else {
+        expect(floorPad(width, pad.inset, pad.strip)).toBe(pad.inset);
+      }
+    }
   });
 
   test('the object list is real links derived from the shown objects @B-03', async ({
@@ -137,7 +240,11 @@ test.describe('title block and poster @B-03', () => {
     for (let i = 0; i < n; i++) {
       const a = list(page).nth(i);
       const href = (await a.getAttribute('href'))!;
-      await a.click();
+      // The list is visually hidden while the 3D desk is live and shows in full only while it holds
+      // focus. Safari does not focus a link on a mouse press, so a pointer click would hide the list
+      // between press and release: activate by keyboard, which is the path this list exists for.
+      await a.focus();
+      await page.keyboard.press('Enter');
       await expect(page).toHaveURL(new RegExp(`${href}$`));
       // #work-<id> panels arrive in B-04, which asserts they scroll into view.
       if (!href.startsWith('#work-'))

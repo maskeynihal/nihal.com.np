@@ -167,3 +167,34 @@ export function foldDepthVelocity(p: Vector3, v: Vector3): void {
   v.y += (p.y * v.z) / d;
   v.z = 0;
 }
+
+/**
+ * Distance (px) from the viewport's bottom edge to the floor: the sheet border's inner edge, plus the
+ * index strip below 1024 px (it is the sheet's bottom edge there). Read from the page's own tokens
+ * (`--inset`, `--strip-h`) so the floor follows the CSS, not a copy of it.
+ */
+export function floorPad(
+  vw: number,
+  inset: number,
+  strip: number,
+  stripFrom = 1024,
+): number {
+  return inset + (vw < stripFrom ? strip : 0);
+}
+
+/**
+ * How far (m, up) to lift a body when the room is rebuilt for a new viewport height, so a body that
+ * was resting on the old floor still rests on the new one (a phone's URL bar showing again raises the
+ * floor; without this a resting body would sit inside it). Bodies more than `reach` above the old
+ * floor are in the air and are left alone. Zero when the floor went down: they simply fall.
+ */
+export function liftForFloor(
+  prev: Pick<Bounds, 'floorSlope'>,
+  next: Pick<Bounds, 'floorSlope'>,
+  y: number,
+  depth: number,
+  reach = 0.6,
+): number {
+  if (y - prev.floorSlope * depth > reach) return 0;
+  return Math.max(0, (next.floorSlope - prev.floorSlope) * depth);
+}

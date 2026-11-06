@@ -22,24 +22,26 @@ const rev = revLine(titleBlock.revLine, new Date());
   </h1>
   <p class="title-block-kicker label">{titleBlock.kicker}</p>
   <p class="title-block-line">{titleBlock.options[titleBlock.selected]}</p>
-  <ul class="label title-block-rows">
-    <li>
-      <CopyEmail />
-    </li>
-    <li>
-      <a class="sheet-link" href="#work">
-        {titleBlock.seeWork}
-      </a>
-    </li>
-    <li>
-      <time class="live-time" data-live-time></time> {titleBlock.timeLabel}
-    </li>
-    <li>{rev}</li>
-  </ul>
-  <div class="title-block-prefs">
-    <MotionToggle />
-    <SoundToggle />
-    <ThemeToggle />
+  <div class="title-block-side">
+    <ul class="label title-block-rows">
+      <li>
+        <CopyEmail />
+      </li>
+      <li>
+        <a class="sheet-link" href="#work">
+          {titleBlock.seeWork}
+        </a>
+      </li>
+      <li>
+        <time class="live-time" data-live-time></time> {titleBlock.timeLabel}
+      </li>
+      <li>{rev}</li>
+    </ul>
+    <div class="title-block-prefs">
+      <MotionToggle />
+      <SoundToggle />
+      <ThemeToggle />
+    </div>
   </div>
 </div>
 

@@ -18,6 +18,8 @@ import {
 import { FOLLOW, MAX_TILT, TABLE_HALF, clamp } from '../../../lib/desk/drag';
 import {
   boundsFor,
+  floorPad,
+  liftForFloor,
   foldDepthVelocity,
   project,
   reanchor,
@@ -133,9 +135,33 @@ function FallWorld({
   useEffect(() => {
     const vw = size.width;
     const vh = size.height;
-    // Below 1024 px the sheet index is a strip along the bottom; from there only the border line.
-    const b = boundsFor(anchor, vw, vh, Z_NEAR, Z_FAR, vw < 1024 ? 64 : 16);
+    // The floor is the sheet's bottom edge: the border's inner edge, plus the index strip below 1024 px.
+    const css = getComputedStyle(document.documentElement);
+    const px = (name: string, fallback: number) => {
+      const n = parseFloat(css.getPropertyValue(name));
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const b = boundsFor(
+      anchor,
+      vw,
+      vh,
+      Z_NEAR,
+      Z_FAR,
+      floorPad(vw, px('--inset', 12), px('--strip-h', 44)),
+    );
+    const prev = bounds.current;
     bounds.current = b;
+    if (prev) {
+      // The viewport changed height (a phone's URL bar): keep resting bodies on the new floor.
+      for (const fb of bodies.current.values()) {
+        const t = fb.rb.translation();
+        const dy = liftForFloor(prev, b, t.y, -t.z);
+        if (dy <= 0) continue;
+        fb.rb.setTranslation({ x: t.x, y: t.y + dy, z: t.z }, true);
+        fb.curP.y += dy;
+        fb.prevP.y += dy;
+      }
+    }
     const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
     room.current = { body };
     const make = (
