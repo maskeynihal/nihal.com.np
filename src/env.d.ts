@@ -109,6 +109,7 @@ interface TestHooks {
   longTasks: number[];
   errors: ErrorRecord[];
   desk?: DeskHooks;
+  garden?: GardenHooks;
 }
 
 interface GardenHooks {

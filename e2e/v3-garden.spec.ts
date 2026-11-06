@@ -88,4 +88,148 @@ test.describe('garden @V3-garden', () => {
       garden.getByRole('button', { name: 'throw a ball' }),
     ).toBeHidden();
   });
+
+  test.describe('pick, bucket, bouquet and ball @V3-garden', () => {
+    type Hooks = NonNullable<Window['__hooks']>;
+    const garden = (page: import('@playwright/test').Page) => {
+      const root = page.locator('[data-garden]');
+      return {
+        root,
+        count: root.locator('[data-garden-count]'),
+        newBouquet: root.getByRole('button', { name: 'start a new bouquet' }),
+        // The state the page keeps, read through the test hook (a plain build has none).
+        bucket: () =>
+          page.evaluate(() => {
+            const g = (window.__hooks as Hooks).garden!;
+            return g.bucket();
+          }),
+        flowers: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.flowers()),
+        balls: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.balls()),
+      };
+    };
+    const ready = async (
+      page: import('@playwright/test').Page,
+      javaScriptEnabled: boolean,
+      info: { project: { name: string } },
+    ) => {
+      test.skip(!javaScriptEnabled, 'needs JS');
+      test.skip(info.project.name === 'reduced-motion', 'covered by tap');
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto('/');
+      const g = garden(page);
+      await g.root.scrollIntoViewIfNeeded();
+      await page.waitForFunction(
+        () => (window.__hooks as Hooks | undefined)?.garden !== undefined,
+        undefined,
+        { timeout: 15_000 },
+      );
+      // Flowers sprout over the first seconds; wait for grown ones.
+      await expect
+        .poll(async () => (await g.flowers()).length, { timeout: 20_000 })
+        .toBeGreaterThan(2);
+      return g;
+    };
+
+    test('pick a flower, drop it in the bucket, start a new bouquet @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      expect((await g.bucket()).count).toBe(0);
+      await expect(g.count).toHaveText('the bucket is empty');
+      await expect(g.newBouquet).toBeHidden();
+      const f = (await g.flowers())[0]!;
+      const bucket = await g.bucket();
+      await page.mouse.move(f.x, f.y);
+      await page.mouse.down();
+      // The flower follows the pointer to the bucket and drops in.
+      await page.mouse.move((f.x + bucket.x) / 2, f.y - 20, { steps: 8 });
+      await page.mouse.move(bucket.x, bucket.y - 40, { steps: 8 });
+      await page.mouse.up();
+      await expect.poll(async () => (await g.bucket()).count).toBe(1);
+      await expect(g.count).toHaveText('1 flower in the bucket');
+      await expect(g.newBouquet).toBeVisible();
+      // A plain tap on another flower sends it straight there.
+      const next = (await g.flowers())[0]!;
+      await page.mouse.click(next.x, next.y);
+      await expect.poll(async () => (await g.bucket()).count).toBe(2);
+      await expect(g.count).toHaveText('2 flowers in the bucket');
+      await expectNoAxeViolations(page, { label: '/ garden with a bouquet' });
+      await g.newBouquet.click();
+      await expect.poll(async () => (await g.bucket()).count).toBe(0);
+      // The live region says what happened; the control is gone with the flowers.
+      await expect(g.count).toHaveText('started a new bouquet');
+      await expect(g.newBouquet).toBeHidden();
+    });
+
+    test('the pick a flower button adds one for the keyboard @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      const pick = g.root.getByRole('button', { name: 'pick a flower' });
+      await pick.focus();
+      await page.keyboard.press('Enter');
+      await expect.poll(async () => (await g.bucket()).count).toBe(1);
+      await expect(g.count).toHaveText('1 flower in the bucket');
+    });
+
+    test('a ball can be grabbed, carried and thrown with the flick speed @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      await g.root.getByRole('button', { name: 'throw a ball' }).click();
+      // A thrown ball lands and rests on the grass; wait for one that is free and still.
+      let ball = { x: 0, y: 0 };
+      await expect
+        .poll(
+          async () => {
+            const b = (await g.balls()).find(
+              (o) => !o.held && !o.grabbed && o.speed < 5,
+            );
+            if (b) ball = b;
+            return !!b;
+          },
+          { timeout: 20_000 },
+        )
+        .toBe(true);
+      const box = (await g.root.locator('canvas').boundingBox())!;
+      await page.mouse.move(ball.x, ball.y);
+      await page.mouse.down();
+      await expect
+        .poll(async () => (await g.balls()).some((b) => b.grabbed))
+        .toBe(true);
+      // Carried: it follows the pointer.
+      await page.mouse.move(ball.x + 60, ball.y - 10, { steps: 6 });
+      await page.mouse.move(ball.x + 160, ball.y - 10, { steps: 6 });
+      // A flick: a fast move, released while still moving.
+      let before = 0;
+      for (let i = 1; i <= 6; i++) {
+        before = ball.x + 160 + i * 40;
+        await page.mouse.move(
+          Math.min(before, box.x + box.width - 10),
+          ball.y - 10,
+        );
+        await page.waitForTimeout(12);
+      }
+      await page.mouse.up();
+      // Let go: no ball is grabbed, and one leaves with real speed.
+      await expect
+        .poll(async () => (await g.balls()).some((b) => b.grabbed))
+        .toBe(false);
+      const fastest = await page.evaluate(async () => {
+        const g = (window.__hooks as Hooks).garden!;
+        let top = 0;
+        for (let i = 0; i < 10; i++) {
+          top = Math.max(top, ...g.balls().map((b) => b.speed));
+          await new Promise((r) => setTimeout(r, 30));
+        }
+        return top;
+      });
+      expect(fastest).toBeGreaterThan(150);
+    });
+  });
 });
