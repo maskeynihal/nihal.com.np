@@ -175,11 +175,13 @@ function Body({
     const host = slot.current;
     if (!host) return;
     const { obj } = entry;
+    // The set is created once and only mutated, so this is the same set the cleanup must read.
+    const away = handed.current;
     host.add(obj);
     obj.position.set(0, 0, 0);
     obj.quaternion.identity();
     return () => {
-      if (handed.current.has(entry.id) || entry.free) return;
+      if (away.has(entry.id) || entry.free) return;
       table.group?.add(obj);
       obj.position.set(...def.p);
       obj.quaternion.set(...def.q);
@@ -243,8 +245,22 @@ function World({
   const spawns = useRef(new Map<string, Spawn>());
   const generation = useRef(new Map<string, number>());
   const log = useRef<HandoffLog[]>([]);
-  const [, bump] = useState(0);
-  const rerender = useCallback(() => bump((n) => n + 1), []);
+  // What the render reads. The refs above are changed imperatively (a handoff happens inside a
+  // frame); every change then calls `rerender`, which copies the parts the markup needs into state.
+  const [shown, setShown] = useState<{
+    handed: ReadonlySet<string>;
+    generation: ReadonlyMap<string, number>;
+    spawns: ReadonlyMap<string, Spawn>;
+  }>({ handed: new Set(), generation: new Map(), spawns: new Map() });
+  const rerender = useCallback(
+    () =>
+      setShown({
+        handed: new Set(handed.current),
+        generation: new Map(generation.current),
+        spawns: new Map(spawns.current),
+      }),
+    [],
+  );
 
   const onBody = useCallback((id: string, rb: RapierRigidBody | null) => {
     if (rb) bodies.current.set(id, rb);
@@ -425,6 +441,8 @@ function World({
   });
 
   useEffect(() => {
+    // Created once and only mutated: the cleanup clears this very set.
+    const away = handed.current;
     const dropHeld = (vx: number, vz: number) => {
       const g = grab.current;
       if (!g) return;
@@ -553,7 +571,7 @@ function World({
         entry.obj.quaternion.set(...entry.def.q);
         table.group?.add(entry.obj);
       }
-      handed.current.clear();
+      away.clear();
     };
     // `respawn` and `handOver` close over refs only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -562,13 +580,12 @@ function World({
   return (
     <>
       <Slab slabRef={slab} />
-      {/* eslint-disable-next-line react-hooks/refs -- the handed set is changed imperatively, then a render is forced */}
       {entries.map((entry) =>
-        handed.current.has(entry.id) ? null : (
+        shown.handed.has(entry.id) ? null : (
           <Body
-            key={`${entry.id}:${generation.current.get(entry.id) ?? 0}`}
+            key={`${entry.id}:${shown.generation.get(entry.id) ?? 0}`}
             entry={entry}
-            spawn={spawns.current.get(entry.id)}
+            spawn={shown.spawns.get(entry.id)}
             handed={handed}
             onBody={onBody}
           />

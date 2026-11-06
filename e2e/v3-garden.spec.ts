@@ -206,11 +206,9 @@ test.describe('garden @V3-garden', () => {
       await page.mouse.move(ball.x + 60, ball.y - 10, { steps: 6 });
       await page.mouse.move(ball.x + 160, ball.y - 10, { steps: 6 });
       // A flick: a fast move, released while still moving.
-      let before = 0;
       for (let i = 1; i <= 6; i++) {
-        before = ball.x + 160 + i * 40;
         await page.mouse.move(
-          Math.min(before, box.x + box.width - 10),
+          Math.min(ball.x + 160 + i * 40, box.x + box.width - 10),
           ball.y - 10,
         );
         await page.waitForTimeout(12);
