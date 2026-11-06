@@ -92,6 +92,70 @@ export function checkPhysicsIsolation(dist: string): string[] {
   return failures;
 }
 
+/**
+ * Walks the initial graph of one HTML file: its module scripts, modulepreloads and island
+ * entries, then every static import below them (dynamic imports are not followed). `visit` is called
+ * once per file reached; returning false stops the walk below that file.
+ */
+function walkInitial(
+  dist: string,
+  htmlFile: string,
+  visit: (
+    file: string,
+    chain: string[],
+    code: string | null,
+  ) => boolean | undefined,
+  inlineModule?: (label: string, body: string) => boolean | undefined,
+): void {
+  const rel = (f: string) => relative(dist, f);
+  const html = readFileSync(htmlFile, 'utf8');
+  const queue: { file: string; chain: string[] }[] = [];
+  const seen = new Set<string>();
+  const entries = htmlEntries(html);
+  const enqueueImports = (code: string, from: string, chain: string[]) => {
+    const [imports] = parse(code);
+    for (const imp of imports) {
+      if (imp.type !== 'static' && imp.type !== 'reexport-star') continue; // dynamic imports and import.meta are not followed
+      if (!imp.specifier) continue;
+      const next = resolveUrl(dist, from, imp.specifier, false);
+      if (next) queue.push({ file: next, chain: [...chain, rel(next)] });
+    }
+  };
+  for (const spec of entries.urls) {
+    const file = resolveUrl(dist, htmlFile, spec, true);
+    if (file) queue.push({ file, chain: [rel(htmlFile), rel(file)] });
+  }
+  entries.inline.forEach((body, i) => {
+    const label = `${rel(htmlFile)}#inline-module-${i + 1}`;
+    if (inlineModule?.(label, body) === false) return;
+    enqueueImports(body, htmlFile, [label]);
+  });
+  while (queue.length > 0) {
+    const { file, chain } = queue.shift()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const code = existsSync(file) ? readFileSync(file, 'utf8') : null;
+    if (visit(file, chain, code) === false) continue;
+    if (code === null || !/\.m?js$/.test(file)) continue;
+    enqueueImports(code, file, chain);
+  }
+}
+
+/**
+ * The real initial JS: every script file the browser fetches on first load of any page, found by the
+ * same walk the graph check uses (not a filename glob). Absolute paths.
+ */
+export async function initialJsFiles(dist: string): Promise<string[]> {
+  await init();
+  const files = new Set<string>();
+  for (const htmlFile of walk(dist).filter((f) => f.endsWith('.html')))
+    walkInitial(dist, htmlFile, (file, _chain, code) => {
+      if (code !== null && /\.m?js$/.test(file)) files.add(file);
+      return true;
+    });
+  return [...files].sort();
+}
+
 export async function checkGraph(
   dist: string,
   opts: { expectNoHooks: boolean },
@@ -101,49 +165,31 @@ export async function checkGraph(
   const rel = (f: string) => relative(dist, f);
 
   const htmlFiles = walk(dist).filter((f) => f.endsWith('.html'));
-  for (const htmlFile of htmlFiles) {
-    const html = readFileSync(htmlFile, 'utf8');
-    const queue: { file: string; chain: string[] }[] = [];
-    const seen = new Set<string>();
-    const entries = htmlEntries(html);
-    const enqueueImports = (code: string, from: string, chain: string[]) => {
-      const [imports] = parse(code);
-      for (const imp of imports) {
-        if (imp.type !== 'static' && imp.type !== 'reexport-star') continue; // dynamic imports and import.meta are not followed
-        if (!imp.specifier) continue;
-        const next = resolveUrl(dist, from, imp.specifier, false);
-        if (next) queue.push({ file: next, chain: [...chain, rel(next)] });
-      }
-    };
-    for (const spec of entries.urls) {
-      const file = resolveUrl(dist, htmlFile, spec, true);
-      if (file) queue.push({ file, chain: [rel(htmlFile), rel(file)] });
-    }
-    entries.inline.forEach((body, i) => {
-      const label = `${rel(htmlFile)}#inline-module-${i + 1}`;
-      if (FORBIDDEN_CONTENT.test(body)) {
-        failures.push(`forbidden code in initial graph: ${label}`);
-        return;
-      }
-      enqueueImports(body, htmlFile, [label]);
-    });
-    while (queue.length > 0) {
-      const { file, chain } = queue.shift()!;
-      if (seen.has(file)) continue;
-      seen.add(file);
-      if (!existsSync(file)) {
-        failures.push(`missing file in initial graph: ${chain.join(' -> ')}`);
-        continue;
-      }
-      const code = readFileSync(file, 'utf8');
-      if (FORBIDDEN_NAME.test(rel(file)) || FORBIDDEN_CONTENT.test(code)) {
-        failures.push(`forbidden code in initial graph: ${chain.join(' -> ')}`);
-        continue;
-      }
-      if (!/\.m?js$/.test(file)) continue;
-      enqueueImports(code, file, chain);
-    }
-  }
+  for (const htmlFile of htmlFiles)
+    walkInitial(
+      dist,
+      htmlFile,
+      (file, chain, code) => {
+        if (code === null) {
+          failures.push(`missing file in initial graph: ${chain.join(' -> ')}`);
+          return false;
+        }
+        if (FORBIDDEN_NAME.test(rel(file)) || FORBIDDEN_CONTENT.test(code)) {
+          failures.push(
+            `forbidden code in initial graph: ${chain.join(' -> ')}`,
+          );
+          return false;
+        }
+        return true;
+      },
+      (label, body) => {
+        if (FORBIDDEN_CONTENT.test(body)) {
+          failures.push(`forbidden code in initial graph: ${label}`);
+          return false;
+        }
+        return true;
+      },
+    );
 
   failures.push(...checkPhysicsIsolation(dist));
 

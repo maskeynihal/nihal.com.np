@@ -1,14 +1,7 @@
 [
   {
     "name": "initial JS (br)",
-    "path": [
-      "dist/_astro/*.js",
-      "!dist/_astro/Scene.*.js",
-      "!dist/_astro/desk-vendor*.js",
-      "!dist/_astro/physics*.js",
-      "!dist/_astro/rapier*.js",
-      "!dist/_astro/garden*.js"
-    ],
+    "path": "@initial-graph",
     "limit": "100 KB"
   },
   {
