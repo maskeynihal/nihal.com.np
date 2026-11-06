@@ -16,6 +16,8 @@ export interface BodyInfo {
   p: [number, number, number];
   /** Fall layer only: where the object's origin is on screen, viewport px. */
   screen?: [number, number];
+  /** Fall layer only: the object's silhouette on screen, viewport px. */
+  rect?: Rect;
 }
 
 /** An object's full state in the table's world frame (metres, m/s, rad/s). */

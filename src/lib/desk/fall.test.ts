@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
 import {
   boundsFor,
+  foldDepthVelocity,
   project,
   reanchor,
   screenAccelDown,
@@ -132,6 +133,19 @@ describe('fall frame maths', () => {
       const y = project(new Vector3(0, b.floorSlope * d, -d), f).y;
       expect(y).toBeCloseTo(line, 6);
     }
+  });
+});
+
+describe('foldDepthVelocity', () => {
+  it('keeps the screen velocity', () => {
+    const p = new Vector3(0.4, -0.3, -2.5);
+    const v = new Vector3(0.5, -1.2, 0.8);
+    const before = screenVelocity(p, v, 900);
+    foldDepthVelocity(p, v);
+    const after = screenVelocity(p, v, 900);
+    expect(v.z).toBe(0);
+    expect(after[0]).toBeCloseTo(before[0], 6);
+    expect(after[1]).toBeCloseTo(before[1], 6);
   });
 });
 

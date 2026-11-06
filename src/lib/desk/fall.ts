@@ -159,3 +159,11 @@ export function boundsFor(
     right: (vw - frame.cx) / frame.f,
   };
 }
+
+/** Moves a camera-frame body's depth velocity into x and y so its screen velocity is unchanged, then zeroes it. */
+export function foldDepthVelocity(p: Vector3, v: Vector3): void {
+  const d = Math.max(-p.z, 0.1);
+  v.x += (p.x * v.z) / d;
+  v.y += (p.y * v.z) / d;
+  v.z = 0;
+}

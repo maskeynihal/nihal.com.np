@@ -18,6 +18,7 @@ import {
 import { FOLLOW, MAX_TILT, TABLE_HALF, clamp } from '../../../lib/desk/drag';
 import {
   boundsFor,
+  foldDepthVelocity,
   project,
   reanchor,
   screenAccelDown,
@@ -424,6 +425,9 @@ function FallWorld({
         // A body that arrives outside the viewport (the canvas was slow to come up) is put just
         // inside it, moving inward, so it cannot start inside a wall.
         keepInside(pose.p, vc, shown.p);
+        // The body keeps one depth (the floor slopes with depth), so its depth velocity goes into
+        // the sideways and vertical ones: the picture moves exactly as fast as it did.
+        foldDepthVelocity(pose.p, vc);
         const g = startGravityScale(pose.p, vc, gCam, frame.f);
         const desc = rapier.RigidBodyDesc.dynamic()
           .setTranslation(pose.p.x, pose.p.y, pose.p.z)
@@ -610,6 +614,7 @@ function FallWorld({
             type: b.rb.isDynamic() ? 'dynamic' : 'kinematic',
             p: [t.x, t.y, t.z],
             screen: [at.x, at.y],
+            rect: screenRect(b.entry.obj, toScreen),
           };
         });
       },

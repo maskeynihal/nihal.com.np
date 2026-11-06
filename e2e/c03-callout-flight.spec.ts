@@ -69,8 +69,7 @@ test.describe('object-tap shared callout @C-03', () => {
     const hit = await page.evaluate(() =>
       window.__hooks!.desk!.scene!.pick('arduino'),
     );
-    const box = (await page.locator('[data-desk] canvas').boundingBox())!;
-    await page.mouse.click(box.x + hit!.x, box.y + hit!.y);
+    await page.mouse.click(hit!.x, hit!.y);
 
     await expect.poll(async () => (await flight(page)).added).toBe(true);
     const mid = await flight(page);

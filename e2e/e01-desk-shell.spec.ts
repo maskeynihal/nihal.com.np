@@ -74,7 +74,7 @@ test.describe('desk island shell @E-01', () => {
     await expectNoAxeViolations(page, { label: '/ with the live canvas' });
   });
 
-  test('the canvas is a fixed, transparent, click-through layer over the whole viewport @E-01', async ({
+  test('the canvas sits in the page flow over the poster frame, transparent and click-through @E-01', async ({
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
@@ -86,13 +86,25 @@ test.describe('desk island shell @E-01', () => {
       await page.setViewportSize({ width: w, height: h });
       await goLive(page);
       const c = await page.locator('.desk-live').boundingBox();
+      const f = await page.locator('.poster-frame').boundingBox();
       expect(c).toBeTruthy();
-      expect(Math.abs(c!.width - w)).toBeLessThan(1);
-      expect(Math.abs(c!.height - h)).toBeLessThan(1);
-      await expect(page.locator('.desk-live')).toHaveCSS('position', 'fixed');
+      // Exactly over the poster frame, so the browser scrolls it with the page.
+      expect(Math.abs(c!.width - f!.width)).toBeLessThan(1);
+      expect(Math.abs(c!.height - f!.height)).toBeLessThan(1);
+      expect(Math.abs(c!.x - f!.x)).toBeLessThan(1);
+      expect(Math.abs(c!.y - f!.y)).toBeLessThan(1);
+      await expect(page.locator('.desk-live')).toHaveCSS(
+        'position',
+        'absolute',
+      );
+      await expect(page.locator('.desk-live')).toHaveCSS(
+        'pointer-events',
+        'none',
+      );
       // Nothing in the layer may catch the pointer: the page underneath stays clickable.
       const hit = await page.evaluate(() => {
         const t = document.querySelector('[data-motion-toggle]')!;
+        t.scrollIntoView({ block: 'center' });
         const r = t.getBoundingClientRect();
         const e = document.elementFromPoint(
           r.x + r.width / 2,
@@ -170,18 +182,18 @@ test.describe('desk island shell @E-01', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const list = page.locator('[data-object-list]');
     await page.goto('/');
-    await expect(list).toHaveCSS('opacity', '1');
     await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
       timeout: 45_000,
     });
-    await expect(list).toHaveCSS('opacity', '0');
+    // Visually hidden and out of the layout (1 px, no space), still in the tab order.
+    expect((await list.boundingBox())!.width).toBeLessThanOrEqual(2);
     await list.getByRole('link').first().focus();
-    await expect(list).toHaveCSS('opacity', '1');
+    expect((await list.boundingBox())!.width).toBeGreaterThan(100);
     await expectNoAxeViolations(page, { label: '/ object list focused' });
     // Below 1024 px it is always visible.
     await page.setViewportSize({ width: 820, height: 1100 });
     await page.locator('body').click({ position: { x: 2, y: 2 } });
-    await expect(list).toHaveCSS('opacity', '1');
+    expect((await list.boundingBox())!.width).toBeLessThanOrEqual(2);
   });
 
   test('resize is debounced: the canvas follows the frame within a second @E-01', async ({
@@ -193,7 +205,8 @@ test.describe('desk island shell @E-01', () => {
     const before = await page.evaluate(() =>
       window.__hooks!.desk!.scene!.size(),
     );
-    await page.setViewportSize({ width: 1100, height: 900 });
+    // The drawing is capped at 58rem, so go below that width.
+    await page.setViewportSize({ width: 800, height: 900 });
     await expect
       .poll(() =>
         page.evaluate(() => window.__hooks!.desk!.scene!.size().width),

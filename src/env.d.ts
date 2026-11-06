@@ -57,6 +57,7 @@ interface DeskSceneHooks {
       type: 'dynamic' | 'kinematic';
       p: [number, number, number];
       screen?: [number, number];
+      rect?: { x: number; y: number; w: number; h: number };
     }[];
   };
   /** Every table-to-fall handoff so far: screen rects, velocities, accelerations (see HandoffLog). */
@@ -69,7 +70,7 @@ interface DeskSceneHooks {
   requestPhysics(): void;
   /** Moves a body (waking it); false while physics is not loaded. */
   teleport(id: string, x: number, y: number, z: number): boolean;
-  /** Canvas CSS px of a point inside the object, or null. */
+  /** Viewport px of a point inside the object, or null. */
   pick(id: string): { x: number; y: number } | null;
   hovered(): string | null;
   /** Hover lift of the model root, metres. */
@@ -108,6 +109,18 @@ interface TestHooks {
   longTasks: number[];
   errors: ErrorRecord[];
   desk?: DeskHooks;
+}
+
+interface GardenHooks {
+  balls(): {
+    x: number;
+    y: number;
+    held: boolean;
+    grabbed: boolean;
+    speed: number;
+  }[];
+  flowers(): { x: number; y: number }[];
+  bucket(): { x: number; y: number; count: number };
 }
 
 interface Window {

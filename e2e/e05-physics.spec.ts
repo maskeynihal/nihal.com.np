@@ -22,7 +22,8 @@ async function where(page: Page, id: string) {
   );
   const box = await canvas(page).boundingBox();
   if (!p || !box) throw new Error(`no position for ${id}`);
-  return { x: box.x + p.x, y: box.y + p.y, box };
+  // `pick` answers in viewport px (the canvas is in the page flow).
+  return { x: p.x, y: p.y, box };
 }
 
 const bodies = (page: Page) =>

@@ -1,18 +1,20 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoAxeViolations } from './fixtures';
 
-// The falling desk (v3 WS2): a fixed full-viewport canvas, window-level grab, screen-space physics.
+// The desk (v3.1): the table canvas is in the page flow; an object pushed off the rim is handed to a
+// fixed full-viewport fall canvas and settles on the bottom edge of the screen.
 // Needs SwiftShader, so desktop-chromium only.
 
 const figure = (page: Page) => page.locator('[data-desk]');
 const reset = (page: Page) => page.locator('[data-desk-reset]');
 
 async function goLive(page: Page) {
-  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.setViewportSize({ width: 1280, height: 1100 });
   await page.goto('/');
   await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
     timeout: 45_000,
   });
+  await figure(page).locator('canvas').scrollIntoViewIfNeeded();
   await page.waitForTimeout(500);
 }
 
@@ -41,41 +43,48 @@ test.describe('falling desk @V3-desk', () => {
   });
   test.describe.configure({ timeout: 120_000 });
 
-  test('an object dropped off the table falls to the bottom of the viewport; put everything back resets @V3-desk', async ({
+  const fall = (page: Page) =>
+    page.evaluate(() => window.__hooks!.desk!.scene!.fall());
+
+  test('an object pushed off the rim is handed off and ends on the bottom edge of the screen; put everything back resets @V3-desk', async ({
     page,
   }) => {
     await goLive(page);
     const home = (await where(page, 'ball-m'))!;
-    // Nothing is free: the button is hidden.
     await expect(reset(page)).toBeHidden();
 
-    // Carry it well off the table (the right margin, high up) and let go.
-    await carry(page, 'ball-m', 1230, 300);
+    // Carry it past the table's right edge and let go.
+    const vw = page.viewportSize()!.width;
+    await carry(page, 'ball-m', vw - 50, home.y - 40);
     await page.mouse.up();
     await expect(reset(page)).toBeVisible({ timeout: 10_000 });
 
-    const vh = page.viewportSize()!.height;
+    // It was handed to the fall layer in one swap: same picture either side.
     await expect
-      .poll(
-        async () => {
-          const p = await where(page, 'ball-m');
-          return p ? p.y : 0;
-        },
-        { timeout: 30_000 },
-      )
-      .toBeGreaterThan(vh - 150);
+      .poll(async () => (await fall(page)).state, { timeout: 30_000 })
+      .toBe('ready');
+    const log = (await page.evaluate(() =>
+      window.__hooks!.desk!.scene!.handoffs(),
+    )) as { id: string; dir: string; errPx: number }[];
+    const down = log.find((h) => h.id === 'ball-m' && h.dir === 'down');
+    expect(down, 'a handoff to the fall layer').toBeTruthy();
+    expect(down!.errPx).toBeLessThan(6);
+
     await expect
-      .poll(async () => (await physics(page)).bodies.every((b) => b.asleep), {
-        timeout: 30_000,
+      .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
+        timeout: 45_000,
       })
       .toBe(true);
-    const rest = (await where(page, 'ball-m'))!;
-    expect(rest.y).toBeLessThanOrEqual(vh);
-    expect(rest.x).toBeGreaterThan(0);
-    expect(rest.x).toBeLessThan(1280);
+    const vh = page.viewportSize()!.height;
+    const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
+    // Rests on the bottom edge of the screen: the silhouette is within 30 px of it.
+    const bottom = b.rect!.y + b.rect!.h;
+    expect(vh - bottom).toBeLessThanOrEqual(30);
+    expect(vh - bottom).toBeGreaterThanOrEqual(-2);
+    expect(b.rect!.x).toBeGreaterThan(0);
+    expect(b.rect!.x + b.rect!.w).toBeLessThan(vw);
     await expectNoAxeViolations(page, { label: '/ desk with a fallen object' });
 
-    // The button (44 px target) puts it back where it started.
     expect((await reset(page).boundingBox())!.height).toBeGreaterThanOrEqual(
       44,
     );
@@ -89,28 +98,36 @@ test.describe('falling desk @V3-desk', () => {
       .toBeLessThan(3);
   });
 
-  test('the page underneath stays clickable and scrollable, the R key resets, and free objects stay on screen while scrolling @V3-desk', async ({
+  test('the table does not move against the page on scroll; a fallen object stays on screen; R resets @V3-desk', async ({
     page,
   }) => {
     await goLive(page);
-    // A click on a page control works through the full-screen canvas.
-    await page.getByRole('button', { name: 'theme' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'paper');
-    await page.getByRole('button', { name: 'theme' }).click();
+    // The table is part of the page: its document position does not change as the page scrolls.
+    const docY = async () => {
+      const p = (await where(page, 'arduino'))!;
+      return p.y + (await page.evaluate(() => scrollY));
+    };
+    const y0 = await docY();
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(400);
+    expect(Math.abs((await docY()) - y0)).toBeLessThan(1.5);
+    await page.mouse.wheel(0, -120);
+    await page.waitForTimeout(400);
 
-    await carry(page, 'ball-l', 1220, 250);
+    const o = (await where(page, 'ball-l'))!;
+    await carry(page, 'ball-l', page.viewportSize()!.width - 50, o.y - 40);
     await page.mouse.up();
     const vh = page.viewportSize()!.height;
     await expect
-      .poll(async () => (await where(page, 'ball-l'))!.y, { timeout: 30_000 })
-      .toBeGreaterThan(vh - 150);
-    // Scroll one screen: the table leaves, the fallen ball stays near the bottom of the screen.
+      .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
+        timeout: 45_000,
+      })
+      .toBe(true);
+    // Scroll one screen: the table leaves, the fallen ball stays on the bottom of the screen.
     await page.mouse.wheel(0, vh);
     await page.waitForTimeout(1500);
-    const p = (await where(page, 'ball-l'))!;
-    expect(p.y).toBeGreaterThan(vh * 0.5);
-    expect(p.y).toBeLessThanOrEqual(vh);
-    // Back up and press R: everything returns.
+    const b = (await fall(page)).bodies.find((x) => x.id === 'ball-l')!;
+    expect(vh - (b.rect!.y + b.rect!.h)).toBeLessThanOrEqual(30);
     await page.mouse.wheel(0, -vh);
     await page.waitForTimeout(500);
     await page.keyboard.press('r');
@@ -122,8 +139,7 @@ test.describe('falling desk @V3-desk', () => {
   }) => {
     await goLive(page);
     const home = (await where(page, 'ball-s'))!;
-    // Lift it a little and drop it back onto the table, near where it was.
-    await carry(page, 'ball-s', home.x + 40, home.y - 30);
+    await carry(page, 'ball-s', home.x + 30, home.y - 20);
     await page.mouse.up();
     await expect
       .poll(async () => (await physics(page)).bodies.every((b) => b.asleep), {

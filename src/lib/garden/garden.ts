@@ -1,3 +1,4 @@
+import { testHooks } from '../env';
 import { type Ball, type Colors, type World, clamp, rng } from './core';
 import {
   type Butterfly,
@@ -504,4 +505,25 @@ export function mountGarden(root: HTMLElement): void {
   }).observe(canvas);
   readColors();
   resize();
+  // Test hooks (PUBLIC_TEST_HOOKS=1 only; a plain build drops this): where things are on screen.
+  if (testHooks && window.__hooks) {
+    const at = (x: number, y: number) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: r.left + x, y: r.top + y };
+    };
+    window.__hooks.garden = {
+      balls: () =>
+        w.balls.map((b) => ({
+          ...at(b.x, b.y - b.z - 8),
+          held: b.held,
+          grabbed: b.grabbed,
+          speed: Math.hypot(b.vx, b.vy),
+        })),
+      flowers: () =>
+        w.flowers
+          .filter((f) => f.grow >= 0.9)
+          .map((f) => ({ ...at(f.hx, f.hy) })),
+      bucket: () => ({ ...at(w.bucket.x, w.bucket.y), count: w.bucket.count }),
+    };
+  }
 }
