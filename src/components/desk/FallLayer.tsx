@@ -32,9 +32,13 @@ function FallRig({ art }: { art: LineArt }) {
   const { camera, size, invalidate, gl } = useThree();
   const frame = fallBridge.frame();
 
+  // R3F camera props are mutated in place by design.
+  // eslint-disable-next-line react-hooks/immutability
   useLayoutEffect(() => {
     if (!frame) return;
     const cam = camera as PerspectiveCamera;
+    // R3F camera props are mutated in place by design.
+    // eslint-disable-next-line react-hooks/immutability
     (cam as unknown as { manual: boolean }).manual = true;
     cam.fov = heroCamera.fov;
     cam.near = 0.05;

@@ -125,8 +125,10 @@ export function reanchor(p: Vector3, v: Vector3, from: Frame, to: Frame): void {
 
 /** The fall world's boundaries, in the camera frame. */
 export interface Bounds {
-  /** y of the floor plane. */
+  /** y of the floor plane at the nearest depth. */
   floorY: number;
+  /** dy per metre of depth: the floor plane is y = floorSlope * depth, so at every depth it meets the viewport's bottom edge. */
+  floorSlope: number;
   /** Nearest and farthest depth (m, positive) a free body may have. */
   zNear: number;
   zFar: number;
@@ -136,9 +138,9 @@ export interface Bounds {
 }
 
 /**
- * Floor at `padBottom` px above the viewport bottom for the nearest depth, so a body that lands at the front of the
- * band rests just above the bottom edge and one that lands deeper rests higher up, as on a real
- * floor.
+ * The floor is the plane through the camera that meets the viewport's bottom edge (`padBottom` px above it): at any
+ * depth it projects to the same screen line, so whatever lands rests on the bottom of the screen. It slopes away from
+ * the camera; bodies keep a fixed depth so the slope never moves them.
  */
 export function boundsFor(
   frame: Frame,
@@ -150,6 +152,7 @@ export function boundsFor(
 ): Bounds {
   return {
     floorY: (-(vh - padBottom - frame.cy) * zNear) / frame.f,
+    floorSlope: -(vh - padBottom - frame.cy) / frame.f,
     zNear,
     zFar,
     left: (0 - frame.cx) / frame.f,

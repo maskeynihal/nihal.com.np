@@ -166,9 +166,11 @@ function useMotionFull(): boolean {
 function Rig({ art }: { art: LineArt }) {
   const { camera, size, invalidate, gl, scene } = useThree();
 
+  // eslint-disable-next-line react-hooks/immutability
   useLayoutEffect(() => {
     const cam = camera as PerspectiveCamera;
     // R3F must not re-fit the frustum to the canvas size: the poster aspect is the aspect.
+    // eslint-disable-next-line react-hooks/immutability
     (cam as unknown as { manual: boolean }).manual = true;
     applyHeroCamera(cam);
     table.scene = scene;

@@ -230,7 +230,9 @@ function World({
   const { invalidate } = useThree();
   const { rapier, step, world } = useRapier();
   const stepRef = useRef(step);
-  stepRef.current = step;
+  useLayoutEffect(() => {
+    stepRef.current = step;
+  });
   const bodies = useRef(new Map<string, RapierRigidBody>());
   const grab = useRef<Grab | null>(null);
   const outSince = useRef(new Map<string, number>());
@@ -560,6 +562,7 @@ function World({
   return (
     <>
       <Slab slabRef={slab} />
+      {/* eslint-disable-next-line react-hooks/refs -- the handed set is changed imperatively, then a render is forced */}
       {entries.map((entry) =>
         handed.current.has(entry.id) ? null : (
           <Body

@@ -123,6 +123,16 @@ describe('fall frame maths', () => {
     expect(b.left).toBeLessThan(0);
     expect(b.right).toBeGreaterThan(0);
   });
+
+  it('puts the floor on the same screen line at every depth', () => {
+    const f = frame(120, 60);
+    const b = boundsFor(f, 1440, 900, 2, 3.3, 16);
+    const line = project(new Vector3(0, b.floorY, -2), f).y;
+    for (const d of [2, 2.5, 3.3]) {
+      const y = project(new Vector3(0, b.floorSlope * d, -d), f).y;
+      expect(y).toBeCloseTo(line, 6);
+    }
+  });
 });
 
 describe('hero camera', () => {

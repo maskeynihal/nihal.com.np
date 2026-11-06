@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import {
   CoefficientCombineRule,
@@ -59,6 +59,9 @@ import { screenRect } from './handoff';
  * nearest depth a body can have; deeper floor appears higher up, so bodies that land farther back
  * rest higher on screen, as on a real floor. The side walls are the viewport's left and right
  * edges (slanted planes through the camera), there is a front and a back wall, and no ceiling.
+ * The floor is the plane through the camera that meets the bottom of the viewport at every depth,
+ * and bodies keep the depth they were handed over at, so each rests on the bottom edge of the
+ * screen.
  *
  * Stepping is done here (fixed 1/60 s, interpolated for display) rather than by the library, so a
  * handoff is one synchronous call: no React render sits between taking a body and drawing it.
@@ -114,7 +117,9 @@ function FallWorld({
   const { rapier, world } = useRapier();
   const { scene, camera, size, invalidate } = useThree();
   const view = useRef({ camera, width: size.width, height: size.height });
-  view.current = { camera, width: size.width, height: size.height };
+  useLayoutEffect(() => {
+    view.current = { camera, width: size.width, height: size.height };
+  });
   const bodies = useRef(new Map<string, FallBody>());
   const held = useRef<Held | null>(null);
   const bounds = useRef<Bounds | null>(null);
@@ -150,8 +155,16 @@ function FallWorld({
         body,
       );
     const mid = -(Z_NEAR + Z_FAR) / 2;
-    // Floor, front and back walls.
-    make(50, WALL, 50, new Vector3(0, b.floorY - WALL, mid));
+    // Floor: the plane y = slope * depth, so it meets the screen bottom at every depth. Front and back walls.
+    const fn = new Vector3(0, 1, b.floorSlope).normalize();
+    const fq = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), fn);
+    make(
+      50,
+      WALL,
+      50,
+      new Vector3(0, b.floorSlope * -mid, mid).addScaledVector(fn, -WALL),
+      fq,
+    );
     make(50, 50, WALL, new Vector3(0, 0, -Z_NEAR + WALL));
     make(50, 50, WALL, new Vector3(0, 0, -Z_FAR - WALL));
     // The viewport's side edges: planes through the camera, normals pointing inward.
@@ -203,7 +216,7 @@ function FallWorld({
     if (p.x > xMax) v.x = Math.min(v.x, 0);
     if (-p.z < bd.zNear + 0.15) v.z = Math.min(v.z, 0);
     if (-p.z > bd.zFar - 0.15) v.z = Math.max(v.z, 0);
-    const y = Math.max(p.y, bd.floorY + 0.12);
+    const y = Math.max(p.y, bd.floorSlope * depth + 0.12);
     const moved = p.x < xMin || p.x > xMax || p.y < y || depth !== -p.z;
     p.set(clamp(p.x, xMin, xMax), y, -depth);
     if (moved) shown.copy(p);
@@ -420,6 +433,8 @@ function FallWorld({
           .setLinearDamping(feel.linearDamping)
           .setAngularDamping(feel.angularDamping)
           .setGravityScale(g.scale)
+          // Fixed depth: the floor slopes with depth, so a body must not slide along it.
+          .enabledTranslations(true, true, false)
           .setCcdEnabled(true);
         const rb = world.createRigidBody(desc);
         const c = def.collider;
@@ -527,7 +542,7 @@ function FallWorld({
         const xMin = bd.left * h.depth + 0.06;
         const xMax = bd.right * h.depth - 0.06;
         h.tx = clamp(at.x + h.ox, xMin, xMax);
-        h.ty = Math.max(at.y + h.oy, bd.floorY + 0.06);
+        h.ty = Math.max(at.y + h.oy, bd.floorSlope * h.depth + 0.06);
         wake();
       },
       release(vx, vy, cx, cy) {
