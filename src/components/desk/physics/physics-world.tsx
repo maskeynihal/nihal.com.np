@@ -76,6 +76,9 @@ setTimeout(restoreWarn, 15_000);
 const WATCHDOG_MS = 1200;
 /** Steps without touching the slab, past the rim and below the table top, before a handoff. */
 const CLEAR_STEPS = 2;
+/** Ask for the fall canvas when a body would be past the rim this soon, or is this close to it (m). */
+const LOOKAHEAD_S = 0.7;
+const NEAR_RIM = 0.12;
 const STEP = 1 / 60;
 /** The slab is the table: its top is y = 0, where the sheet is drawn. */
 const SLAB_THICK = 0.05;
@@ -86,6 +89,11 @@ const NEUTRAL = {
   frictionCombineRule: CoefficientCombineRule.Multiply,
   restitutionCombineRule: CoefficientCombineRule.Max,
 } as const;
+
+/** Signed distance past the slab's nearest edge on the table plane, metres (negative over it). */
+function rimEdge(x: number, z: number): number {
+  return Math.max(Math.abs(x) - TABLE_HALF.x, Math.abs(z) - TABLE_HALF.z);
+}
 
 /** How far a point is outside the slab's footprint on the table plane, metres (0 over it). */
 function beyondRim(x: number, z: number): number {
@@ -367,12 +375,18 @@ function World({
       const p = rb.translation();
       const held = grab.current?.id === entry.id;
       const off = beyondRim(p.x, p.z);
-      if (!held && off > 0 && !rb.isSleeping()) {
-        // Over the rim: get the second canvas ready while the object is still tipping.
-        if (fallBridge.state() === 'off') {
+      // The second canvas takes a moment to come up (a new WebGL context), so it is asked for
+      // early: while something is carried near the rim, and when anything is moving so that it
+      // would be past the rim within a moment.
+      if (fallBridge.state() === 'off' && !rb.isSleeping()) {
+        const v = rb.linvel();
+        const ahead = rimEdge(p.x + v.x * LOOKAHEAD_S, p.z + v.z * LOOKAHEAD_S);
+        if (held ? rimEdge(p.x, p.z) > -NEAR_RIM : ahead > 0) {
           const frame = tableFrame();
           if (frame) fallBridge.request(frame);
         }
+      }
+      if (!held && off > 0 && !rb.isSleeping()) {
         // Clear of the slab (no contact for a few steps) and below the table top: the fall layer
         // takes it. A body that is still tipping over the rim keeps touching it, so it pivots.
         const gap = touchingSlab(rb)

@@ -192,6 +192,23 @@ function FallWorld({
     return b;
   };
 
+  /** Moves a camera-frame state inside the floor, side and depth bounds (and stops it leaving). */
+  const keepInside = (p: Vector3, v: Vector3, shown: Vector3): void => {
+    const bd = bounds.current;
+    if (!bd) return;
+    const depth = clamp(-p.z, bd.zNear + 0.15, bd.zFar - 0.15);
+    const xMin = bd.left * depth + 0.1;
+    const xMax = bd.right * depth - 0.1;
+    if (p.x < xMin) v.x = Math.max(v.x, 0);
+    if (p.x > xMax) v.x = Math.min(v.x, 0);
+    if (-p.z < bd.zNear + 0.15) v.z = Math.min(v.z, 0);
+    if (-p.z > bd.zFar - 0.15) v.z = Math.max(v.z, 0);
+    const y = Math.max(p.y, bd.floorY + 0.12);
+    const moved = p.x < xMin || p.x > xMax || p.y < y || depth !== -p.z;
+    p.set(clamp(p.x, xMin, xMax), y, -depth);
+    if (moved) shown.copy(p);
+  };
+
   /** Sends a body back to the table world. `target` is where the pointer is when it was dropped. */
   const returnToTable = (b: FallBody, tx: number, ty: number): void => {
     const frame = tableFrame();
@@ -252,6 +269,21 @@ function FallWorld({
     );
   };
 
+  const sendHome = (b: FallBody): void => {
+    const api = physicsBridge.api();
+    remove(b.entry.id);
+    const d = b.entry.def;
+    if (api)
+      api.receive({
+        id: b.entry.id,
+        p: d.p,
+        q: d.q,
+        v: [0, 0, 0],
+        w: [0, 0, 0],
+      });
+    scheduleEmpty();
+  };
+
   const stepOnce = () => {
     const h = held.current;
     for (const b of bodies.current.values()) {
@@ -290,6 +322,7 @@ function FallWorld({
       }
     }
     world.step();
+    const lost: FallBody[] = [];
     for (const b of bodies.current.values()) {
       const t = b.rb.translation();
       const r = b.rb.rotation();
@@ -298,10 +331,14 @@ function FallWorld({
       b.fresh = false;
       const lv = b.rb.linvel();
       const speed = Math.hypot(lv.x, lv.y, lv.z);
+      if (!Number.isFinite(t.x + t.y + t.z + speed) || b.curP.length() > 40)
+        lost.push(b);
       if (b.speed - speed > 1.2 && held.current?.body !== b)
         playImpact(b.speed);
       b.speed = speed;
     }
+    // Safety net: a body that escaped the room goes back to its home pose on the table.
+    for (const b of lost) sendHome(b);
   };
 
   const show = (alpha: number) => {
@@ -371,6 +408,9 @@ function FallWorld({
         // Same picture under a different principal point (the page scrolled since the mount).
         reanchor(pose.p, vc, frame, anchor);
         reanchor(shown.p, vc.clone(), frame, anchor);
+        // A body that arrives outside the viewport (the canvas was slow to come up) is put just
+        // inside it, moving inward, so it cannot start inside a wall.
+        keepInside(pose.p, vc, shown.p);
         const g = startGravityScale(pose.p, vc, gCam, frame.f);
         const desc = rapier.RigidBodyDesc.dynamic()
           .setTranslation(pose.p.x, pose.p.y, pose.p.z)
