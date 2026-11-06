@@ -7,23 +7,28 @@ import {
   RingBuffer,
   TAP_SLOP_PX,
   isTap,
+  planePoint,
 } from '../../lib/desk/drag';
-import { pxToWorld } from '../../lib/desk/view';
 import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { entryIdOf, registry } from './registry';
 import { activity } from './activity';
-import { physicsBridge } from './physics-bridge';
-import { table } from './table';
+import { fallBridge, physicsBridge } from './physics-bridge';
 import { setInteractionProbe } from './scene-hooks';
 import { armSound } from '../../lib/sound';
 import { CALLOUT_EVENT, type FlightLabel } from '../../lib/shared-callout';
 
+/** Height of the plane the pointer is projected onto while dragging on the table, metres. */
+const PLANE_Y = 0.03;
 /** Hover lift of the drawn model (not the body), metres. */
 const HOVER_LIFT = 0.004;
 
+/** Which canvas the pressed object is drawn in: the table's, or the fall layer's. */
+type Layer = 'table' | 'fall';
+
 interface Press {
   id: string;
+  layer: Layer;
   pointerId: number;
   touch: boolean;
   x0: number;
@@ -36,7 +41,7 @@ interface Press {
   timer: number | undefined;
   /** Page scroll position at pointerdown: a page that moved is a swipe, not a hold. */
   scrollY: number;
-  /** Pointer on the z = 0 world plane. */
+  /** Pointer: table layer, on the drag plane (metres, x and z); fall layer, viewport px (x and y). */
   last: { x: number; y: number };
   ring: RingBuffer;
   /** The element that got the pointerdown (it holds the capture). */
@@ -48,9 +53,11 @@ function sendDrag(active: boolean): void {
 }
 
 /**
- * Pointer, touch and keyboard input for the desk. The canvas is a fixed layer that never takes
- * events, so everything is listened to on `window`: a press is ours only when a ray from the
- * pointer hits a drawn object; any other press goes on to the page untouched. It lives in the
+ * Pointer, touch and keyboard input for the desk. Neither canvas takes events (the table canvas
+ * overlaps the text around it, the fall layer covers the page), so everything is listened to on
+ * `window`: a press is ours only when a ray from the pointer hits a drawn object, in the fall layer
+ * first (it is drawn on top) and then on the table; any other press goes on to the page untouched.
+ * The table canvas's rectangle is read when a pointer event needs it, never per frame. It lives in the
  * Scene chunk and talks to the physics chunk only through `physicsBridge`. Without physics a
  * press still works as a tap; a drag asks for the engine (first grab only) and waits for it with
  * the pointer still down.
@@ -86,29 +93,58 @@ export function Interaction() {
     let swallowClick = false;
     let hoverRaf = 0;
     let hoverAt: { x: number; y: number } | null = null;
+    let lastPointer = { x: 0, y: 0 };
 
     const canvasPoint = (cx: number, cy: number) => {
       const r = el.getBoundingClientRect();
       return { x: cx - r.left, y: cy - r.top, w: r.width, h: r.height };
     };
 
-    const pick = (cx: number, cy: number): string | null => {
-      // Nothing is drawn where the table is off screen and nothing is free: skip the ray.
-      if (!table.visible && !registry.anyFree()) return null;
+    /** The object under the pointer and the layer it is in. */
+    const pick = (
+      cx: number,
+      cy: number,
+    ): { id: string; layer: Layer } | null => {
+      const free = fallBridge.api()?.pick(cx, cy);
+      if (free) return { id: free, layer: 'fall' };
       const p = canvasPoint(cx, cy);
+      // Outside the table canvas there is nothing of the table to hit.
+      if (p.w === 0 || p.x < 0 || p.y < 0 || p.x > p.w || p.y > p.h)
+        return null;
       ndc.set((p.x / p.w) * 2 - 1, -(p.y / p.h) * 2 + 1);
       camera.updateMatrixWorld();
       raycaster.setFromCamera(ndc, camera);
       scene.updateMatrixWorld();
-      const roots: Object3D[] = registry.all().map((x) => x.obj);
+      const roots: Object3D[] = registry
+        .all()
+        .filter((x) => !x.free)
+        .map((x) => x.obj);
       const hit = raycaster.intersectObjects(roots, true)[0];
-      return hit ? entryIdOf(hit.object) : null;
+      const id = hit ? entryIdOf(hit.object) : null;
+      return id ? { id, layer: 'table' } : null;
     };
 
-    const toWorld = (cx: number, cy: number) => {
+    /** The pointer on the table drag plane (x, z), or null when the ray misses it. */
+    const toPlane = (
+      cx: number,
+      cy: number,
+    ): { x: number; y: number } | null => {
       const p = canvasPoint(cx, cy);
-      return pxToWorld(p.x, p.y, table.viewport, table.layout.ppm);
+      if (p.w === 0) return null;
+      ndc.set((p.x / p.w) * 2 - 1, -(p.y / p.h) * 2 + 1);
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(ndc, camera);
+      const { origin, direction } = raycaster.ray;
+      const hit = planePoint(
+        [origin.x, origin.y, origin.z],
+        [direction.x, direction.y, direction.z],
+        PLANE_Y,
+      );
+      return hit ? { x: hit.x, y: hit.z } : null;
     };
+
+    const pointOf = (layer: Layer, cx: number, cy: number) =>
+      layer === 'fall' ? { x: cx, y: cy } : toPlane(cx, cy);
 
     const setCursor = (c: string) => {
       html.style.cursor = c;
@@ -177,31 +213,42 @@ export function Interaction() {
 
     const tryGrab = () => {
       const p = press;
-      const api = physicsBridge.api();
-      if (!p || !api || p.mode === 'grabbed') return;
+      if (!p || p.mode === 'grabbed') return;
       const wants = p.touch ? p.mode === 'holding' : p.dragging;
       if (!wants) return;
-      if (!api.grab(p.id, p.last.x, p.last.y)) return;
+      const ok =
+        p.layer === 'fall'
+          ? fallBridge.api()?.grab(p.id, p.last.x, p.last.y)
+          : physicsBridge.api()?.grab(p.id, p.last.x, p.last.y);
+      if (!ok) return;
       p.mode = 'grabbed';
       p.ring.clear();
       p.ring.push(p.last.x, p.last.y, performance.now());
+      lastPointer = { x: p.x0, y: p.y0 };
       setCursor('grabbing');
       setHover(null);
       activity.set({ grabbed: p.id });
       sendDrag(true);
-      if (p.id === 'ghost') ghostLook.set({ x: p.last.x, z: 1 });
+      if (p.id === 'ghost' && p.layer === 'table')
+        ghostLook.set({ x: p.last.x, z: p.last.y });
     };
 
     const finishGrab = (throwIt: boolean, now: number) => {
       const p = press;
-      const api = physicsBridge.api();
       if (!p || p.mode !== 'grabbed') return;
       if (p.id === 'ghost') ghostLook.set(null);
-      if (api) {
+      if (p.layer === 'fall') {
+        const api = fallBridge.api();
+        if (throwIt) {
+          const v = p.ring.velocity(now, Infinity);
+          api?.release(v.x, v.z, lastPointer.x, lastPointer.y);
+        } else api?.drop();
+      } else {
+        const api = physicsBridge.api();
         if (throwIt) {
           const v = p.ring.velocity(now);
-          api.release(v.x, v.z);
-        } else api.drop();
+          api?.release(v.x, v.z);
+        } else api?.drop();
       }
       activity.set({ grabbed: null });
       sendDrag(false);
@@ -221,13 +268,17 @@ export function Interaction() {
       const t = e.target;
       // The put-back button is the page's, even where an object floats over it.
       if (t instanceof Element && t.closest('[data-desk-reset]')) return;
-      const id = pick(e.clientX, e.clientY);
-      if (!id) return;
+      const hit = pick(e.clientX, e.clientY);
+      if (!hit) return;
+      const { id, layer } = hit;
+      const start = pointOf(layer, e.clientX, e.clientY);
+      if (!start) return;
       // A press is the gesture that lets a visitor who left sound on hear the desk.
       armSound();
       const touch = e.pointerType !== 'mouse';
       const p: Press = {
         id,
+        layer,
         pointerId: e.pointerId,
         touch,
         x0: e.clientX,
@@ -237,7 +288,7 @@ export function Interaction() {
         dragging: false,
         timer: undefined,
         scrollY: window.scrollY,
-        last: toWorld(e.clientX, e.clientY),
+        last: start,
         ring: new RingBuffer(),
         target: e.target instanceof Element ? e.target : null,
       };
@@ -246,7 +297,7 @@ export function Interaction() {
       html.style.userSelect = 'none';
       if (!touch) {
         e.preventDefault();
-        physicsBridge.request();
+        if (layer === 'table') physicsBridge.request();
         capture(e);
       } else {
         // A swipe over an object must not cost a 600 KB download: ask only once held.
@@ -258,7 +309,7 @@ export function Interaction() {
             return;
           }
           p.mode = 'holding';
-          physicsBridge.request();
+          if (layer === 'table') physicsBridge.request();
           if (p.target)
             try {
               p.target.setPointerCapture(p.pointerId);
@@ -273,7 +324,7 @@ export function Interaction() {
     const hoverPick = () => {
       hoverRaf = 0;
       if (press || !hoverAt) return;
-      setHover(pick(hoverAt.x, hoverAt.y));
+      setHover(pick(hoverAt.x, hoverAt.y)?.id ?? null);
     };
 
     const onMove = (e: PointerEvent) => {
@@ -292,13 +343,17 @@ export function Interaction() {
         endPress();
         return;
       }
-      const pt = toWorld(e.clientX, e.clientY);
-      p.last = pt;
+      lastPointer = { x: e.clientX, y: e.clientY };
+      const pt = pointOf(p.layer, e.clientX, e.clientY);
+      if (pt) p.last = pt;
       if (!p.touch && !p.dragging && dist >= TAP_SLOP_PX) p.dragging = true;
       if (p.mode === 'grabbed') {
+        if (!pt) return;
         p.ring.push(pt.x, pt.y, e.timeStamp);
-        physicsBridge.api()?.move(pt.x, pt.y);
-        if (p.id === 'ghost') ghostLook.set({ x: pt.x, z: 1 });
+        if (p.layer === 'fall') fallBridge.api()?.move(pt.x, pt.y);
+        else physicsBridge.api()?.move(pt.x, pt.y);
+        if (p.id === 'ghost' && p.layer === 'table')
+          ghostLook.set({ x: pt.x, z: pt.y });
       } else tryGrab();
     };
 
@@ -392,8 +447,8 @@ export function Interaction() {
           .project(camera);
         const r = el.getBoundingClientRect();
         return {
-          x: ((p.x + 1) / 2) * r.width,
-          y: ((1 - p.y) / 2) * r.height,
+          x: r.left + ((p.x + 1) / 2) * r.width,
+          y: r.top + ((1 - p.y) / 2) * r.height,
         };
       },
       hovered: () => hover.current.id,

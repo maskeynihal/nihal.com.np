@@ -1,15 +1,19 @@
 /**
  * Poster generator (D-01). Projects the same models the GLBs are built from (authored creases
- * plus silhouette edges taken from the triangles, back lines removed) through the fixed desk view
- * in `src/assets/camera.ts` into `src/assets/poster.svg`. 2D and 3D match by construction.
+ * plus silhouette edges taken from the triangles, back lines removed) through the fixed hero
+ * camera in `src/assets/camera.ts` into `src/assets/poster.svg`. 2D and 3D match by construction.
  *
  * Silhouette edge: a welded mesh edge where one adjacent triangle faces the camera and the
  * other does not (or a boundary edge of a front triangle). Hidden-line removal: each segment
  * is sampled and ray-tested against the occluding triangles, boundaries refined by bisection.
  */
 import { optimize } from 'svgo';
-import { Quaternion, Vector3 } from 'three';
-import { deskView, posterViewBox } from '../../src/assets/camera';
+import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import {
+  heroCamera,
+  posterAspect,
+  posterViewBox,
+} from '../../src/assets/camera';
 import { objects } from '../../src/content/objects';
 import { models, type ModelDef } from './models';
 import type { Part } from './geom';
@@ -23,19 +27,24 @@ interface Placed {
 }
 
 const EPS_LIFT = 2e-4;
+const EPS_HIT = 1e-4;
 const PRECISION = 1;
 
-const TILT = (deskView.tilt * Math.PI) / 180;
-const SIN = Math.sin(TILT);
-const COS = Math.cos(TILT);
-/** Unit vector from the scene toward the (orthographic) camera. */
-const toCam: V = [0, SIN, COS];
-/** View-plane coordinates: u right, v up (metres), w toward the camera. */
-const uvw = (p: V): V => [
-  p[0],
-  p[1] * COS - p[2] * SIN,
-  p[1] * SIN + p[2] * COS,
-];
+const cam = new PerspectiveCamera(
+  heroCamera.fov,
+  posterAspect,
+  heroCamera.near,
+  heroCamera.far,
+);
+cam.position.set(...heroCamera.position);
+cam.lookAt(...heroCamera.lookAt);
+cam.updateMatrixWorld(true);
+cam.updateProjectionMatrix();
+const camPos: V = [...heroCamera.position];
+const viewProj = new Matrix4().multiplyMatrices(
+  cam.projectionMatrix,
+  cam.matrixWorldInverse,
+);
 
 const sub = (a: V, b: V): V => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -105,7 +114,12 @@ function silhouette(tris: V[][]): [V, V][] {
   for (const t of tris) {
     const n = cross(sub(t[1]!, t[0]!), sub(t[2]!, t[0]!));
     if (len(n) < 1e-12) continue; // degenerate (sphere poles)
-    const front = dot(n, toCam) > 0 ? 1 : 0;
+    const c: V = [
+      (t[0]![0] + t[1]![0] + t[2]![0]) / 3,
+      (t[0]![1] + t[1]![1] + t[2]![1]) / 3,
+      (t[0]![2] + t[1]![2] + t[2]![2]) / 3,
+    ];
+    const front = dot(n, sub(camPos, c)) > 0 ? 1 : 0;
     for (let i = 0; i < 3; i++) {
       const a = t[i]!;
       const b = t[(i + 1) % 3]!;
@@ -129,13 +143,18 @@ function silhouette(tris: V[][]): [V, V][] {
 
 interface Occluder {
   t: V[];
-  /** bounding box in view-plane (u, v) */
+  /** bounding box in NDC (x0, x1, y0, y1) */
   box: [number, number, number, number];
+}
+
+function ndc(v: V): [number, number] {
+  const p = new Vector3(...v).applyMatrix4(viewProj);
+  return [p.x, p.y];
 }
 
 function prepare(tris: V[][]): Occluder[] {
   return tris.map((t) => {
-    const q = t.map(uvw);
+    const q = t.map(ndc);
     return {
       t,
       box: [
@@ -148,40 +167,46 @@ function prepare(tris: V[][]): Occluder[] {
   });
 }
 
-/** True if a triangle lies between point `p` and the camera. */
+/** True if a triangle blocks the view from the camera to point `p`. */
 function occluded(p: V, occluders: Occluder[]): boolean {
-  const q = uvw(p);
+  const dir = sub(p, camPos);
+  const dist = len(dir);
+  const d: V = [dir[0] / dist, dir[1] / dist, dir[2] / dist];
+  const [nx, ny] = ndc(p);
   for (const o of occluders) {
     if (
-      q[0] < o.box[0] ||
-      q[0] > o.box[1] ||
-      q[1] < o.box[2] ||
-      q[1] > o.box[3]
+      nx < o.box[0] - 1e-6 ||
+      nx > o.box[1] + 1e-6 ||
+      ny < o.box[2] - 1e-6 ||
+      ny > o.box[3] + 1e-6
     )
       continue;
     const t = o.t;
     const e1 = sub(t[1]!, t[0]!);
     const e2 = sub(t[2]!, t[0]!);
-    const h = cross(toCam, e2);
+    const h = cross(d, e2);
     const a = dot(e1, h);
     if (Math.abs(a) < 1e-12) continue;
     const f = 1 / a;
-    const s = sub(p, t[0]!);
+    const s = sub(camPos, t[0]!);
     const u = f * dot(s, h);
     if (u < 0 || u > 1) continue;
     const qv = cross(s, e1);
-    const v = f * dot(toCam, qv);
+    const v = f * dot(d, qv);
     if (v < 0 || u + v > 1) continue;
-    if (f * dot(e2, qv) > 0) return true;
+    const tt = f * dot(e2, qv);
+    if (tt > heroCamera.near && tt < dist - EPS_HIT) return true;
   }
   return false;
 }
 
 function visibleAt(p: V, occluders: Occluder[]): boolean {
+  const toCam = sub(camPos, p);
+  const l = len(toCam);
   const lifted: V = [
-    p[0] + toCam[0] * EPS_LIFT,
-    p[1] + toCam[1] * EPS_LIFT,
-    p[2] + toCam[2] * EPS_LIFT,
+    p[0] + (toCam[0] / l) * EPS_LIFT,
+    p[1] + (toCam[1] / l) * EPS_LIFT,
+    p[2] + (toCam[2] / l) * EPS_LIFT,
   ];
   return !occluded(lifted, occluders);
 }
@@ -220,13 +245,14 @@ function visibleParts(a: V, b: V, occluders: Occluder[]): [V, V][] {
 
 type P2 = [number, number];
 const project = (v: V): P2 => {
-  const [u, up] = uvw(v);
-  const k = 10 ** PRECISION;
-  const r = (n: number) => Math.round(n * k) / k + 0;
-  const scale = deskView.ppm;
+  const p = new Vector3(...v).applyMatrix4(viewProj);
+  const r = (n: number) => {
+    const k = 10 ** PRECISION;
+    return Math.round(n * k) / k + 0;
+  };
   return [
-    r(deskView.centre[0] + u * scale),
-    r(deskView.centre[1] - up * scale),
+    r(((p.x + 1) / 2) * posterViewBox.width),
+    r(((1 - p.y) / 2) * posterViewBox.height),
   ];
 };
 

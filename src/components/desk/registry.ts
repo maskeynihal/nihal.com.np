@@ -3,12 +3,12 @@ import type { ObjectDef } from '../../lib/desk/object-def';
 
 /**
  * One entry per shown object. The static tree (Scene) owns the Object3D instances; the physics
- * layer (lazy chunk) moves `obj` out of the table group while an object is free and puts it
- * back, so nothing here imports three values or rapier.
+ * layer (lazy chunk) takes `obj` into a body's group and gives it back, so nothing here imports
+ * three values or rapier.
  *
  *  - `obj`:  the group at the object's home pose (local to the table while `free` is false).
  *  - `lift`: the model root inside `obj`. Hover lift (4 mm) moves only this, never the body.
- *  - `free`: the object has left the table and lives in screen-space world coordinates.
+ *  - `free`: the object has left the table and lives in the fall layer (its own canvas).
  */
 export interface RegistryEntry {
   id: string;

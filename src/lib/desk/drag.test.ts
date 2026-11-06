@@ -5,6 +5,8 @@ import {
   RingBuffer,
   clampSpeed,
   clampToDesk,
+  DRAG_HALF,
+  TABLE_HALF,
   isTap,
   outOfBounds,
   planePoint,
@@ -29,7 +31,7 @@ describe('RingBuffer', () => {
     expect(v.z).toBe(0);
   });
 
-  it('clamps to 4 m/s', () => {
+  it('clamps to the throw cap', () => {
     const r = new RingBuffer();
     r.push(0, 0, 0);
     r.push(1, 1, 16);
@@ -60,10 +62,12 @@ describe('helpers', () => {
     expect(clampSpeed(NaN, 1)).toEqual({ x: 0, z: 0 });
   });
 
-  it('clampToDesk stays inside the walls', () => {
+  it('clampToDesk keeps a carried object inside the canvas, past the rim', () => {
     const c = clampToDesk(5, -5);
-    expect(c.x).toBeLessThan(0.76);
-    expect(c.z).toBeGreaterThan(-0.56);
+    expect(c.x).toBe(DRAG_HALF.x);
+    expect(c.z).toBe(DRAG_HALF.zMin);
+    expect(c.x).toBeGreaterThan(TABLE_HALF.x);
+    expect(clampToDesk(0.3, 0.2)).toEqual({ x: 0.3, z: 0.2 });
   });
 
   it('tilt leans against travel and never exceeds 25 degrees', () => {
@@ -84,12 +88,11 @@ describe('helpers', () => {
     expect(isTap(2, 300)).toBe(false);
   });
 
-  it('outOfBounds matches the watchdog rule', () => {
+  it('outOfBounds only catches bodies no layer took over', () => {
     expect(outOfBounds({ x: 0, y: 0, z: 0 })).toBe(false);
-    expect(outOfBounds({ x: 1.3, y: 0, z: 0 })).toBe(true);
-    expect(outOfBounds({ x: 0, y: 0, z: 0.9 })).toBe(true);
-    expect(outOfBounds({ x: 0, y: 1.1, z: 0 })).toBe(true);
-    expect(outOfBounds({ x: 0, y: -0.3, z: 0 })).toBe(true);
+    expect(outOfBounds({ x: 1.3, y: -0.5, z: 0.9 })).toBe(false);
+    expect(outOfBounds({ x: 3.5, y: 0, z: 0 })).toBe(true);
+    expect(outOfBounds({ x: 0, y: -3, z: 0 })).toBe(true);
     expect(outOfBounds({ x: NaN, y: 0, z: 0 })).toBe(true);
   });
 });

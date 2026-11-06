@@ -1,24 +1,23 @@
 /**
- * The fixed desk view, shared by the SVG poster (`scripts/models/poster.ts`) and the R3F scene
- * so the 2D drawing and the 3D canvas frame the table identically. Plain numbers only: no three.js
- * import, safe in the client shell and in Node scripts.
+ * The fixed hero camera, shared by the SVG poster (`scripts/models/poster.ts`) and the R3F scene
+ * so the 2D drawing and the 3D canvas frame the desk identically. Plain numbers only: no three.js
+ * import, safe in the client shell and in Node scripts. World units are metres, +y up, the sheet
+ * lies in the y = 0 plane and its centre is the world origin.
  *
- * The camera is orthographic with a fixed tilt, so a screen point maps linearly to a world point
- * on any horizontal or vertical plane. World units are metres, +y up, the table lies in the
- * y = 0 plane and its centre is the world origin. Looking down from the viewer's side (+z) at
- * `tilt` degrees above the horizon, a world point (x, y, z) lands at screen
- * `(x, y * cos(tilt) - z * sin(tilt))` metres from the table centre, +up.
+ * It is the E-01..E-07 camera (perspective, looking down at the table from the viewer's side) with
+ * the frame cropped to 1200 x 700: the table fills about 80% of the width at its front edge and
+ * leaves room below and to the sides for an object that falls off before the fall layer takes it.
  */
-export const deskView = {
-  /** Angle of the view direction above the horizon, degrees. */
-  tilt: 42,
-  /** Pixels per metre in a poster viewBox that is 1200 px wide. */
-  ppm: 600,
-  /** Where the table centre sits in the poster viewBox, px. */
-  centre: [600, 365],
+export const heroCamera = {
+  /** Vertical field of view, degrees. */
+  fov: 31,
+  near: 0.5,
+  far: 8,
+  position: [0, 1.95, 1.5],
+  lookAt: [0, 0, 0.12],
 } as const;
 
-/** Poster viewBox. The `#desk` figure has this aspect at every width. */
+/** Poster viewBox. Its aspect is the aspect the camera is projected with. */
 export const posterViewBox = { width: 1200, height: 700 } as const;
 
 export const posterAspect = posterViewBox.width / posterViewBox.height;

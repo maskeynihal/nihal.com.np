@@ -57,9 +57,11 @@
   position: relative;
 }
 
-/* The table. The poster frame has the poster's aspect at every width and sits below the title
-   block with room around it; the live canvas is a fixed layer that draws the same table where
-   this frame is, so swapping poster for canvas moves nothing. */
+/* The table. The poster frame has the poster's aspect at every width, and the live canvas sits
+   exactly over it, in the page flow: the browser scrolls the canvas with the text, so the table can
+   never lag or drift against the page. Height comes from the aspect, nothing is reserved below it:
+   the drawing carries its own margin (room for an object to start falling before the fall layer
+   takes it), and the hint sits in that margin. */
 .desk {
   margin-block-start: 1rem;
 }
@@ -75,16 +77,8 @@
   color: var(--stroke, #fff);
 }
 
-/* Phones: the poster is wider than the column (the table fills the screen) and the canvas draws
-   nothing over the sheet index strip along the bottom. */
-@media (max-width: 1023px) {
-  .desk-live,
-  .desk-overlay {
-    clip-path: inset(0 0 calc(var(--inset) + var(--strip-h)) 0);
-  }
-}
-
 @media (max-width: 767px) {
+  /* The drawing is the full width of the screen. */
   .desk {
     margin-inline: calc(var(--gutter) * -1);
     margin-block-start: -0.5rem;
@@ -106,19 +100,19 @@
   }
 }
 
-/* The canvas layer (Desk island): the whole viewport, above the page, transparent and never an
-   event target (the Scene listens on `window` and ray-casts, so only a hit on a drawn object starts
-   a drag and everything else reaches the page). It fades in once the first frame is drawn (300 ms;
-   none under reduced motion, see global.css) and stays out of the accessibility tree: the object
-   list is the way in. */
+/* The canvas layer (Desk island): over the poster frame, transparent and never an event target
+   (the Scene listens on `window` and ray-casts, so only a hit on a drawn object starts a drag and
+   everything else reaches the page, including the text the canvas overlaps). It fades in once the
+   first frame is drawn (300 ms; none under reduced motion, see global.css) and stays out of the
+   accessibility tree: the object list is the way in. */
 .desk-island {
   display: contents;
 }
 
 .desk-live {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
+  position: absolute;
+  inset: 0 0 auto 0;
+  aspect-ratio: 12 / 7;
   opacity: 0;
   pointer-events: none;
   transition: opacity 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -130,10 +124,22 @@
   height: 100%;
 }
 
-/* R3F's own wrapper divs and the canvas must never catch the pointer: the page underneath stays
-   clickable (the Scene listens on `window`). */
 .desk-live,
 .desk-live * {
+  pointer-events: none !important;
+}
+
+/* The fall layer: a second canvas, the whole viewport, mounted only while something has left the
+   table. Fixed, so a fallen object stays on screen while the page scrolls. */
+.desk-fall {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.desk-fall,
+.desk-fall * {
   pointer-events: none !important;
 }
 
@@ -153,16 +159,17 @@
   transition: visibility 0s linear 300ms;
 }
 
-/* Caption layer for the OLED ("demo values"), positioned over the screen by the Scene. It covers the
-   viewport like the canvas does. */
+/* Caption layer for the OLED ("demo values"), positioned over the screen by the Scene. It covers
+   the canvas. */
 .desk-overlay {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  inset: 0 0 auto 0;
+  aspect-ratio: 12 / 7;
   pointer-events: none;
   overflow: hidden;
   visibility: hidden;
-  /* Above the canvas layer. */
-  z-index: 41;
+  /* Above the canvas layer, which comes later in the DOM. */
+  z-index: 1;
 }
 
 .oled-caption {
@@ -205,15 +212,16 @@
   transition: none;
 }
 
-/* Hint under the drawing; the reset button is a fixed corner button (below). Space is reserved in
-   every state (visibility, not display) so the canvas arriving moves nothing. */
+/* The hint sits in the drawing's own bottom margin, under the table's front edge, so it takes no
+   height of its own. The reset button is a fixed corner button (below). */
 .desk-controls {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0.25rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0 1.5rem;
-  min-height: 44px;
+  justify-content: center;
+  pointer-events: none;
   visibility: hidden;
 }
 
@@ -223,6 +231,7 @@
 
 .desk-hint {
   margin: 0;
+  text-align: center;
 }
 
 /* "put everything back": fixed in the bottom corner, shown only while something is off the table. */
@@ -292,7 +301,7 @@
   .desk {
     grid-column: 1 / 13;
     grid-row: 2;
-    /* The poster has empty margin above the table; pull the frame up into the gap. */
+    /* The drawing has empty margin above the table; pull the frame up into the gap. */
     margin-block-start: -2rem;
   }
 
@@ -327,16 +336,25 @@
     width: 100%;
     justify-self: center;
   }
+}
 
-  /* E-01: once the canvas has replaced the poster, the object list is quiet on desktop until it
-     holds focus (opacity only, so it stays in the tab order, stays readable to assistive tech and
-     nothing moves). While the poster is the drawing (no WebGL, reduced motion, error, JS off) the
-     list stays visible, and it always stays visible below 1024 px where touch is the main input.
-     The list is a sibling of the figure, hence :has() on the shared stage. */
-  .desk-stage:has(.desk[data-desk-state='live'])
-    .object-list:not(:focus-within) {
-    opacity: 0;
-  }
+/* The object list is the keyboard path to the same sections. While the 3D desk is on the way (motion
+   is allowed, so JS will mount it), it is visually hidden but stays in the tab order and in the
+   accessibility tree, and it takes no space: it shows in full once it holds focus. Decided before
+   first paint from the motion preference on <html>, so the canvas arriving moves nothing. If the
+   desk fails, or motion is reduced, it is an ordinary list below the poster. */
+html[data-motion='full']
+  .desk-stage:not(:has(.desk[data-desk-state='failed']))
+  .object-list:not(:focus-within) {
+  position: absolute;
+  grid-row: auto;
+  grid-column: auto;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Object-tap shared callout (C-03): a copy of the tapped label travels to the section's date line.
