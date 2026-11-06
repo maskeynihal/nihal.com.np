@@ -41,10 +41,10 @@ export function spawnDogs(w: World): Dog[] {
 const dist = (ax: number, ay: number, bx: number, by: number) =>
   Math.hypot(ax - bx, ay - by);
 
-/** Hands each loose ball to the nearest idle dog. */
+/** Hands each thrown ball to the nearest idle dog. */
 function assign(w: World, dogs: Dog[]) {
   for (const b of w.balls) {
-    if (b.claimed) continue;
+    if (b.claimed || b.grabbed || !b.fetch) continue;
     let best: Dog | null = null;
     for (const d of dogs) {
       if (d.state === 'go' || d.state === 'back') continue;
@@ -62,9 +62,11 @@ function assign(w: World, dogs: Dog[]) {
 export function stepDogs(w: World, dogs: Dog[], dt: number) {
   assign(w, dogs);
   for (const d of dogs) {
-    if (d.ball && !w.balls.includes(d.ball)) {
+    if (d.ball && (!w.balls.includes(d.ball) || d.ball.grabbed)) {
+      if (d.ball) d.ball.claimed = false;
       d.ball = null;
       d.state = 'idle';
+      d.timer = 0.6;
     }
     d.timer -= dt;
     d.joy = Math.max(0, d.joy - dt);
@@ -90,26 +92,27 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
       d.tx = d.ball.x;
       d.ty = d.ball.y;
       speed = 300;
-      if (dist(d.x, d.y, d.tx, d.ty) < 16 && d.ball.z < 18) {
+      if (dist(d.x, d.y, d.tx, d.ty) < 18 * d.size && d.ball.z < 22) {
         d.ball.held = true;
+        d.ball.vx = d.ball.vy = d.ball.vz = 0;
         d.state = 'back';
-        const side = (d.type ? 1 : -1) * 70 * d.size;
-        d.ball.rx = w.hover ? w.px + side : d.ball.rx;
-        d.ball.ry = w.hover ? w.py : d.ball.ry;
       }
     } else if (d.state === 'back') {
       speed = 230;
       const b = d.ball!;
-      d.tx = b.rx;
-      d.ty = clamp(b.ry, w.g0 + 14, w.g1);
-      if (dist(d.x, d.y, d.tx, d.ty) < 24) {
+      // Bring it to the pointer, stopping a little short on the dog's own side.
+      const side = (d.x < w.px ? -1 : 1) * 60 * d.size;
+      d.tx = clamp(w.px + side, 30, w.W - 30);
+      d.ty = clamp(w.py, w.g0 + 14, w.g1);
+      if (dist(d.x, d.y, d.tx, d.ty) < 26) {
         b.held = false;
-        b.done = 0;
-        b.x = d.x + d.f * 40 * d.size;
+        b.claimed = false;
+        b.fetch = false;
+        b.x = d.x + d.f * 46 * d.size;
         b.y = d.y;
         b.z = 14;
         b.vz = 220;
-        b.vx = d.f * 30;
+        b.vx = d.f * 40;
         d.ball = null;
         d.state = 'idle';
         d.timer = 1.4;
@@ -135,19 +138,234 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
     d.x = clamp(d.x, 20, w.W - 20);
     d.y = clamp(d.y, w.g0, w.g1 + 6);
     d.speed += (speed - d.speed) * Math.min(1, dt * 10);
-    d.phase += dt * d.speed * 0.048;
+    // Feet cover the ground at the body's pace: no skating.
+    const stride = 8 + clamp((d.speed - 100) / 150, 0, 1) * 8;
+    d.phase += (dt * (d.speed / scaleOf(d)) * 1.885) / stride;
   }
 }
 
-/** Mouth position in screen space, for the ball a dog carries. */
-export function mouth(d: Dog, t: number): [number, number] {
-  const sc = scaleOf(d);
-  const bob = d.speed > 150 ? Math.sin(d.phase * 2) * 2.5 : 0;
-  void t;
-  return [d.x + d.f * 47 * sc, d.y - (45 + bob) * sc];
+export const scaleOf = (d: Dog) => d.size * (0.85 + (d.y / 400) * 0.25);
+
+/** Two breeds: a sturdy retriever with a deep chest and a leaner terrier with longer legs. */
+interface Build {
+  legs: number;
+  chest: number;
+  tuck: number;
+  sk: number;
+  mz: number;
+  tail: number;
+}
+const RETRIEVER: Build = {
+  legs: 32,
+  chest: 0.95,
+  tuck: 5,
+  sk: 1.05,
+  mz: 13.5,
+  tail: 0,
+};
+const TERRIER: Build = {
+  legs: 36,
+  chest: 0.8,
+  tuck: 8,
+  sk: 0.9,
+  mz: 15,
+  tail: 1,
+};
+const buildOf = (d: Dog): Build => (d.type ? TERRIER : RETRIEVER);
+
+type P = [number, number];
+
+/** Head frame (origin: middle of the skull, +x toward the nose) to dog space. */
+function headPose(d: Dog, b: Build, bob: number) {
+  const top = -(b.legs + 14);
+  const run = clamp((d.speed - 100) / 150, 0, 1);
+  const hb =
+    d.speed > 20 ? Math.sin(d.phase * (run ? 1 : 2)) * (1 + run * 1.6) : 0;
+  const x = 36 + d.sniff * 7;
+  const y = top - 10 + bob * 0.6 + hb + d.sniff * 30;
+  const r =
+    d.sniff * 0.95 +
+    (run ? 0.05 : 0) +
+    (d.sniff ? 0 : Math.sin(d.phase * 0.0 + 0) * 0);
+  return { x, y, r, top };
 }
 
-export const scaleOf = (d: Dog) => d.size * (0.85 + (d.y / 400) * 0.25);
+/** Where a carried ball sits: between the jaws, in screen space. */
+export function mouth(d: Dog, t: number): [number, number] {
+  void t;
+  const b = buildOf(d);
+  const sc = scaleOf(d);
+  const run = clamp((d.speed - 100) / 150, 0, 1);
+  const bob =
+    d.speed > 20
+      ? run
+        ? Math.sin(d.phase) * 2.6
+        : Math.abs(Math.sin(d.phase)) * 1.2
+      : 0;
+  const h = headPose(d, b, bob);
+  const u = 8.3 * b.sk + b.mz - 3;
+  const v = 4.6 * b.sk;
+  const lx = h.x + u * Math.cos(h.r) - v * Math.sin(h.r);
+  const ly = h.y + u * Math.sin(h.r) + v * Math.cos(h.r);
+  return [d.x + d.f * lx * sc, d.y + ly * sc];
+}
+
+/** Two-bone solve: the middle joint for a limb from a to b, bending toward +x or -x. */
+function ik(a: P, b: P, l1: number, l2: number, bend: number): P {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const d = clamp(Math.hypot(dx, dy), Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+  const ux = dx / (Math.hypot(dx, dy) || 1);
+  const uy = dy / (Math.hypot(dx, dy) || 1);
+  const along = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+  const off = Math.sqrt(Math.max(0, l1 * l1 - along * along));
+  const mx = a[0] + ux * along;
+  const my = a[1] + uy * along;
+  const k1: P = [mx - uy * off, my + ux * off];
+  const k2: P = [mx + uy * off, my - ux * off];
+  return (k1[0] - k2[0]) * bend > 0 ? k1 : k2;
+}
+
+/** A jointed limb drawn as thick segments with an outline: outline pass, then fill pass. */
+function limb(
+  c: CanvasRenderingContext2D,
+  col: Colors,
+  pts: P[],
+  ws: number[],
+  o: number,
+  outline = 1,
+) {
+  c.lineCap = 'round';
+  const seg = (i: number, w: number) => {
+    const p = pts[i];
+    const q = pts[i + 1];
+    if (!p || !q) return;
+    c.lineWidth = w;
+    c.beginPath();
+    c.moveTo(p[0], p[1]);
+    c.lineTo(q[0], q[1]);
+    c.stroke();
+  };
+  c.globalAlpha = outline;
+  c.strokeStyle = col.stroke;
+  for (let i = 0; i < pts.length - 1; i++) seg(i, (ws[i] ?? 4) + o * 2);
+  c.globalAlpha = 1;
+  c.strokeStyle = col.page;
+  for (let i = 0; i < pts.length - 1; i++) seg(i, ws[i] ?? 4);
+  c.strokeStyle = col.stroke;
+  c.lineWidth = o;
+}
+
+/** The head, in its own frame: skull, stop, tapering muzzle, nose, jaw, drop ear. */
+function drawHead(
+  c: CanvasRenderingContext2D,
+  col: Colors,
+  b: Build,
+  open: number,
+  tongue: number,
+  earA: number,
+  type: number,
+  lw: number,
+) {
+  const S = b.sk;
+  const M = b.mz;
+  const x0 = 8.3 * S;
+  const x1 = x0 + M;
+  c.lineWidth = lw;
+  c.fillStyle = col.page;
+  c.strokeStyle = col.stroke;
+  // Lower jaw, hinged under the cheek.
+  const px = x0 - 1;
+  const py = 4.4 * S;
+  const len = x1 - px;
+  c.save();
+  c.translate(px, py);
+  c.rotate(open);
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(len - 2, -1.3);
+  c.bezierCurveTo(len + 0.4, -1.1, len + 0.4, 2.2, len - 2.4, 2.6);
+  c.bezierCurveTo(len - 8, 3.0, 5, 3.2 * S, -2, 1.6 * S);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  if (tongue > 0) {
+    // Tongue lolls over the lower jaw.
+    c.beginPath();
+    c.moveTo(len - 12, -0.2);
+    c.bezierCurveTo(
+      len - 12,
+      3.5 + tongue * 5,
+      len - 5.5,
+      4 + tongue * 5,
+      len - 6,
+      -0.2,
+    );
+    c.fill();
+    c.stroke();
+  }
+  c.restore();
+  // Skull, stop, bridge, nose, lip, cheek.
+  c.beginPath();
+  c.moveTo(-8.6 * S, 1.5 * S);
+  c.bezierCurveTo(-9.4 * S, -6 * S, -4 * S, -10.4 * S, 2 * S, -9.8 * S);
+  c.bezierCurveTo(5 * S, -9.5 * S, 7.8 * S, -8.8 * S, 8.4 * S, -5.4 * S);
+  c.bezierCurveTo(x0 + M * 0.25, -6 * S, x1 - M * 0.35, -5.2, x1 - 1.2, -4.6);
+  c.bezierCurveTo(x1 + 1.6, -4.8, x1 + 2.6, -2.2, x1 + 1.9, 0.6);
+  c.bezierCurveTo(x1 + 1.6, 2, x1 - 0.6, 2.9, x1 - 2.6, 2.8);
+  c.lineTo(x0 + 3, 3.7);
+  c.lineTo(px, py);
+  c.bezierCurveTo(x0 - 5, 6.4 * S, 0, 9.6 * S, -5 * S, 8 * S);
+  c.bezierCurveTo(-8 * S, 6 * S, -8.6 * S, 3.6 * S, -8.6 * S, 1.5 * S);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  // Nose, black, at the very tip.
+  c.beginPath();
+  c.moveTo(x1 - 2.4, -4.9);
+  c.bezierCurveTo(x1 + 1.4, -5.6, x1 + 3.3, -3, x1 + 2.6, -0.2);
+  c.bezierCurveTo(x1 + 2.2, 1.2, x1 - 0.2, 0.6, x1 - 2, -1.2);
+  c.closePath();
+  c.fillStyle = col.stroke;
+  c.fill();
+  c.fillStyle = col.page;
+  // Mouth corner, and the eye behind the stop.
+  c.beginPath();
+  c.moveTo(px, py);
+  c.quadraticCurveTo(px - 1.2, py - 2.4, px - 3, py - 2.6);
+  c.stroke();
+  c.beginPath();
+  c.arc(4.4 * S, -3.4 * S, 1.45 * Math.max(0.9, S), 0, TAU);
+  c.fillStyle = col.stroke;
+  c.fill();
+  c.fillStyle = col.page;
+  // Brow, a small line above the eye.
+  c.beginPath();
+  c.moveTo(2.6 * S, -6 * S);
+  c.quadraticCurveTo(4.8 * S, -7 * S, 6.6 * S, -6 * S);
+  c.stroke();
+  // Ear, hanging from the back of the skull.
+  c.save();
+  c.translate(-0.8 * S, -5.6 * S);
+  c.rotate(earA);
+  c.beginPath();
+  if (type === 0) {
+    c.moveTo(-3.4 * S, 0);
+    c.bezierCurveTo(-11 * S, 1 * S, -11.5 * S, 10 * S, -6.5 * S, 14.5 * S);
+    c.bezierCurveTo(-2 * S, 16.5 * S, 3.2 * S, 11 * S, 3.6 * S, 0.4 * S);
+    c.bezierCurveTo(2 * S, -1.5 * S, -1 * S, -1.8 * S, -3.4 * S, 0);
+  } else {
+    // Folded-over terrier ear: a short triangle with a soft tip.
+    c.moveTo(-3.2 * S, -0.5 * S);
+    c.bezierCurveTo(-8 * S, 3 * S, -8.4 * S, 9 * S, -6 * S, 12 * S);
+    c.bezierCurveTo(-2 * S, 11 * S, 2 * S, 7 * S, 3.6 * S, 0);
+    c.bezierCurveTo(1.6 * S, -2 * S, -1 * S, -2 * S, -3.2 * S, -0.5 * S);
+  }
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.restore();
+}
 
 export function drawDog(
   c: CanvasRenderingContext2D,
@@ -156,164 +374,214 @@ export function drawDog(
   col: Colors,
 ) {
   const sc = scaleOf(d);
+  const b = buildOf(d);
   const run = clamp((d.speed - 100) / 150, 0, 1);
   const moving = clamp(d.speed / 60, 0, 1);
+  const carrying = d.ball?.held === true;
   const wag = d.state === 'idle' || d.joy > 0 || d.state === 'back';
   const t = w.t;
   c.save();
   c.translate(d.x, d.y);
-  // Shadow
+  // Soft shadow on the grass.
+  c.globalAlpha = 0.12;
+  c.fillStyle = col.stroke;
+  c.beginPath();
+  c.ellipse(2, 1, 40 * sc, 4.5 * sc, 0, 0, TAU);
+  c.fill();
   c.globalAlpha = 0.35;
   c.lineWidth = 1;
   c.strokeStyle = col.stroke;
-  c.beginPath();
-  c.ellipse(0, 1, 30 * sc, 4 * sc, 0, 0, TAU);
   c.stroke();
   c.globalAlpha = 1;
   c.scale(sc * d.f, sc);
+  const lw = 1.5 / sc;
   c.strokeStyle = col.stroke;
   c.fillStyle = col.page;
-  c.lineWidth = 1.5 / sc;
+  c.lineWidth = lw;
   c.lineCap = 'round';
   c.lineJoin = 'round';
 
-  const bob =
-    moving *
-    (run ? Math.sin(d.phase * 2) * 3 : Math.abs(Math.sin(d.phase)) * 1.5);
-  const stride = 6 + run * 12;
-  const lift = 3 + run * 9;
-  const leg = (hx: number, ph: number, far: boolean) => {
-    const hy = -25 + bob * 0.5;
-    const fx = hx + Math.sin(ph) * stride * moving;
-    const fy = -Math.max(0, -Math.cos(ph)) * lift * moving;
-    const kx = (hx + fx) / 2 + (hx > 0 ? 3 : -3);
-    c.globalAlpha = far ? 0.65 : 1;
-    c.beginPath();
-    c.moveTo(hx - 4.5, hy);
-    c.quadraticCurveTo(kx - 3, (hy + fy) / 2, fx - 2.5, fy - 4);
-    c.lineTo(fx - 2.5, fy);
-    c.lineTo(fx + 5.5, fy);
-    c.quadraticCurveTo(fx + 6, fy - 3, fx + 2.5, fy - 4);
-    c.quadraticCurveTo(kx + 3, (hy + fy) / 2, hx + 4.5, hy);
-    c.fill();
-    c.stroke();
-  };
+  const bob = moving
+    ? run
+      ? Math.sin(d.phase) * 2.6
+      : Math.abs(Math.sin(d.phase)) * 1.2
+    : 0;
+  const L = b.legs;
+  const T = -(L + 14);
+  const B = T + 23 * b.chest;
+  const Bt = B - b.tuck;
   const a = d.phase;
+  const stride = 8 + run * 8;
+  const lift = 3.5 + run * 8;
   // [far front, far back, near front, near back]: trot in diagonal pairs, gallop in bunched pairs.
   const ph: [number, number, number, number] =
     run > 0.5
-      ? [a + 0.35, a + 1.3, a, a + 0.95]
+      ? [a + 0.5, a + 2.1, a, a + 1.55]
       : [a + Math.PI, a, a, a + Math.PI];
-  leg(17, ph[0], true);
-  leg(-17, ph[1], true);
-  c.globalAlpha = 1;
+  const foot = (p: number, front: boolean, off: number): P => {
+    const u = (((p / TAU) % 1) + 1) % 1;
+    const stance = run > 0.5 ? 0.45 : 0.62;
+    let fx: number;
+    let fy = 0;
+    if (u < stance) fx = stride * (1 - (2 * u) / stance);
+    else {
+      const k = (u - stance) / (1 - stance);
+      fx = -stride + 2 * stride * k;
+      fy = -Math.sin(Math.PI * k) * lift;
+    }
+    return [(front ? 18 : -15) + fx * moving + off * (1 - moving), fy * moving];
+  };
+  const leg = (front: boolean, p: number, far: boolean) => {
+    const f = foot(p, front, front ? (far ? 5 : -2) : far ? -5 : 3);
+    const o = lw;
+    const wf = front ? 6.2 + b.chest : 7.2;
+    let pts: P[];
+    let ws: number[];
+    if (front) {
+      const hip: P = [18, B - 8 + bob * 0.4];
+      const wrist: P = [f[0] + 1, f[1] - 9];
+      const elbow = ik(hip, wrist, 13, 14, -1);
+      pts = [hip, elbow, wrist, [f[0] + 0.5, f[1] - 2.5]];
+      ws = [wf, wf * 0.7, wf * 0.58];
+    } else {
+      const hip: P = [-15, B - 8 + bob * 0.4];
+      const hock: P = [f[0] - 4, f[1] - 12];
+      const stifle = ik(hip, hock, 12, 15, 1);
+      pts = [hip, stifle, hock, [f[0] - 1, f[1] - 2.5]];
+      ws = [wf * 1.1, wf * 0.66, wf * 0.56];
+    }
+    limb(c, col, pts, ws, o, far ? 0.5 : 1);
+    c.globalAlpha = far ? 0.5 : 1;
+    c.lineWidth = lw;
+    // Paw.
+    c.beginPath();
+    c.ellipse(f[0] + 2, f[1] - 1.8, 4.4, 2.4, 0, 0, TAU);
+    c.fill();
+    c.stroke();
+    c.globalAlpha = 1;
+  };
+  leg(true, ph[0], true);
+  leg(false, ph[1], true);
+  leg(true, ph[2], false);
+  leg(false, ph[3], false);
 
-  // Tail
+  // Tail: a tapering curve, otter-thick on the retriever, a curl on the terrier.
   const ang =
-    0.95 -
-    (d.type ? 0.7 : 0) +
+    (d.type ? 1.15 : 0.6) +
     (wag
-      ? Math.sin(t * (d.joy > 0 ? 26 : 14) + d.seed) * (d.joy > 0 ? 0.55 : 0.3)
+      ? Math.sin(t * (d.joy > 0 ? 24 : 12) + d.seed) * (d.joy > 0 ? 0.5 : 0.25)
       : 0) -
-    run * 0.45;
-  const tl = d.type ? 20 : 30;
-  const tx0 = -24;
-  const ty0 = -40 + bob;
-  c.beginPath();
-  c.moveTo(tx0, ty0);
-  c.quadraticCurveTo(
-    tx0 - Math.cos(ang) * tl * 0.5 - 4,
-    ty0 - Math.sin(ang) * tl * 0.7,
-    tx0 - Math.cos(ang) * tl,
-    ty0 - Math.sin(ang) * tl + (d.type ? 8 : 0),
+    run * 0.35;
+  const tl = d.type ? 24 : 30;
+  const tx = -23;
+  const ty = T + 6 + bob;
+  const tip: P = [tx - Math.cos(ang) * tl, ty - Math.sin(ang) * tl];
+  const mid: P = [
+    tx - Math.cos(ang - (d.type ? -0.5 : 0.35)) * tl * 0.55,
+    ty - Math.sin(ang - (d.type ? -0.5 : 0.35)) * tl * 0.55 + (d.type ? 0 : 5),
+  ];
+  const tpts: P[] = [];
+  for (let i = 0; i <= 6; i++) {
+    const u = i / 6;
+    tpts.push([
+      (1 - u) * (1 - u) * tx + 2 * (1 - u) * u * mid[0] + u * u * tip[0],
+      (1 - u) * (1 - u) * ty + 2 * (1 - u) * u * mid[1] + u * u * tip[1],
+    ]);
+  }
+  limb(
+    c,
+    col,
+    tpts,
+    [6, 5.6, 5, 4.4, 3.6, 2.6].map((v) => v * (d.type ? 0.7 : 1)),
+    lw,
   );
-  c.stroke();
 
-  // Body
+  // Head pose first: the neck is drawn to meet it.
+  const hp = headPose(d, b, bob);
+  const cr = Math.cos(hp.r);
+  const sr = Math.sin(hp.r);
+  const H = (u: number, v: number): P => [
+    hp.x + (u * cr - v * sr) * 1,
+    hp.y + (u * sr + v * cr) * 1,
+  ];
+  const nape = H(-6.5 * b.sk, -6 * b.sk);
+  const throat = H(-3 * b.sk, 8.4 * b.sk);
+  // Body: back line, arched neck, deep chest, tucked belly, rump with a thigh lobe.
+  const cx = 28;
   c.beginPath();
-  c.moveTo(-25, -38 + bob);
-  c.bezierCurveTo(-27, -56 + bob, 12, -56 + bob, 24, -50 + bob);
-  c.bezierCurveTo(32, -36 + bob, 26, -20, 14, -22);
-  c.bezierCurveTo(4, -18, -12, -18, -20, -23);
-  c.bezierCurveTo(-30, -26, -29, -34, -25, -38 + bob);
-  c.fill();
-  c.stroke();
-  if (d.type) {
-    c.beginPath();
-    c.ellipse(-6, -38 + bob, 6, 4, 0.3, 0, TAU);
-    c.moveTo(10, -33 + bob);
-    c.arc(8, -33 + bob, 2, 0, TAU);
-    c.stroke();
-  }
-
-  // Head
-  const dip = d.sniff * 13;
-  const hx = 30 + d.sniff * 6;
-  const hy = -56 + bob * 0.6 + dip - (d.state === 'back' ? 1 : 0);
-  const tilt = d.sniff ? 0 : Math.sin(t * 0.9 + d.seed) * 0.05;
-  c.save();
-  c.translate(hx, hy);
-  c.rotate(tilt + d.sniff * 0.35);
-  c.beginPath();
-  c.arc(0, 0, 11, 0, TAU);
-  c.fill();
-  c.stroke();
-  c.beginPath();
-  c.moveTo(6, -4);
-  c.quadraticCurveTo(18, -6, 20, 1);
-  c.quadraticCurveTo(19, 7, 8, 7);
-  c.fill();
-  c.stroke();
-  c.beginPath();
-  c.arc(20, -1, 2.2, 0, TAU);
-  c.fillStyle = col.stroke;
-  c.fill();
-  c.beginPath();
-  c.arc(4, -3, 1.5, 0, TAU);
-  c.fill();
-  c.fillStyle = col.page;
-  if (run > 0.3 || d.joy > 0) {
-    c.beginPath();
-    c.moveTo(11, 6);
-    c.quadraticCurveTo(14, 10 + Math.sin(t * 20) * 1.5, 16, 7);
-    c.stroke();
-  }
-  // Ear: bounces with the stride, swings back at speed.
-  const earA =
-    0.35 +
-    run * 0.9 +
-    Math.sin(d.phase * (run ? 2 : 1) + 1) * 0.28 * moving +
-    Math.sin(t * 2 + d.seed) * 0.04;
-  c.save();
-  c.translate(-3, -6);
-  c.rotate(earA);
-  c.beginPath();
-  if (d.type) {
-    c.moveTo(-5, 1);
-    c.lineTo(-2, -15);
-    c.lineTo(6, -1);
-    c.rotate(0);
-  } else {
-    c.moveTo(0, 0);
-    c.quadraticCurveTo(-11, 3, -7, 17);
-    c.quadraticCurveTo(2, 18, 5, 3);
-  }
+  c.moveTo(-25, T + 11 + bob);
+  c.bezierCurveTo(-24, T + 2 + bob, -12, T - 1 + bob, 0, T + bob);
+  c.bezierCurveTo(8, T + 0.5 + bob, 14, T - 0.5 + bob, 19, T - 1.5 + bob);
+  c.bezierCurveTo(
+    24,
+    T - 2.5 + bob,
+    nape[0] - 8,
+    nape[1] + 5,
+    nape[0],
+    nape[1],
+  );
+  c.lineTo(throat[0] + 2, throat[1] - 2);
+  c.bezierCurveTo(
+    throat[0] + 1,
+    throat[1] + 8,
+    cx + 5,
+    B - 14 * b.chest,
+    cx + 1,
+    B - 6,
+  );
+  c.bezierCurveTo(cx - 1, B - 1, 22, B + 1, 16, B + 1);
+  c.bezierCurveTo(8, B + 1, 2, Bt, -7, Bt + bob);
+  c.bezierCurveTo(-11, Bt + 1 + bob, -11, B + 3 + bob, -15, B + 3 + bob);
+  c.bezierCurveTo(-24, B + 2 + bob, -27, T + 22 + bob, -25, T + 11 + bob);
   c.closePath();
   c.fill();
   c.stroke();
+  // Shoulder and thigh, two soft lines inside the body.
+  c.globalAlpha = 0.6;
+  c.beginPath();
+  c.moveTo(14, T + 3 + bob);
+  c.quadraticCurveTo(22, T + 11 + bob, 18, B - 5 + bob);
+  c.moveTo(-5, T + 5 + bob);
+  c.quadraticCurveTo(-17, T + 11 + bob, -13, Bt + bob);
+  c.stroke();
+  c.globalAlpha = 1;
+  // Head.
+  const open = carrying ? 0.2 : run > 0.3 || d.joy > 0 ? 0.42 : 0;
+  const tongue =
+    !carrying && (run > 0.3 || d.joy > 0) ? 0.6 + Math.sin(t * 20) * 0.25 : 0;
+  const earA = Math.min(
+    0.5,
+    0.12 +
+      run * 0.45 +
+      Math.sin(d.phase * (run ? 1 : 2) + 1) * 0.22 * moving +
+      Math.sin(t * 1.8 + d.seed) * 0.035 +
+      d.sniff * 0.25,
+  );
+  c.save();
+  c.translate(hp.x, hp.y);
+  c.rotate(hp.r + (d.sniff ? 0 : Math.sin(t * 0.9 + d.seed) * 0.03));
+  drawHead(c, col, b, open, tongue, earA - hp.r * 0.85, d.type, lw);
   c.restore();
-  c.restore();
-  // Collar
-  if (!d.type) {
+  // Collar: a band across the neck, a third of the way down.
+  if (!d.type && d.sniff < 0.25) {
+    const lp = (p: P, q: P, k: number): P => [
+      p[0] + (q[0] - p[0]) * k,
+      p[1] + (q[1] - p[1]) * k,
+    ];
+    const p1 = lp(nape, [19, T - 1.5], 0.45);
+    const p2 = lp(throat, [cx + 1, B - 8], 0.4);
     c.beginPath();
-    c.moveTo(21, -50 + bob + dip * 0.3);
-    c.quadraticCurveTo(24, -42 + bob, 21, -34 + bob);
+    c.moveTo(p1[0], p1[1]);
+    c.quadraticCurveTo(
+      (p1[0] + p2[0]) / 2 + 3,
+      (p1[1] + p2[1]) / 2 + 1,
+      p2[0],
+      p2[1],
+    );
+    c.lineWidth = lw * 1.8;
     c.stroke();
+    c.lineWidth = lw;
   }
-
-  // near legs
-  leg(17, ph[2], false);
-  leg(-17, ph[3], false);
   c.restore();
 }
 
@@ -324,37 +592,52 @@ export function drawBall(
   held = false,
   at?: [number, number],
 ) {
-  const fade = b.done > 8 ? Math.max(0, 1 - (b.done - 8) / 1.5) : 1;
-  const r = 7 * (0.4 + 0.6 * fade);
+  const r = 8;
+  const sq = held ? 0 : Math.max(0, b.sq);
+  const rx = r * (1 + 0.32 * sq);
+  const ry = r * (1 - 0.32 * sq);
   const sx = at ? at[0] : b.x;
-  const sy = at ? at[1] : b.y - b.z - r;
+  const sy = at ? at[1] : b.y - b.z - ry;
+  if (!held) {
+    // Shadow follows height: smaller and fainter when the ball is up.
+    const k = clamp(1 - b.z / 260, 0.25, 1);
+    const w = r * (1.25 - Math.min(0.5, b.z / 220));
+    c.globalAlpha = 0.16 * k;
+    c.fillStyle = col.stroke;
+    c.beginPath();
+    c.ellipse(b.x, b.y, w, w * 0.34, 0, 0, TAU);
+    c.fill();
+    c.globalAlpha = 0.35 * k;
+    c.strokeStyle = col.stroke;
+    c.lineWidth = 1;
+    c.stroke();
+    c.globalAlpha = 1;
+  }
+  c.save();
+  c.translate(sx, sy);
   c.lineWidth = 1.5;
   c.strokeStyle = col.stroke;
-  if (!held) {
-    c.globalAlpha = 0.35 * fade;
-    c.lineWidth = 1;
-    c.beginPath();
-    c.ellipse(
-      b.x,
-      b.y,
-      r * (1.2 - Math.min(0.4, b.z / 200)),
-      r * 0.4,
-      0,
-      0,
-      TAU,
-    );
-    c.stroke();
-    c.globalAlpha = fade;
-    c.lineWidth = 1.5;
-  }
   c.fillStyle = col.page;
   c.beginPath();
-  c.arc(sx, sy, r, 0, TAU);
+  c.ellipse(0, 0, rx, ry, 0, 0, TAU);
   c.fill();
   c.stroke();
+  // Seams: two arcs that turn with the roll. Clipped to the ball.
+  c.save();
   c.beginPath();
-  c.arc(sx, sy, r, 0.4, 2.2);
-  c.lineWidth = 1;
+  c.ellipse(0, 0, rx, ry, 0, 0, TAU);
+  c.clip();
+  c.scale(rx / r, ry / r);
+  c.rotate(b.spin);
+  c.lineWidth = 1.1;
+  c.beginPath();
+  c.arc(-r * 1.5, 0, r * 1.05, -0.9, 0.9);
+  c.moveTo(
+    r * 1.5 + r * 1.05 * Math.cos(Math.PI - 0.9),
+    r * 1.05 * Math.sin(Math.PI - 0.9),
+  );
+  c.arc(r * 1.5, 0, r * 1.05, Math.PI - 0.9, Math.PI + 0.9);
   c.stroke();
-  c.globalAlpha = 1;
+  c.restore();
+  c.restore();
 }

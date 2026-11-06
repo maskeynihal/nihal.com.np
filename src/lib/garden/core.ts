@@ -10,10 +10,49 @@ export interface Flower {
   kind: number;
   ph: number;
   r: number;
+  /** Growth 0..1: stem rises, leaf unfolds, bud opens. */
+  grow: number;
   /** Head position, refreshed every draw. */
   hx: number;
   hy: number;
   lean: number;
+}
+/** A flower that has been cut: it drifts to the bucket or sits in the bouquet. */
+export interface Cut {
+  kind: number;
+  r: number;
+  h: number;
+  ph: number;
+}
+export interface Held {
+  f: Flower;
+  /** Stem foot, easing from where it grew to the pointer. */
+  bx: number;
+  by: number;
+  /** Sideways swing of the stem, from pointer speed. */
+  sw: number;
+  swv: number;
+}
+export interface Flying {
+  cut: Cut;
+  /** Start and end of the stem foot and of the head. */
+  a: [number, number, number, number];
+  b: [number, number, number, number];
+  t: number;
+  dur: number;
+}
+export interface Bloom {
+  cut: Cut;
+  ang: number;
+  len: number;
+}
+export interface Bucket {
+  x: number;
+  y: number;
+  s: number;
+  items: Bloom[];
+  /** Everything ever dropped in, shown as a count. */
+  count: number;
 }
 export interface Ball {
   x: number;
@@ -22,12 +61,17 @@ export interface Ball {
   vx: number;
   vy: number;
   vz: number;
+  /** A dog is running for it. */
   claimed: boolean;
+  /** In a dog's mouth. */
   held: boolean;
-  /** Seconds since the ball was dropped by a dog; -1 while it is still in play. */
-  done: number;
-  rx: number;
-  ry: number;
+  /** Pressed and carried by the pointer. */
+  grabbed: boolean;
+  /** Dogs go for it (set when it is thrown or let go, cleared when a dog drops it). */
+  fetch: boolean;
+  spin: number;
+  /** Squash on landing, 0..1. */
+  sq: number;
 }
 export interface Colors {
   stroke: string;
@@ -43,9 +87,16 @@ export interface World {
   gusts: Gust[];
   flowers: Flower[];
   balls: Ball[];
+  bucket: Bucket;
+  flying: Flying[];
+  held: Held | null;
+  /** Most flowers the meadow carries, where picked ones will regrow, and the next free sprout. */
+  cap: number;
+  spots: { x: number; y: number; t: number }[];
+  sprout: number;
   px: number;
   py: number;
-  /** Pointer is over the garden. */
+  /** Pointer is over the garden, or has been (touch). */
   hover: boolean;
 }
 
