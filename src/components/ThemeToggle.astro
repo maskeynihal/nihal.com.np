@@ -1,19 +1,20 @@
 ---
-const labels = { blue: 'blue', paper: 'paper' };
+import { copy } from '../content/copy';
 ---
 
+<!-- Fixed top right inside the sheet border (see .theme-switch in global.css). Needs JS to
+     work, so it is hidden until the script reveals it. -->
 <button
   type="button"
-  class="label pref-toggle"
+  role="switch"
+  aria-checked="false"
+  class="label theme-switch"
   data-theme-toggle
-  aria-pressed="false"
+  hidden
 >
-  <span>theme</span>
-  <span aria-hidden="true" class="pref-sep">
-    ·
-  </span>
-  <span data-theme-state aria-hidden="true">
-    {labels.blue}
+  <span>{copy.prefs.lightMode}</span>
+  <span class="theme-switch-track" aria-hidden="true">
+    <span class="theme-switch-thumb"></span>
   </span>
 </button>
 
@@ -29,15 +30,13 @@ const labels = { blue: 'blue', paper: 'paper' };
   document
     .querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')
     .forEach((btn) => {
-      const state = btn.querySelector<HTMLElement>('[data-theme-state]');
-      const sync = (t: 'blue' | 'paper') => {
-        btn.setAttribute('aria-pressed', String(t === 'paper'));
-        if (state) state.textContent = t;
-      };
+      const sync = (t: 'blue' | 'paper') =>
+        btn.setAttribute('aria-checked', String(t === 'paper'));
       sync(getTheme());
       subscribeTheme(sync);
       btn.addEventListener('click', () =>
         setTheme(getTheme() === 'paper' ? 'blue' : 'paper'),
       );
+      btn.hidden = false;
     });
 </script>

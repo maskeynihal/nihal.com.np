@@ -674,3 +674,31 @@
 .work-panel:focus-within {
   box-shadow: 4px 4px 0 0 var(--stroke);
 }
+
+/* CV cards: co-founder, education, skills, one paper card each after the roles table. */
+.cv-cards {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.cv-card-label {
+  margin: 0 0 0.5rem;
+  color: var(--panel-ink-soft);
+}
+
+.cv-cards li:last-child {
+  grid-column: 1 / -1;
+}
+
+.cv-card p {
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.cv-card-title {
+  margin-block-end: 0.25rem;
+}

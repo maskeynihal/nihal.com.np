@@ -149,6 +149,7 @@ export const Copy = z.strictObject({
     on: text,
     off: text,
     system: text,
+    lightMode: text,
   }),
   titleBlock: z.strictObject({
     name: text,
@@ -196,8 +197,9 @@ export const Copy = z.strictObject({
   cv: z.strictObject({
     note: text,
     intro: text,
-    skillsLabel: text,
-    skills: text,
+    cards: z
+      .array(z.strictObject({ label: text, title: text, text }))
+      .length(3),
   }),
   contact: z.strictObject({
     lead: text,

@@ -27,6 +27,7 @@ export const copy = {
     on: 'on',
     off: 'off',
     system: 'set by your system',
+    lightMode: 'light mode',
   },
   titleBlock: {
     name: 'nihal maskey',
@@ -68,12 +69,12 @@ export const copy = {
     },
     facts: [
       { label: 'location', value: 'Kathmandu, Nepal' },
-      { label: 'role', value: 'lead engineer, Leapfrog Technology' },
+      { label: 'role', value: 'Lead Engineer, Leapfrog Technology' },
       { label: 'co-founder', value: 'Daboo Spaces' },
       { label: 'stack', value: 'TypeScript, React, Node.js, Laravel, AWS' },
       {
         label: 'open to',
-        value: 'engineering leadership roles, consulting, talks',
+        value: 'mentorship, consulting, talks',
       },
     ],
   },
@@ -99,9 +100,23 @@ export const copy = {
     intro:
       'Since 2019: two companies, and a long climb at Leapfrog from intern to lead.',
     note: 'Leapfrog Technology is a software services company in Kathmandu.',
-    skillsLabel: 'skills',
-    skills:
-      'TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS (Lambda, SQS, EventBridge, Step Functions), PostgreSQL, MySQL, HIPAA and SOC 2 work, team leadership.',
+    cards: [
+      {
+        label: 'co-founder',
+        title: 'Daboo Spaces, Kathmandu',
+        text: 'A coworking space in Sankhamul Tower 1.',
+      },
+      {
+        label: 'education',
+        title: 'BE computer engineering',
+        text: 'Kantipur Engineering College, Tribhuvan University, 2021.',
+      },
+      {
+        label: 'skills',
+        title: 'What I work with',
+        text: 'TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS (Lambda, SQS, EventBridge, Step Functions), PostgreSQL, MySQL, HIPAA and SOC 2 work, team leadership.',
+      },
+    ],
   },
   contact: {
     lead: 'Email is fastest. I read everything and reply to most within a couple of days.',

@@ -112,6 +112,17 @@ const year = String(new Date().getFullYear());
       <PaperPanel>
         <CvTable rows={cvRows} />
       </PaperPanel>
+      <ul class="cv-cards">
+        {cv.cards.map((c) => (
+          <li>
+            <PaperPanel class="cv-card">
+              <h3 class="label cv-card-label">{c.label}</h3>
+              <p class="cv-card-title">{c.title}</p>
+              <p class="small">{c.text}</p>
+            </PaperPanel>
+          </li>
+        ))}
+      </ul>
     </Section>
 
     <Section id="contact" heading={headings.contact} side="left">

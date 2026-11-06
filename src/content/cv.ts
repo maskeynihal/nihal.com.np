@@ -70,17 +70,4 @@ export const cv: CvRow[] = [
     ],
     confirmed: true,
   },
-  {
-    when: 'alongside',
-    role: 'co-founder',
-    org: 'Daboo Spaces, Kathmandu',
-    details: ['A coworking space in Sankhamul Tower 1.'],
-    confirmed: true,
-  },
-  {
-    when: '2021',
-    role: 'BE computer engineering',
-    org: 'Kantipur Engineering College, Tribhuvan University',
-    confirmed: true,
-  },
 ];

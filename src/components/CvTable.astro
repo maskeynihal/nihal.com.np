@@ -1,5 +1,4 @@
 ---
-import { getCopy } from '../content';
 import type { CvRow } from '../content/schema';
 
 /** Roles and dates as a table; the date cell is the row header. Named by the section heading. */
@@ -7,7 +6,6 @@ interface Props {
   rows: CvRow[];
 }
 const { rows } = Astro.props;
-const { cv } = getCopy();
 ---
 
 <table class="cv-table" aria-labelledby="cv-heading">
@@ -30,11 +28,5 @@ const { cv } = getCopy();
         <td>{r.org}</td>
       </tr>
     ))}
-    <tr>
-      <th scope="row" class="label">
-        {cv.skillsLabel}
-      </th>
-      <td colspan="2">{cv.skills}</td>
-    </tr>
   </tbody>
 </table>
