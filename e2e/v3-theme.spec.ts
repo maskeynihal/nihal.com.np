@@ -13,7 +13,11 @@ test.describe('theme toggle @V3-theme', () => {
     test.skip(!javaScriptEnabled, 'needs JS');
     await page.goto('/');
     await expect(html(page)).toHaveAttribute('data-theme', 'blue');
-    await expect(toggle(page)).toContainText('blue');
+    // A real switch named "light mode"; checked means the paper theme.
+    await expect(toggle(page)).toHaveAttribute('role', 'switch');
+    await expect(
+      page.getByRole('switch', { name: 'light mode' }),
+    ).toHaveAttribute('aria-checked', 'false');
     const heard = page.evaluate(
       () =>
         new Promise<string>((resolve) =>
@@ -27,8 +31,7 @@ test.describe('theme toggle @V3-theme', () => {
     await toggle(page).click();
     expect(await heard).toBe('paper');
     await expect(html(page)).toHaveAttribute('data-theme', 'paper');
-    await expect(toggle(page)).toContainText('paper');
-    await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBe(
       'paper',
     );
@@ -41,9 +44,49 @@ test.describe('theme toggle @V3-theme', () => {
     expect(bg).toBe('rgb(246, 245, 241)');
     await toggle(page).click();
     await expect(html(page)).toHaveAttribute('data-theme', 'blue');
+    await expect(toggle(page)).toHaveAttribute('aria-checked', 'false');
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBe(
       'blue',
     );
+  });
+
+  test('the switch never overlaps the title block text or the table, down to 320 px @V3-theme', async ({
+    page,
+    javaScriptEnabled,
+  }) => {
+    test.skip(!javaScriptEnabled, 'needs JS');
+    for (const [width, height] of [
+      [320, 568],
+      [390, 844],
+      [768, 1024],
+      [1280, 720],
+      [1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      await expect(toggle(page)).toBeVisible();
+      const sw = (await toggle(page).boundingBox())!;
+      const hit = (b: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }) =>
+        sw.x < b.x + b.width &&
+        sw.x + sw.width > b.x &&
+        sw.y < b.y + b.height &&
+        sw.y + sw.height > b.y;
+      // The text of the title block (name, kicker, sentence) and the drawing.
+      for (const sel of [
+        '.title-block .name',
+        '.title-block-kicker',
+        '.title-block-line',
+        '[data-poster]',
+      ]) {
+        const b = (await page.locator(sel).first().boundingBox())!;
+        expect(hit(b), `${sel} at ${width}`).toBe(false);
+      }
+    }
   });
 
   test('a stored choice is applied before first paint: no flash @V3-theme', async ({

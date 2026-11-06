@@ -46,7 +46,10 @@ test.describe('work, open source, writing, cv @B-04', () => {
       const target = o.target ?? '';
       await expect(links.nth(i)).toHaveAttribute('href', target);
       await expect(page.locator(target)).toHaveCount(1);
-      await links.nth(i).click();
+      // Visually hidden while the 3D desk is live and shown only while focused: use the keyboard,
+      // the path the list is for (Safari does not focus a link on a mouse press).
+      await links.nth(i).focus();
+      await page.keyboard.press('Enter');
       await expect(page.locator(target)).toBeInViewport();
       await page.evaluate(() => window.scrollTo(0, 0));
     }
@@ -108,7 +111,7 @@ test.describe('work, open source, writing, cv @B-04', () => {
   }) => {
     await page.goto('/');
     const table = page.getByRole('table', { name: copy.headings.cv });
-    await expect(table.locator('tr')).toHaveCount(rows.length + 1); // plus the skills row
+    await expect(table.locator('tr')).toHaveCount(rows.length); // roles only: co-founder, education and skills are cards
     for (const [i, r] of rows.entries()) {
       const tr = table.locator('tr').nth(i);
       await expect(tr.locator('th[scope="row"]')).toHaveText(r.when);
@@ -116,6 +119,18 @@ test.describe('work, open source, writing, cv @B-04', () => {
       await expect(tr.locator('td').nth(1)).toHaveText(r.org);
     }
     await expect(page.locator('#cv')).toContainText(copy.cv.note);
+    // Co-founder, education and skills are a paper card each, after the table.
+    const cards = page.locator('#cv .cv-card');
+    await expect(cards).toHaveCount(copy.cv.cards.length);
+    expect(copy.cv.cards.map((c) => c.label)).toEqual([
+      'co-founder',
+      'education',
+      'skills',
+    ]);
+    for (const [i, c] of copy.cv.cards.entries()) {
+      await expect(cards.nth(i).locator('.cv-card-label')).toHaveText(c.label);
+      await expect(cards.nth(i)).toContainText(c.title);
+    }
   });
 
   test('headings are ordered and external links are https with rel @B-04', async ({

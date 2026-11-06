@@ -15,7 +15,11 @@ test('h1 to h3 have no uppercase outside the proper-noun allowlist @A-05', async
   page,
 }) => {
   await page.goto('/');
-  const headings = await page.locator('h1, h2, h3').allInnerTexts();
+  // textContent, not innerText: the CV card labels are lowercase in the markup and set in capitals
+  // by `.label` (text-transform), which innerText would report.
+  const headings = (await page.locator('h1, h2, h3').allTextContents()).map(
+    (h) => h.trim(),
+  );
   expect(headings.length).toBeGreaterThan(0);
   for (const h of headings)
     expect(headingCaseViolations(h), `heading "${h}"`).toEqual([]);
