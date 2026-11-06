@@ -20,7 +20,7 @@ test.describe('garden @V3-garden', () => {
       'true',
     );
     await expect(garden).toContainText(
-      'the garden. click to throw a ball for the dogs.',
+      'the garden. pick flowers for the bucket. throw the ball for the dogs.',
     );
     test.skip(!javaScriptEnabled, 'needs JS');
     await page.waitForTimeout(800);
@@ -52,7 +52,7 @@ test.describe('garden @V3-garden', () => {
         timeout: 10_000,
       })
       .toBe(true);
-    // Clicking the canvas throws too (pointer), and the page does not scroll away or error.
+    // Clicking empty ground does not throw a new ball, and the page does not scroll away or error.
     const box = (await canvas.boundingBox())!;
     await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.6);
     await page.waitForTimeout(400);

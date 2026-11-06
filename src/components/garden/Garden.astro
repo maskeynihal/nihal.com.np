@@ -6,11 +6,22 @@ import '../../styles/garden.css';
   <canvas class="garden-canvas" aria-hidden="true"></canvas>
   <div class="garden-foot">
     <p class="garden-caption small">
-      the garden. click to throw a ball for the dogs.
+      the garden. pick flowers for the bucket. throw the ball for the dogs.
     </p>
-    <button type="button" class="garden-throw label" data-garden-throw>
-      throw a ball
-    </button>
+    <p class="garden-count small" aria-live="polite" data-garden-count>
+      the bucket is empty
+    </p>
+    <div class="garden-actions">
+      <button type="button" class="garden-btn label" data-garden-pick>
+        pick a flower
+      </button>
+      <button type="button" class="garden-btn label" data-garden-throw>
+        throw a ball
+      </button>
+      <button type="button" class="garden-btn label" data-garden-new hidden>
+        start a new bouquet
+      </button>
+    </div>
   </div>
 </section>
 

@@ -13,7 +13,8 @@
   inline-size: 100%;
   block-size: 320px;
   touch-action: pan-y;
-  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 @media (min-width: 768px) {
@@ -33,11 +34,18 @@
   padding-block: 0.5rem calc(var(--rhythm) / 2);
 }
 
-.garden-caption {
+.garden-caption,
+.garden-count {
   margin: 0;
 }
 
-.garden-throw {
+.garden-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.garden-btn {
   appearance: none;
   background: none;
   color: inherit;
@@ -49,11 +57,11 @@
   cursor: pointer;
 }
 
-.garden-throw[hidden] {
+.garden-btn[hidden] {
   display: none;
 }
 
-.garden-throw:focus-visible {
+.garden-btn:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }
