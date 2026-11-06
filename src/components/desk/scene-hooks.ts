@@ -1,13 +1,14 @@
-import type { OrthographicCamera, WebGLRenderer } from 'three';
+import type { PerspectiveCamera, WebGLRenderer } from 'three';
 import { testHooks } from '../../lib/env';
 import { oledText } from '../../lib/desk/oled';
-import { physicsBridge } from './physics-bridge';
+import { fallBridge, physicsBridge, testControl } from './physics-bridge';
 import { audioProbe } from '../../lib/sound';
 
 /** What the Scene exposes to e2e (`PUBLIC_TEST_HOOKS=1`). Everything that touches three lives here. */
 export interface SceneProbe {
   frames: number;
-  camera: OrthographicCamera | null;
+  fallFrames: number;
+  camera: PerspectiveCamera | null;
   oled: { ticks: number; text: () => string };
   clocks: Map<string, { hour: () => number; minute: () => number }>;
   calendar: { face: () => unknown };
@@ -38,6 +39,7 @@ export interface SceneProbe {
 
 export const probe: SceneProbe = {
   frames: 0,
+  fallFrames: 0,
   camera: null,
   oled: { ticks: 0, text: () => '' },
   clocks: new Map(),
@@ -87,6 +89,22 @@ export function installSceneHooks(): () => void {
       grabbed: physicsBridge.api()?.grabbed() ?? null,
       bodies: physicsBridge.api()?.bodies() ?? [],
     }),
+    fall: () => ({
+      state: fallBridge.state(),
+      grabbed: fallBridge.api()?.grabbed() ?? null,
+      frames: probe.fallFrames,
+      bodies: fallBridge.api()?.bodies() ?? [],
+    }),
+    handoffs: () => physicsBridge.api()?.handoffs() ?? [],
+    hold: (on) => {
+      testControl.hold = on;
+      physicsBridge.api()?.hold(on);
+      fallBridge.api()?.hold(on);
+    },
+    stepWorlds: (n) => {
+      physicsBridge.api()?.step(n);
+      fallBridge.api()?.step(n);
+    },
     requestPhysics: () => physicsBridge.request(),
     teleport: (id, x, y, z) =>
       physicsBridge.api()?.teleport(id, x, y, z) ?? false,
@@ -141,17 +159,20 @@ export function setGhostProbe(g: SceneProbe['ghost']): void {
 export function setGlProbe(gl: WebGLRenderer | null): void {
   probe.gl = gl;
 }
+export function countFallFrame(): void {
+  probe.fallFrames += 1;
+}
 export function countFrame(): void {
   probe.frames += 1;
 }
 export function setCameraProbe(
-  camera: OrthographicCamera,
+  camera: PerspectiveCamera,
   size: { width: number; height: number },
 ): void {
   probe.camera = camera;
   probe.size = () => ({ width: size.width, height: size.height });
 }
-export function getProbeCamera(): OrthographicCamera | null {
+export function getProbeCamera(): PerspectiveCamera | null {
   return probe.camera;
 }
 export function setSphereProbe(fn: SceneProbe['probeSphere']): void {

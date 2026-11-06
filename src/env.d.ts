@@ -46,6 +46,25 @@ interface DeskSceneHooks {
       p: [number, number, number];
     }[];
   };
+  /** The fall layer (second canvas): 'off' until something leaves the table. */
+  fall(): {
+    state: 'off' | 'mounting' | 'ready';
+    grabbed: string | null;
+    frames: number;
+    bodies: {
+      id: string;
+      asleep: boolean;
+      type: 'dynamic' | 'kinematic';
+      p: [number, number, number];
+      screen?: [number, number];
+    }[];
+  };
+  /** Every table-to-fall handoff so far: screen rects, velocities, accelerations (see HandoffLog). */
+  handoffs(): unknown[];
+  /** Stops both worlds stepping on their own, or lets them go again. */
+  hold(on: boolean): void;
+  /** Advances both worlds by `n` fixed steps (only while held) and draws. */
+  stepWorlds(n: number): void;
   /** Asks for the physics chunk as a first grab would. */
   requestPhysics(): void;
   /** Moves a body (waking it); false while physics is not loaded. */

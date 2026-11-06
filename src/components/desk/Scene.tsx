@@ -14,7 +14,7 @@ import {
   SphereGeometry,
   Vector3,
   type Group,
-  type OrthographicCamera,
+  type PerspectiveCamera,
   type Material,
   type Mesh,
   type Object3D,
@@ -24,7 +24,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { dprFor, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
-import { COS, SIN, objectScale, worldBounds } from '../../lib/desk/view';
+import { applyHeroCamera } from '../../lib/desk/camera';
+import { heroCamera } from '../../assets/camera';
 import { handAngles, clockZone, pivotY } from '../../lib/desk/clock';
 import { calendarFace } from '../../lib/desk/calendar';
 import { eyeYaw } from '../../lib/desk/eyes';
@@ -67,9 +68,10 @@ import { disposedProbe } from './disposed-probe';
 import { createContextPolicy, type ContextEvent } from './context-loss';
 import { Interaction } from './Interaction';
 import { IslandBoundary } from './IslandBoundary';
-import { physicsBridge } from './physics-bridge';
+import { fallBridge, physicsBridge } from './physics-bridge';
 import { registry } from './registry';
-import { syncTable, table } from './table';
+import { table } from './table';
+import { FallLayer } from './FallLayer';
 import { createCalendarTexture, createOledTexture } from './textures';
 
 // R3F 9.8 builds a `THREE.Clock` for each root, and three 0.187 warns (console.warn) on every one.
@@ -113,7 +115,9 @@ const SHEET_DEF: ObjectDef = {
 };
 
 // The physics layer is its own chunk: requested on the first grab, never with the Scene.
-const PhysicsWorld = lazy(() => import('./physics/physics-world'));
+const PhysicsWorld = lazy(() =>
+  import('./physics').then((m) => ({ default: m.TablePhysics })),
+);
 
 // ---- visibility -------------------------------------------------------------------------
 
@@ -153,59 +157,38 @@ function useMotionFull(): boolean {
 
 // ---- camera, resolution, ready ------------------------------------------------------------
 
-/** The fixed tilt: the camera sits on the viewer's side, above, and looks at the world origin. */
-function initCamera(cam: OrthographicCamera): void {
-  // R3F must not re-fit an orthographic frustum to the canvas size: the Rig does it.
-  (cam as unknown as { manual: boolean }).manual = true;
-  cam.near = 0.1;
-  cam.far = 60;
-  cam.zoom = 1;
-  cam.position.set(0, 10 * SIN, 10 * COS);
-  cam.lookAt(0, 0, 0);
-  cam.updateMatrixWorld();
-}
-
-function fitCamera(cam: OrthographicCamera, halfW: number, up: number): void {
-  if (cam.right === halfW && cam.top === up) return;
-  cam.left = -halfW;
-  cam.right = halfW;
-  cam.top = up;
-  cam.bottom = -up;
-  cam.updateProjectionMatrix();
-}
-
 /**
- * The fixed orthographic camera and the table. The camera looks at the middle of the viewport
- * from the tilt in `assets/camera.ts`; one metre on the z = 0 plane is `ppm` pixels, where `ppm`
- * follows the width of the poster frame. Every drawn frame the poster frame is measured and the
- * table group moves to sit under it, so the table scrolls with the page.
+ * The table camera: one fixed perspective view at every width (`assets/camera.ts`, the same one
+ * the poster is projected with). The canvas is in the page flow and keeps the poster's aspect, so
+ * the browser scrolls it with the page and nothing here measures the DOM per frame. Every
+ * canvas draws with its own pixel size in the shared line materials, set just before its draw.
  */
 function Rig({ art }: { art: LineArt }) {
   const { camera, size, invalidate, gl, scene } = useThree();
 
-  const frame = useCallback(() => {
-    const cam = camera as OrthographicCamera;
-    syncTable({ width: size.width, height: size.height });
-    const { halfW, halfH } = worldBounds(table.viewport, table.layout.ppm);
-    // Screen-up metres: the world y span is halfH * cos(tilt).
-    const up = halfH * COS;
-    fitCamera(cam, halfW, up);
-  }, [camera, size]);
-
   useLayoutEffect(() => {
-    const cam = camera as OrthographicCamera;
-    initCamera(cam);
-    table.root = scene;
-    frame();
+    const cam = camera as PerspectiveCamera;
+    // R3F must not re-fit the frustum to the canvas size: the poster aspect is the aspect.
+    (cam as unknown as { manual: boolean }).manual = true;
+    applyHeroCamera(cam);
+    table.scene = scene;
+    table.camera = cam;
+    table.canvas = gl.domElement;
+    table.invalidate = invalidate;
     art.setResolution(size.width, size.height);
     setCameraProbe(cam, size);
     invalidate();
     return () => {
-      table.root = null;
+      table.scene = null;
+      table.camera = null;
+      table.canvas = null;
+      table.invalidate = () => {};
     };
-  }, [camera, size, art, invalidate, scene, frame]);
+  }, [camera, size, art, invalidate, scene, gl]);
 
-  useFrame(frame);
+  // The line materials are shared with the fall layer's canvas: each canvas sets the size it is
+  // about to draw at.
+  useFrame(() => art.setResolution(size.width, size.height), -100);
   useEffect(() => {
     gl.domElement.setAttribute('aria-hidden', 'true');
   }, [gl]);
@@ -243,12 +226,7 @@ function OledCaption({ target }: { target: React.RefObject<Object3D | null> }) {
     at.project(camera);
     const x = ((at.x + 1) / 2) * size.width;
     const y = ((1 - at.y) / 2) * size.height;
-    // Off screen (the table scrolled away): park it out of sight.
-    const off =
-      x < -40 || x > size.width + 40 || y < -40 || y > size.height + 40;
-    const t = off
-      ? 'translate(-9999px, 0)'
-      : `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
+    const t = `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
     if (t === last.current) return;
     last.current = t;
     el.style.transform = t;
@@ -325,7 +303,6 @@ function Model({
       userData={sheet ? {} : { deskId: def.id }}
       position={def.p}
       quaternion={def.q}
-      scale={sheet ? 1 : objectScale(window.innerWidth)}
     >
       <primitive object={root} />
       {children?.(root)}
@@ -660,22 +637,15 @@ function ContextGuard({
 }
 
 /**
- * Page scroll and the free flag. A scroll draws a frame while the table is on or near the screen
- * (and once more as it leaves, so the labels park), and hops the free objects the other way.
- * `data-desk-free` on the figure shows the "put everything back" button.
+ * The free flag and page scroll. A scroll hops the free objects the other way (the fall layer is
+ * fixed to the screen; the table needs nothing, the browser scrolls its canvas). `data-desk-free`
+ * on the figure shows the "put everything back" button.
  */
 function TableWatch() {
-  const { invalidate } = useThree();
   useEffect(() => {
-    const frame = document.querySelector<HTMLElement>('[data-poster]');
     const figure = document.querySelector<HTMLElement>('[data-desk]');
     let lastY = window.scrollY;
-    let wasNear = true;
     let lastJolt = 0;
-    const near = () => {
-      const r = frame?.getBoundingClientRect();
-      return !!r && r.bottom > -120 && r.top < window.innerHeight + 120;
-    };
     const onScroll = () => {
       const y = window.scrollY;
       const dy = y - lastY;
@@ -683,16 +653,13 @@ function TableWatch() {
       const now = performance.now();
       if (registry.anyFree() && now - lastJolt > 90 && Math.abs(dy) > 2) {
         lastJolt = now;
-        physicsBridge.api()?.jolt(dy);
+        fallBridge.api()?.jolt(dy);
       }
-      const isNear = near();
-      if (isNear || wasNear) invalidate();
-      wasNear = isNear;
     };
     const flag = () => {
       if (figure)
         figure.dataset['deskFree'] = String(
-          registry.anyFree() && registry.anyAway(),
+          registry.anyFree() || registry.anyAway(),
         );
     };
     flag();
@@ -703,7 +670,7 @@ function TableWatch() {
       off();
       if (figure) delete figure.dataset['deskFree'];
     };
-  }, [invalidate]);
+  }, []);
   return null;
 }
 
@@ -741,6 +708,7 @@ export default function Scene({
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
   const [probeOn, setProbeOn] = useState(false);
   const [physicsOn, setPhysicsOn] = useState(false);
+  const [fallOn, setFallOn] = useState(false);
   const [lost, setLost] = useState(false);
   const noContext = useCallback(() => {}, []);
 
@@ -755,6 +723,16 @@ export default function Scene({
     return () => {
       off();
       physicsBridge.reset();
+    };
+  }, []);
+
+  // The second canvas: mounted when something is about to leave the table, gone when none is free.
+  useEffect(() => {
+    const sync = () => setFallOn(fallBridge.state() !== 'off');
+    const off = fallBridge.subscribe(sync);
+    return () => {
+      off();
+      fallBridge.release();
     };
   }, []);
 
@@ -797,7 +775,6 @@ export default function Scene({
       <ActiveContext.Provider value={active}>
         <LineArtContext.Provider value={art}>
           <Canvas
-            orthographic
             frameloop={shown && !lost ? 'demand' : 'never'}
             flat
             dpr={dprFor()}
@@ -807,7 +784,11 @@ export default function Scene({
               powerPreference: 'low-power',
               depth: true,
             }}
-            camera={{ near: 0.1, far: 60, zoom: 1 }}
+            camera={{
+              fov: heroCamera.fov,
+              near: heroCamera.near,
+              far: heroCamera.far,
+            }}
             resize={{ debounce: 200, scroll: false }}
             onCreated={({ gl }) => {
               gl.setClearColor(0x000000, 0);
@@ -843,6 +824,7 @@ export default function Scene({
             </Suspense>
             {testHooks ? <FrameCounter /> : null}
           </Canvas>
+          {fallOn ? <FallLayer art={art} paused={!shown} /> : null}
         </LineArtContext.Provider>
       </ActiveContext.Provider>
     </div>

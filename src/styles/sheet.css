@@ -48,20 +48,6 @@
   outline: none;
 }
 
-/* The desk is the first sheet: it fills the viewport inside the border, so the next heading
-   starts below the first fold instead of sitting under the border band. */
-#desk {
-  min-block-size: calc(
-    100svh - var(--inset) - var(--gutter) - var(--strip-h) - var(--inset)
-  );
-}
-
-@media (min-width: 1024px) {
-  #desk {
-    min-block-size: calc(100svh - 2 * (var(--inset) + var(--gutter)));
-  }
-}
-
 .section:focus-visible {
   outline: 2px solid var(--stroke);
   outline-offset: -2px;
