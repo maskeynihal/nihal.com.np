@@ -1,4 +1,4 @@
-/* The garden: a wide line-art strip above the colophon. Decoration only; the canvas is aria-hidden. */
+/* The garden: a wide line-art strip. Decoration only; the canvas is aria-hidden. */
 .garden {
   padding-block: calc(var(--rhythm) / 2) 0;
 }
@@ -25,16 +25,12 @@
 
 .garden-foot {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1.5rem;
+  justify-content: flex-end;
   max-width: 80rem;
   margin-inline: auto;
-  padding-block: 0.5rem calc(var(--rhythm) / 2);
+  padding-block: 0.25rem calc(var(--rhythm) / 2);
 }
 
-.garden-caption,
 .garden-count {
   margin: 0;
 }
@@ -42,19 +38,39 @@
 .garden-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  justify-content: flex-end;
+  gap: 0.25rem;
 }
 
+/* Icon buttons, low emphasis: line drawings, no words. 44 px targets. */
 .garden-btn {
   appearance: none;
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
   background: none;
   color: inherit;
-  border: 1px solid currentColor;
+  border: 0;
   border-radius: var(--radius);
-  padding: 0.5rem 0.9rem;
-  min-block-size: 44px;
-  font: inherit;
+  opacity: 0.55;
   cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.garden-btn svg {
+  inline-size: 24px;
+  block-size: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.garden-btn:hover {
+  opacity: 1;
 }
 
 .garden-btn[hidden] {
@@ -62,6 +78,57 @@
 }
 
 .garden-btn:focus-visible {
+  opacity: 1;
   outline: 2px solid currentColor;
-  outline-offset: 3px;
+  outline-offset: 2px;
+}
+
+/* A bouquet pinned to the edge of the screen, or on its way there under the pointer. Fixed, so it takes no
+   room in the layout; below the sheet index and border; only the button itself takes the pointer. */
+.garden-pin {
+  position: fixed;
+  z-index: 20;
+  inline-size: 84px;
+  block-size: 104px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: grab;
+  touch-action: none;
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: 50% 90%;
+  transition:
+    left 0.25s ease,
+    top 0.25s ease,
+    transform 0.25s ease;
+}
+
+.garden-pin canvas {
+  display: block;
+  pointer-events: none;
+}
+
+.garden-pin[data-carry] {
+  z-index: 40;
+  pointer-events: none;
+  cursor: grabbing;
+  transition: none;
+}
+
+.garden-pin:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+:root[data-motion='reduce'] .garden-pin {
+  transition: none;
+}
+
+@media print {
+  .garden-pin {
+    display: none;
+  }
 }

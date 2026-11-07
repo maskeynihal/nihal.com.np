@@ -16,6 +16,8 @@ export interface Flower {
   hx: number;
   hy: number;
   lean: number;
+  /** Lean toward the pointer, eased. */
+  pl: number;
 }
 /** A flower that has been cut: it drifts to the bucket or sits in the bouquet. */
 export interface Cut {
@@ -54,6 +56,43 @@ export interface Bucket {
   /** Everything ever dropped in, shown as a count. */
   count: number;
 }
+/** A bunch of cut flowers, drawn from the foot of the stems. `lie` rests on the grass, `vase` stands in the vase. */
+export interface Bouquet {
+  items: Bloom[];
+  mode: 'wrap' | 'lie' | 'vase';
+  x: number;
+  y: number;
+  rot: number;
+  s: number;
+  /** Where a bouquet at rest eases to. */
+  ts: number;
+  tx: number;
+  ty: number;
+  trot: number;
+  /** Wrapping progress 0..1 while mode is `wrap`. */
+  k: number;
+  /** Flowers lifted out of the bucket, paper folded round the stems, ribbon tied; each 0..1. */
+  lift: number;
+  wrap: number;
+  tie: number;
+}
+/** The sheet of wrapping paper on the ground by the bucket. */
+export interface Paper {
+  x: number;
+  y: number;
+  /** Where it rests when let go. */
+  hx: number;
+  hy: number;
+  /** Appears 0..1. */
+  t: number;
+  drag: boolean;
+}
+export interface Vase {
+  x: number;
+  y: number;
+  s: number;
+  bq: Bouquet | null;
+}
 export interface Ball {
   x: number;
   y: number;
@@ -91,6 +130,9 @@ export interface World {
   flowers: Flower[];
   balls: Ball[];
   bucket: Bucket;
+  paper: Paper | null;
+  bqs: Bouquet[];
+  vase: Vase;
   flying: Flying[];
   held: Held | null;
   /** Most flowers the meadow carries, where picked ones will regrow, and the next free sprout. */
@@ -109,6 +151,11 @@ export const rng = (s: number) => () => {
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
+
+/** Slot order for a fan, centre first then out to each side; and how far the bucket's rim stands above the foot. */
+export const offset = (i: number) =>
+  i === 0 ? 0 : (i % 2 ? -1 : 1) * Math.ceil(i / 2);
+export const mouthY = 46;
 
 export const clamp = (v: number, a: number, b: number) =>
   v < a ? a : v > b ? b : v;

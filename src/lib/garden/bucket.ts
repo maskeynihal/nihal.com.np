@@ -7,15 +7,13 @@ import {
   type World,
   TAU,
   clamp,
+  mouthY,
+  offset,
 } from './core';
+import { drawBouquet } from './bouquet';
 import { drawBloom } from './flora';
 
 const MAX = 14;
-const mouthY = 46;
-
-/** Slot order for a fan: centre first, then alternating out to each side. */
-const offset = (i: number) =>
-  i === 0 ? 0 : (i % 2 ? -1 : 1) * Math.ceil(i / 2);
 
 /** Where bloom number `i` of `n` points: angle off vertical and stem length past the rim. */
 function slot(i: number, n: number): [number, number] {
@@ -174,6 +172,10 @@ export function drawBucket(c: CanvasRenderingContext2D, w: World, col: Colors) {
     const [hx, hy] = headOf(w, it.ang, it.len);
     drawBloom(c, col, it.cut, fx, fy, hx, hy, 1);
   });
+  // The bunch being wrapped rises out of the pail, still behind its front.
+  for (const q of w.bqs)
+    if (q.mode === 'wrap')
+      drawBouquet(c, col, q, q.x, q.y - q.lift * 34 * q.s, 0, q.s);
   c.beginPath();
   c.moveTo(x - rx, top);
   c.lineTo(x - 21 * s, y - 2 * s);
