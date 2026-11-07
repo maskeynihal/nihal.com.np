@@ -2,6 +2,7 @@
  * Behaviour of the sheet index (B-01). DOM only; no content imports (client bundle).
  *  - `aria-current="location"` on the row whose section crosses the viewport midline
  *    (IntersectionObserver with rootMargin -50% 0 -50%, so the root is a zero-height line).
+ *    Under 768 px the strip omits some rows (`data-phone-skip`); then the nearest earlier row is current.
  *  - `--progress` (0..1) on <html> when the CSS scroll timeline cannot drive the rule.
  *  - Row clicks scroll with an eased, JS-driven animation (`scrollDuration`, `easeInOutCubic`):
  *    the row is highlighted at once and held for the whole scroll; wheel, touch or keys cancel it;
@@ -51,22 +52,35 @@ export function initSheetIndex(nav: HTMLElement): void {
   const links = [...nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')];
   const targets = links.map((a) => document.getElementById(a.hash.slice(1)));
   const inView = new Set<number>();
-  const list = nav.querySelector<HTMLElement>('.sheet-index-list');
+  const skipped = links.map(
+    (a) => a.parentElement?.hasAttribute('data-phone-skip') ?? false,
+  );
+  const phone =
+    typeof matchMedia === 'function' ? matchMedia('(max-width: 767px)') : null;
   let current = -1;
+
+  // Under 768 px the strip leaves some sections out. While one of those is on screen, the nearest
+  // earlier row stays current (none for the desk, which has no earlier row).
+  const shownRow = (i: number): number => {
+    if (!phone?.matches) return i;
+    for (let n = i; n >= 0; n--) if (!skipped[n]) return n;
+    return -1;
+  };
+
+  const mark = () => {
+    const shown = shownRow(current);
+    links.forEach((a, n) => {
+      if (n === shown) a.setAttribute('aria-current', 'location');
+      else a.removeAttribute('aria-current');
+    });
+  };
 
   const setCurrent = (i: number) => {
     if (i === current || i < 0) return;
     current = i;
-    links.forEach((a, n) => {
-      if (n === i) a.setAttribute('aria-current', 'location');
-      else a.removeAttribute('aria-current');
-    });
-    // In the bottom strip the list scrolls sideways; keep the current row visible.
-    const link = links[i];
-    if (list && link && list.scrollWidth > list.clientWidth)
-      list.scrollLeft =
-        link.offsetLeft - (list.clientWidth - link.offsetWidth) / 2;
+    mark();
   };
+  phone?.addEventListener('change', mark);
 
   // While an index click is scrolling, the clicked row stays current (no flicker through rows).
   let held = false;

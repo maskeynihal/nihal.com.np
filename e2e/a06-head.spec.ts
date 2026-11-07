@@ -199,6 +199,6 @@ test('skip link is the first Tab stop and moves focus to #work @A-06', async ({
   await expect(skip).toBeFocused();
   await expect(skip).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page.locator('#work')).toBeFocused();
-  await expect(page).toHaveURL(/#work$/);
+  await expect(page.locator('#projects')).toBeFocused();
+  await expect(page).toHaveURL(/#projects$/);
 });

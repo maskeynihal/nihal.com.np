@@ -121,7 +121,7 @@ describe('inline prefs script', () => {
     expect(html.dataset['motion']).toBe('full');
   });
   it.each([
-    ['#projects', '#work'],
+    ['#work', '#projects'],
     ['#blog', '#writing'],
     ['#experience', '#cv'],
     ['#education', '#cv'],
@@ -134,13 +134,16 @@ describe('inline prefs script', () => {
     expect(location.hash).toBe(to);
     expect(history.length).toBe(len);
   });
-  it.each(['#contact', '#work', '#nope', ''])('leaves %j untouched', (h) => {
-    history.replaceState(null, '', '/' + h);
-    const rs = vi.spyOn(history, 'replaceState');
-    run();
-    expect(location.hash).toBe(h);
-    expect(rs).not.toHaveBeenCalled();
-  });
+  it.each(['#contact', '#projects', '#nope', ''])(
+    'leaves %j untouched',
+    (h) => {
+      history.replaceState(null, '', '/' + h);
+      const rs = vi.spyOn(history, 'replaceState');
+      run();
+      expect(location.hash).toBe(h);
+      expect(rs).not.toHaveBeenCalled();
+    },
+  );
   it('preserves path and query when mapping', () => {
     history.replaceState(null, '', '/x?a=1#blog');
     run();

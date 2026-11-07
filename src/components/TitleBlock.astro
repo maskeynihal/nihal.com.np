@@ -27,14 +27,14 @@ const rev = revLine(titleBlock.revLine, new Date());
         <CopyEmail />
       </li>
       <li>
-        <a class="sheet-link" href="#work">
-          {titleBlock.seeWork}
+        <a class="sheet-link" href="#projects">
+          {titleBlock.seeProjects}
         </a>
       </li>
-      <li>
+      <li class="title-block-clock">
         <time class="live-time" data-live-time></time> {titleBlock.timeLabel}
       </li>
-      <li>{rev}</li>
+      <li class="title-block-rev">{rev}</li>
     </ul>
     <div class="title-block-prefs">
       <MotionToggle />

@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 const IDS = [
   'desk',
   'about',
-  'work',
+  'projects',
   'open-source',
   'writing',
   'cv',
@@ -62,7 +62,7 @@ test.describe('sections and panels @B-02', () => {
       const b = await page.locator(`#${id}-heading`).boundingBox();
       return b!.x;
     };
-    const work = await x('work');
+    const work = await x('projects');
     const oss = await x('open-source');
     const writing = await x('writing');
     const cv = await x('cv');
@@ -77,7 +77,7 @@ test.describe('sections and panels @B-02', () => {
   }) => {
     const gap = () =>
       page.evaluate(() => {
-        const cs = getComputedStyle(document.querySelector('#work')!);
+        const cs = getComputedStyle(document.querySelector('#projects')!);
         return (
           parseFloat(cs.paddingBlockStart) + parseFloat(cs.paddingBlockEnd)
         );
@@ -168,8 +168,9 @@ test.describe('sections and panels @B-02', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');
       const { h2Top, inset } = await page.evaluate(() => ({
-        h2Top: document.querySelector('#work-heading')!.getBoundingClientRect()
-          .top,
+        h2Top: document
+          .querySelector('#projects-heading')!
+          .getBoundingClientRect().top,
         inset: parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue(
             '--inset',

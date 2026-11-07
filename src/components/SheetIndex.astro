@@ -3,6 +3,8 @@ import { copy } from '../content/copy';
 import { indexRows } from '../lib/sections';
 
 const rows = indexRows();
+/** Rows left out of the phone strip (under 768 px): four fit without sideways scrolling. */
+const PHONE_SKIP = new Set(['desk', 'open-source', 'writing']);
 ---
 
 <!-- Left-margin index from 1024 px, bottom strip below. Rows are plain in-page links, so it works
@@ -39,7 +41,7 @@ const rows = indexRows();
   </svg>
   <ol class="sheet-index-list">
     {rows.map((row) => (
-      <li>
+      <li data-phone-skip={PHONE_SKIP.has(row.id) ? '' : undefined}>
         <a class="sheet-index-link" href={`#${row.id}`}>
           {row.label}
         </a>

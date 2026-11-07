@@ -1,113 +1,181 @@
 ---
 /**
  * One quiet line drawing per section, shown from 1024 px in the column the text leaves empty.
- * Decoration only: aria-hidden, no text, no script, absolutely placed so it cannot shift layout.
- * Strokes use `--hair-strong` at low opacity (see .section-art in sheet.css), hairline weight
- * like the desk's line art.
+ * Decoration only: aria-hidden, no text. The column is as tall as the section and the drawing
+ * sticks in the middle of the viewport while the section scrolls, so the column is never a void.
+ *
+ * A drawing is a stack of identical square SVGs ("layers"): one static base and one layer per
+ * moving part. Each layer moves with `transform`, `translate`, `rotate` or `opacity` only, so the
+ * motion stays on the compositor (see the section art block in sheet.css). Pointer parallax and
+ * the small hover/click reaction live in src/lib/section-art.ts, loaded on the first pointer move.
+ * Strokes use `--hair-strong` at low opacity, hairline weight like the desk's line art.
  */
 export type ArtName =
-  'about' | 'work' | 'opensource' | 'writing' | 'cv' | 'contact';
+  'about' | 'projects' | 'opensource' | 'writing' | 'cv' | 'contact';
 interface Props {
   name: ArtName;
 }
 const { name } = Astro.props;
+const svg = {
+  'aria-hidden': 'true',
+  focusable: 'false',
+  viewBox: '0 0 240 240',
+  fill: 'none',
+  stroke: 'currentColor',
+  'stroke-width': 1.25,
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+} as const;
 ---
 
-<svg
-  class="section-art"
-  data-art={name}
-  aria-hidden="true"
-  focusable="false"
-  viewBox="0 0 240 240"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.25"
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  data-print="hide"
->
-  {name === 'about' && (
-    <>
-      {/* Boudhanath-style stupa: plinth steps, dome, harmika, 13 rings, pennant lines. */}
-      <path d="M20 214H220" />
-      <path d="M44 214V204H196V214M60 204V194H180V204M76 194V184H164V194" />
-      <path d="M84 184C84 140 100 112 120 112C140 112 156 140 156 184" />
-      <path d="M104 112V94H136V112" />
-      <circle cx="112" cy="103" r="2" />
-      <circle cx="128" cy="103" r="2" />
-      <path d="M108 94L112 54H128L132 94" />
-      <path d="M110 84H130M111 76H129M112 68H128M113 60H127" />
-      <path d="M120 54V34" />
-      <path
-        d="M120 34L40 70M120 34L200 70M120 34L24 104M120 34L216 104"
-        stroke-dasharray="2 5"
-      />
-    </>
-  )}
-  {name === 'work' && (
-    <>
-      {/* Server rack: four units with drive slots and status dots, a cable out the top. */}
-      <rect x="64" y="40" width="112" height="170" rx="3" />
-      <path d="M72 210V218M168 210V218M52 218H188" />
-      <path d="M64 82H176M64 124H176M64 166H176" />
-      <path d="M78 61H128M78 103H128M78 145H128M78 187H128" />
-      <path
-        d="M78 69H128M78 111H128M78 153H128M78 195H128"
-        stroke-dasharray="3 4"
-      />
-      <circle cx="154" cy="61" r="3" />
-      <circle cx="154" cy="103" r="3" />
-      <circle cx="154" cy="145" r="3" />
-      <circle cx="154" cy="187" r="3" />
-      <path d="M120 40V26C120 14 140 22 140 10" />
-    </>
-  )}
-  {name === 'opensource' && (
-    <>
-      {/* Git graph: main line, a branch that forks and merges back, a second short branch. */}
-      <path d="M80 20V220" />
-      <path d="M80 70C80 96 140 84 140 112V140C140 168 80 156 80 180" />
-      <path d="M80 120C80 138 40 132 40 150V170" />
-      <circle cx="80" cy="30" r="6" />
-      <circle cx="80" cy="70" r="6" />
-      <circle cx="140" cy="112" r="6" />
-      <circle cx="140" cy="140" r="6" />
-      <circle cx="80" cy="120" r="6" />
-      <circle cx="40" cy="170" r="6" />
-      <circle cx="80" cy="180" r="6" />
-      <circle cx="80" cy="214" r="6" />
-      <path d="M156 112H196M156 140H182M96 30H150" stroke-dasharray="2 5" />
-    </>
-  )}
-  {name === 'writing' && (
-    <>
-      {/* Open notebook with ruled lines, a pen resting across it. */}
-      <path d="M30 80L120 94L210 80V196L120 210L30 196Z" />
-      <path d="M120 94V210" />
-      <path d="M46 110L104 119M46 130L104 139M46 150L104 159M136 119L194 110M136 139L194 130M136 159L194 150" />
-      <path d="M150 188L206 36L214 40L158 192Z" />
-      <path d="M150 188L152 198L160 192" />
-      <path d="M200 52L208 56" />
-    </>
-  )}
-  {name === 'cv' && (
-    <>
-      {/* A ladder of steps, intern to lead, with a small flag on the top step. */}
-      <path d="M16 214H224" />
-      <path d="M24 214V190H64V214M64 190V160H104V190M104 160V130H144V160M144 130V100H184V130M184 100V70H224V100" />
-      <path d="M24 190H64M64 160H104M104 130H144M144 100H184M184 70H224" />
-      <path d="M204 70V36M204 36L226 44L204 52" />
-    </>
-  )}
-  {name === 'contact' && (
-    <>
-      {/* Paper plane with a looping dashed trail. */}
-      <path d="M196 44L36 108L92 130L108 190L136 150L176 168Z" />
-      <path d="M196 44L92 130M92 130L100 168L136 150" />
-      <path
-        d="M36 190C20 170 40 140 66 154C92 168 76 206 52 200"
-        stroke-dasharray="2 6"
-      />
-    </>
-  )}
-</svg>
+<div class="section-art-col" aria-hidden="true" data-print="hide">
+  <div class="section-art" data-art={name}>
+    <div class="art-par">
+      {name === 'about' && (
+        <>
+          {/* Boudhanath-style stupa: plinth steps, dome, harmika, 13 rings. */}
+          <svg {...svg} class="art-layer">
+            <path d="M20 214H220" />
+            <path d="M44 214V204H196V214M60 204V194H180V204M76 194V184H164V194" />
+            <path d="M84 184C84 140 100 112 120 112C140 112 156 140 156 184" />
+            <path d="M104 112V94H136V112" />
+            <circle cx="112" cy="103" r="2" />
+            <circle cx="128" cy="103" r="2" />
+            <path d="M108 94L112 54H128L132 94" />
+            <path d="M110 84H130M111 76H129M112 68H128M113 60H127" />
+            <path d="M120 54V34" />
+          </svg>
+          {/* Prayer flags: sway about the top of the spire. */}
+          <svg {...svg} class="art-layer art-flags">
+            <path
+              d="M120 34L40 70M120 34L200 70M120 34L24 104M120 34L216 104"
+              stroke-dasharray="2 5"
+            />
+          </svg>
+        </>
+      )}
+      {name === 'projects' && (
+        <>
+          {/* Server rack: four units with drive slots and status dots, a cable out the top. */}
+          <svg {...svg} class="art-layer">
+            <rect x="64" y="40" width="112" height="170" rx="3" />
+            <path d="M72 210V218M168 210V218M52 218H188" />
+            <path d="M64 82H176M64 124H176M64 166H176" />
+            <path d="M78 61H128M78 103H128M78 145H128M78 187H128" />
+            <path
+              d="M78 69H128M78 111H128M78 153H128M78 195H128"
+              stroke-dasharray="3 4"
+            />
+            <circle cx="154" cy="61" r="3" />
+            <circle cx="154" cy="103" r="3" />
+            <circle cx="154" cy="145" r="3" />
+            <circle cx="154" cy="187" r="3" />
+            <path d="M120 40V26C120 14 140 22 140 10" />
+          </svg>
+          {/* Status LEDs, lit in two alternating pairs at different rates. */}
+          <svg {...svg} class="art-layer art-led art-led-a" fill="currentColor">
+            <circle cx="154" cy="61" r="3" />
+            <circle cx="154" cy="145" r="3" />
+          </svg>
+          <svg {...svg} class="art-layer art-led art-led-b" fill="currentColor">
+            <circle cx="154" cy="103" r="3" />
+            <circle cx="154" cy="187" r="3" />
+          </svg>
+        </>
+      )}
+      {name === 'opensource' && (
+        <>
+          {/* Git graph: main line, a branch that forks and merges back, a second short branch. */}
+          <svg {...svg} class="art-layer">
+            <path d="M80 20V220" />
+            <path d="M80 70C80 96 140 84 140 112V140C140 168 80 156 80 180" />
+            <path d="M80 120C80 138 40 132 40 150V170" />
+            <circle cx="80" cy="30" r="6" />
+            <circle cx="80" cy="70" r="6" />
+            <circle cx="140" cy="112" r="6" />
+            <circle cx="140" cy="140" r="6" />
+            <circle cx="80" cy="120" r="6" />
+            <circle cx="40" cy="170" r="6" />
+            <circle cx="80" cy="180" r="6" />
+            <circle cx="80" cy="214" r="6" />
+            <path
+              d="M156 112H196M156 140H182M96 30H150"
+              stroke-dasharray="2 5"
+            />
+          </svg>
+          {/* One dot walks the history, down the branch and back to main. */}
+          <svg {...svg} class="art-layer art-walk" fill="currentColor">
+            <circle cx="80" cy="30" r="3.5" />
+          </svg>
+        </>
+      )}
+      {name === 'writing' && (
+        <>
+          {/* Open notebook with ruled lines. */}
+          <svg {...svg} class="art-layer">
+            <path d="M30 80L120 94L210 80V196L120 210L30 196Z" />
+            <path d="M120 94V210" />
+            <path d="M46 110L104 119M46 130L104 139M46 150L104 159M136 119L194 110M136 139L194 130M136 159L194 150" />
+          </svg>
+          {/* The pen, drifting across the page. */}
+          <svg {...svg} class="art-layer art-pen">
+            <path d="M150 188L206 36L214 40L158 192Z" />
+            <path d="M150 188L152 198L160 192" />
+            <path d="M200 52L208 56" />
+          </svg>
+        </>
+      )}
+      {name === 'cv' && (
+        <>
+          {/* A ladder of steps, intern to lead, with a small flag on the top step. */}
+          <svg {...svg} class="art-layer">
+            <path d="M16 214H224" />
+            <path d="M24 214V190H64V214M64 190V160H104V190M104 160V130H144V160M144 130V100H184V130M184 100V70H224V100" />
+            <path d="M24 190H64M64 160H104M104 130H144M144 100H184M184 70H224" />
+            <path d="M204 70V36M204 36L226 44L204 52" />
+          </svg>
+          {/* A lit copy of one tread, climbing a step at a time. */}
+          <svg {...svg} class="art-layer art-climb" stroke-width="2.25">
+            <path d="M24 190H64" />
+          </svg>
+        </>
+      )}
+      {name === 'contact' && (
+        <>
+          {/* Looping dashed trail. */}
+          <svg {...svg} class="art-layer">
+            <path
+              d="M36 190C20 170 40 140 66 154C92 168 76 206 52 200"
+              stroke-dasharray="2 6"
+            />
+          </svg>
+          {/* Paper plane, drifting. */}
+          <svg {...svg} class="art-layer art-plane">
+            <path d="M196 44L36 108L92 130L108 190L136 150L176 168Z" />
+            <path d="M196 44L92 130M92 130L100 168L136 150" />
+          </svg>
+        </>
+      )}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tiny and eager: run the drawing's loops only while it is on screen. The pointer behaviour
+  // (parallax, hover and click reaction) is a separate chunk, fetched on the first pointer move.
+  const arts = document.querySelectorAll<HTMLElement>('.section-art');
+  if (arts.length) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries)
+        e.target.toggleAttribute('data-run', e.isIntersecting);
+    });
+    arts.forEach((a) => io.observe(a));
+    addEventListener(
+      'pointermove',
+      () => {
+        void import('../lib/section-art').then((m) => m.initSectionArt(arts));
+      },
+      { once: true, passive: true },
+    );
+  }
+</script>

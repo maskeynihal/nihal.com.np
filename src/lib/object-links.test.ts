@@ -12,14 +12,14 @@ describe('objectLinks', () => {
       'clocks → contact',
       'calendar → open source',
       'pac-man ghost → pac-man',
-      'laptop → work',
+      'laptop → projects',
     ]);
     expect(links.map((l) => l.href)).toEqual([
       '#work-car-sensors',
       '#contact',
       '#open-source',
       '#work-pac-man',
-      '#work',
+      '#projects',
     ]);
   });
   it('follows the shown set: nothing for hidden objects', () => {

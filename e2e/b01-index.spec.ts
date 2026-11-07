@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 const IDS = [
   'desk',
   'about',
-  'work',
+  'projects',
   'open-source',
   'writing',
   'cv',
@@ -30,6 +30,8 @@ test.describe('sheet border and index @B-01', () => {
   test('index is a labelled nav of real in-page links, no JS needed @B-01', async ({
     page,
   }) => {
+    // All seven rows show from 768 px; under that the phone strip omits three (@V3-3-S3).
+    await page.setViewportSize({ width: 800, height: 900 });
     await page.goto('/');
     const links = nav(page).getByRole('link');
     await expect(links).toHaveCount(7);
@@ -39,7 +41,7 @@ test.describe('sheet border and index @B-01', () => {
     expect(await links.allTextContents()).toEqual([
       'desk',
       'about',
-      'work',
+      'projects',
       'open source',
       'writing',
       'cv',
@@ -186,8 +188,8 @@ test.describe('sheet border and index @B-01', () => {
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Enter'); // work row
-    await expect(page).toHaveURL(/#(work|open-source|writing|cv|contact)$/);
+    await page.keyboard.press('Enter'); // projects row
+    await expect(page).toHaveURL(/#(projects|open-source|writing|cv|contact)$/);
     await expectNoAxeViolations(page, {
       label: '/ index row activated by keyboard',
     });

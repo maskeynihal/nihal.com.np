@@ -4,6 +4,7 @@
 @import './sheet.css';
 @import './desk.css';
 @import './content.css';
+@import './phone.css';
 
 /* Expose the :root tokens to Tailwind by reference (no literal values here).
    Font utilities use distinct names (font-heading/prose/code) because
@@ -262,14 +263,24 @@ html[data-motion-os='reduce'] .pref-note {
 }
 
 /* A lamp change eases every colour for about 300 ms. The lamp sets data-lamp-fade for that window
-   only, so no element carries a permanent transition. Reduced motion never sets it. */
+   only, so no element carries a permanent transition. Reduced motion never sets it.
+   Text colour is eased on the root and body only: descendants inherit the eased value in step
+   with the background. A `color` transition on every element made WebKit start the text late
+   (white text on a paper background for about 650 ms, so axe measured it mid-fade). Elements that
+   set their own colour change at once; the fade still hides it. */
 :root[data-lamp-fade] *,
 :root[data-lamp-fade] *::before,
 :root[data-lamp-fade] *::after {
   transition:
-    color 300ms ease-out,
     background-color 300ms ease-out,
     border-color 300ms ease-out,
     fill 300ms ease-out,
     stroke 300ms ease-out !important;
+}
+
+:root[data-lamp-fade],
+:root[data-lamp-fade] body {
+  transition:
+    color 300ms ease-out,
+    background-color 300ms ease-out !important;
 }

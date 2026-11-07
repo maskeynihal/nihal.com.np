@@ -57,9 +57,9 @@ export const CvRow = z.strictObject({
   confirmed: z.boolean(),
 });
 
-/** Exactly: #desk #work #work-<work id> #open-source #writing #cv #contact. */
+/** Exactly: #desk #projects #work-<work id> #open-source #writing #cv #contact. */
 export const SECTION_TARGET = new RegExp(
-  `^#(desk|about|work|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
+  `^#(desk|about|projects|work-(${WORK_IDS.join('|')})|open-source|writing|cv|contact)$`,
 );
 
 /** An IANA zone the runtime can format (checked with Intl, no zone table). */
@@ -153,15 +153,15 @@ export const Copy = z.strictObject({
     timeLabel: text,
     /** Template; {rev} is the build month as YYYY.MM. */
     revLine: text,
-    /** Second action next to the email: link to #work. */
-    seeWork: text,
+    /** Second action next to the email: link to #projects. */
+    seeProjects: text,
     reset: text,
     skip: text,
     oledCaption: text,
   }),
   headings: z.strictObject({
     about: text,
-    work: text,
+    projects: text,
     openSource: text,
     writing: text,
     cv: text,

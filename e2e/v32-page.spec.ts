@@ -32,7 +32,7 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
   test('the hero sentence is the owner text @P8', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.title-block-line')).toHaveText(
-      'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my work, open-source contributions and writing.',
+      'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my projects, open-source contributions and writing.',
     );
   });
 
@@ -60,10 +60,14 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');
-      const arts = page.locator('svg.section-art');
+      const arts = page.locator('.section-art');
       await expect(arts).toHaveCount(6);
       for (const a of await arts.all()) {
-        await expect(a).toHaveAttribute('aria-hidden', 'true');
+        // The box sits inside the aria-hidden column; the drawing is SVG layers, no text.
+        await expect(
+          a.locator('xpath=ancestor::*[@aria-hidden="true"]'),
+        ).toHaveCount(1);
+        expect(await a.locator('svg').count()).toBeGreaterThan(0);
         expect(await a.locator('text').count()).toBe(0);
       }
       if (!shown) {

@@ -4,7 +4,7 @@ import { copy } from '../content/copy';
 export const SECTION_IDS = [
   'desk',
   'about',
-  'work',
+  'projects',
   'open-source',
   'writing',
   'cv',

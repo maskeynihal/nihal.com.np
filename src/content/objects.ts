@@ -109,7 +109,7 @@ export const objects: BodyDef[] = [
     },
     mass: 1,
     callouts: [],
-    target: '#work',
+    target: '#projects',
     label: 'laptop',
     confirmed: true,
   },

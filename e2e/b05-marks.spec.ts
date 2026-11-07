@@ -29,7 +29,7 @@ test.describe('work-panel marks @B-05', () => {
   }) => {
     test.skip(!javaScriptEnabled, 'needs JS');
     await page.goto('/');
-    await page.locator('#work').scrollIntoViewIfNeeded();
+    await page.locator('#projects').scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
     const n = await page.evaluate(
       () =>

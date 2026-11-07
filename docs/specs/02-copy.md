@@ -27,7 +27,7 @@ Reviewer-only (not grep): "craft"/"underscore" as verbs; rule-of-three where thr
 ## 3. Draft copy (v2)
 
 ### Sheet index (nav)
-Rows: desk · about · work · open source · writing · cv · contact · colophon
+Rows: desk · about · projects · open source · writing · cv · contact · colophon
 Toggles: "reduce motion" (`aria-pressed`) · "sound" (`aria-pressed`, state text "on" / "off") · note when the OS forces reduced motion: "set by your system"
 
 ### #desk: title block
@@ -44,8 +44,8 @@ Object list labels (mono links): "arduino water monitor → car sensors" · "clo
 Callout notes (`objects.ts`, two words each): arduino "uno r4" · clocks "ktm / [city] / [city]" · calendar "bikram sambat" · ghost "canvas, 2020" · cruiser "hj60" [CONFIRM]
 OLED caption (DOM, mono): "demo values"
 
-### #work
-Heading: **work**
+### #projects
+Heading: **projects**
 
 **trayt health** · mono date line: "jan 2025 → · lead engineer" · Leapfrog Technology, for Trayt Health [CONFIRM name may appear]
 "A behavioral-health platform for psychiatry access programs and managed care organizations. I joined the project as a senior engineer in 2023 and have led the engineering team since January 2025. My own code is mostly on AWS: SQS, EventBridge, Lambda and Step Functions for backups, metrics and notifications, plus the HIPAA and SOC 2 work that comes with health data. [ASK: one sentence on what was actually hard, in your words.] [CONFIRM numbers before adding: 20% smaller frontend bundle, API response times over 200% faster, and how each was measured.] The team sits in Nepal, Australia and the US."
@@ -129,11 +129,11 @@ Physics loading: "loading 3D" · 3D off: "3D is off on this device. Everything s
 
 ## 4. v3 copy (2026-11-06, supersedes the matching lines above)
 Source of truth is `src/content/copy.ts` and `cv.ts`; deck in `docs/specs/04-v3-improvements.md` section 2.
-- Index rows: desk · about · work · open source · writing · cv · contact · colophon.
+- Index rows: desk · about · projects · open source · writing · cv · contact · colophon.
 - Title: "Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal". Description (146 chars): "Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He builds healthcare software on AWS at Leapfrog Technology and co-founded Daboo Spaces." Keywords meta on the index only; it names Trayt, visible text does not.
-- Title block: kicker "lead software engineer · kathmandu, nepal"; intro (option A) "I lead an engineering team at Leapfrog Technology that builds a US behavioural-health platform on AWS. I co-founded Daboo Spaces, a coworking space in Sankhamul. The rest of this sheet is things I built because I wanted them."; second action "see the work →" to #work; drag hint "pick something up. throw it off the table if you like."; reset "put everything back".
+- Title block: kicker "lead software engineer · kathmandu, nepal"; intro (option A) "I lead an engineering team at Leapfrog Technology that builds a US behavioural-health platform on AWS. I co-founded Daboo Spaces, a coworking space in Sankhamul. The rest of this sheet is things I built because I wanted them."; second action "see the projects →" to #projects; drag hint "pick something up. throw it off the table if you like."; reset "put everything back".
 - #about: three paragraphs, a fourth linking Daboo Spaces (https://daboospaces.com), and a facts list (location, role "Lead Engineer, Leapfrog Technology" (capitalised at the owner's request), co-founder, stack, open to "mentorship, consulting, talks"). The label "location" replaces the deck's "based in", which is a banned phrase.
-- #work intro: "Side projects, each built to fix something that annoyed me."
+- #projects intro: "Side projects, each built to fix something that annoyed me."
 - #cv: intro "Since 2019: two companies, and a long climb at Leapfrog from intern to lead.", bullets under each role, then three paper cards after the roles table: co-founder (Daboo Spaces, Kathmandu; a coworking space in Sankhamul Tower 1), education (BE computer engineering, Kantipur Engineering College, Tribhuvan University, 2021) and skills.
 - Light mode switch: `role="switch"`, label "light mode", fixed top right inside the sheet border, hidden without JS.
 - #contact lead: "Email is fastest. I read everything and reply to most within a couple of days." Socials add instagram and hashnode.

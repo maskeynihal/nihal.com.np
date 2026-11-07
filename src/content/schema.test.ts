@@ -92,7 +92,7 @@ describe('BodyDef', () => {
   it('accepts exactly the allowed targets', () => {
     for (const t of [
       '#desk',
-      '#work',
+      '#projects',
       '#work-trayt',
       '#work-tz-converter',
       '#work-space-hog',
@@ -189,7 +189,7 @@ describe('BodyDef', () => {
   it('accepts exactly the allowed targets', () => {
     for (const t of [
       '#desk',
-      '#work',
+      '#projects',
       '#work-trayt',
       '#work-tz-converter',
       '#work-space-hog',
