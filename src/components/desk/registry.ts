@@ -7,13 +7,16 @@ import type { ObjectDef } from '../../lib/desk/object-def';
  * three values or rapier.
  *
  *  - `obj`:  the group at the object's home pose (local to the table while `free` is false).
- *  - `lift`: the model root inside `obj`. Hover lift (4 mm) moves only this, never the body.
+ *  - `pivot`: a group between `obj` and the model root. The scroll spring (D3) moves only this, and
+ *    it is zero for anything held, moving or free, so a body, a handoff and a pick never see it.
+ *  - `lift`: the model root inside `pivot`. Hover lift (4 mm) moves only this, never the body.
  *  - `free`: the object has left the table and lives in the fall layer (its own canvas).
  */
 export interface RegistryEntry {
   id: string;
   def: ObjectDef;
   obj: Object3D;
+  pivot: Object3D;
   lift: Object3D;
   free: boolean;
 }

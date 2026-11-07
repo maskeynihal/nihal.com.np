@@ -28,7 +28,6 @@ export const copy = {
     timeLabel: 'kathmandu · utc+5:45',
     revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
     seeWork: 'see the work →',
-    dragHint: 'pick something up. throw it off the table if you like.',
     reset: 'put everything back',
     skip: 'skip the 3D desk',
     oledCaption: 'demo values',

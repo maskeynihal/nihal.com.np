@@ -100,7 +100,13 @@ export interface PhysicsApi {
   awake(id: string): boolean;
   // Test aids (PUBLIC_TEST_HOOKS builds only call these).
   bodies(): BodyInfo[];
-  teleport(id: string, x: number, y: number, z: number): boolean;
+  teleport(
+    id: string,
+    x: number,
+    y: number,
+    z: number,
+    v?: [number, number, number],
+  ): boolean;
   /** Test aid: stop stepping on its own, and advance by `n` fixed steps at a time. */
   hold(on: boolean): void;
   step(n: number): void;

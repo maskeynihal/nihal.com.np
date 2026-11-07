@@ -69,12 +69,20 @@ interface DeskSceneHooks {
   /** Asks for the physics chunk as a first grab would. */
   requestPhysics(): void;
   /** Moves a body (waking it); false while physics is not loaded. */
-  teleport(id: string, x: number, y: number, z: number): boolean;
+  teleport(
+    id: string,
+    x: number,
+    y: number,
+    z: number,
+    v?: [number, number, number],
+  ): boolean;
   /** Viewport px of a point inside the object, or null. */
   pick(id: string): { x: number; y: number } | null;
   hovered(): string | null;
   /** Hover lift of the model root, metres. */
   hoverLift(id: string): number;
+  /** The scroll springs: shift (m) and speed per object that has one. */
+  motion(): { id: string; x: number; v: number }[];
   /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
   callouts(): {
     id: string;

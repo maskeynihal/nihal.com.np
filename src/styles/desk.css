@@ -100,11 +100,6 @@
     margin-block-start: 0.25rem;
   }
 
-  /* The hint sits in the middle of the wide drawing: keep it inside the screen and let it wrap. */
-  .desk-hint {
-    max-width: calc(100vw - 2 * (var(--inset) + var(--gutter)));
-  }
-
   .title-block-line {
     margin-block-start: 0.75rem;
     font-size: 1.0625rem;
@@ -229,8 +224,7 @@
   transition: none;
 }
 
-/* The hint sits in the drawing's own bottom margin, under the table's front edge, so it takes no
-   height of its own. The reset button is a fixed corner button (below). */
+/* The container takes no height and no events: it only holds the fixed corner button (below). */
 .desk-controls {
   position: absolute;
   inset-inline: 0;
@@ -244,11 +238,6 @@
 
 .desk[data-desk-state='live'] .desk-controls {
   visibility: visible;
-}
-
-.desk-hint {
-  margin: 0;
-  text-align: center;
 }
 
 /* "put everything back": fixed in the bottom corner, shown only while something is off the table. */

@@ -3,6 +3,7 @@ import { Quaternion, Vector3 } from 'three';
 import {
   boundsFor,
   floorPad,
+  leavingView,
   liftForFloor,
   foldDepthVelocity,
   project,
@@ -21,7 +22,7 @@ import {
   vecToWorld,
   worldToCamera,
 } from './camera';
-import { GRAVITY, feelFor } from './materials';
+import { GRAVITY, WORLD_SCALE, feelFor } from './materials';
 import type { Frame } from '../../components/desk/physics-bridge';
 import { PerspectiveCamera } from 'three';
 
@@ -168,6 +169,42 @@ describe('materials', () => {
       feelFor('ball-m').friction,
     );
     expect(feelFor('unknown-model').restitution).toBeLessThan(0.1);
+  });
+});
+
+describe('gravity and materials, one source', () => {
+  it('gravity is real gravity scaled by how much bigger the table is than a real one', () => {
+    expect(WORLD_SCALE).toBeCloseTo(1.6 / 1.2, 9);
+    expect(GRAVITY).toBeCloseTo(9.81 * WORLD_SCALE, 9);
+  });
+  it('balls lose speed rolling in seconds, not tens of seconds', () => {
+    for (const m of ['ball-s', 'ball-m', 'ball-l', 'pacman']) {
+      const f = feelFor(m);
+      const rate = f.linearDamping + (f.angularDamping * 2) / 7;
+      expect(rate).toBeGreaterThan(0.8);
+    }
+  });
+  it('heavy things barely bounce', () => {
+    for (const m of ['laptop', 'clock', 'letter-n', 'arduino', 'calendar'])
+      expect(feelFor(m).restitution).toBeLessThanOrEqual(0.05);
+  });
+});
+
+describe('leavingView', () => {
+  const box = { left: 0, right: 1280 };
+  it('is false for a body well inside, and for one moving away from the edge', () => {
+    expect(leavingView(640, 0, 3, 1260, box, 0.05)).toBe(false);
+    expect(leavingView(100, 3000, 3, 1260, box, 0.05)).toBe(false);
+  });
+  it('is true when it will pass the edge (minus the fall world wall margin) within the lead', () => {
+    expect(leavingView(1100, 3750, 3, 1260, box, 0.05)).toBe(true);
+    expect(leavingView(1260, 0, 3, 1260, box, 0.05)).toBe(true);
+    expect(leavingView(50, -3750, 3, 1260, box, 0.05)).toBe(true);
+  });
+  it('respects a canvas narrower than the viewport', () => {
+    expect(
+      leavingView(1020, 0, 3, 1260, { left: 100, right: 1050 }, 0.05),
+    ).toBe(true);
   });
 });
 
