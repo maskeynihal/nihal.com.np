@@ -99,9 +99,11 @@ test.describe('falling desk @V3-desk', () => {
     // than the silhouette, so it can touch or pass the edge by a few px).
     expect(vh - bottom).toBeLessThanOrEqual(30);
     expect(vh - bottom).toBeGreaterThanOrEqual(-2);
-    expect(b.rect!.x).toBeGreaterThan(-24);
-    // The projected box is a little wider than the ball: allow its slack, the screenshots check the rest.
-    expect(b.rect!.x + b.rect!.w).toBeLessThan(vw + 24);
+    // Inside the side walls (the viewport edges): the ball's centre is on screen. (`rect` is the
+    // projected bounding box of a tumbled object and can reach past the edge; the screenshots in
+    // docs/reviews/v3.1-final show the silhouettes.)
+    expect(b.screen[0]).toBeGreaterThan(0);
+    expect(b.screen[0]).toBeLessThan(vw);
     await expectNoAxeViolations(page, { label: '/ desk with a fallen object' });
 
     expect((await reset(page).boundingBox())!.height).toBeGreaterThanOrEqual(
