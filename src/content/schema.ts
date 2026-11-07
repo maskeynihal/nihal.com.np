@@ -163,7 +163,6 @@ export const Copy = z.strictObject({
     revLine: text,
     /** Second action next to the email: link to #work. */
     seeWork: text,
-    dragHint: text,
     reset: text,
     skip: text,
     oledCaption: text,

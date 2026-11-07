@@ -28,9 +28,8 @@ test.describe('desk island shell @E-01', () => {
     expect(html).not.toMatch(/modulepreload[^>]*Scene/);
     // Readable desk text is plain HTML, hidden (not removed) until the canvas is live.
     expect(html).toContain('put everything back');
-    expect(html).toContain(
-      'pick something up. throw it off the table if you like.',
-    );
+    // No visible instructions (v3.2 D1): play is guessed from the cursor and the hover response.
+    expect(html).not.toContain('pick something up');
   });
 
   test('initial module graph reaches no three, R3F or Scene chunk @E-01', () => {
@@ -159,7 +158,7 @@ test.describe('desk island shell @E-01', () => {
     expect(lcp?.tag).not.toBe('CANVAS');
   });
 
-  test('the hint shows with the canvas; the reset button waits until something is off the table @E-01', async ({
+  test('no instruction text with the canvas; the reset button waits until something is off the table @E-01', async ({
     page,
   }, info) => {
     test.skip(!canvasProject(info.project.name), 'needs SwiftShader');
@@ -169,10 +168,10 @@ test.describe('desk island shell @E-01', () => {
     await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
       timeout: 45_000,
     });
-    await expect(page.getByText('pick something up.')).toBeVisible();
+    await expect(page.getByText('pick something up')).toHaveCount(0);
     // Nothing is free yet: the button stays hidden (the falling desk spec drives the rest).
     await expect(reset).toHaveCSS('visibility', 'hidden');
-    await expectNoAxeViolations(page, { label: '/ live canvas, hint shown' });
+    await expectNoAxeViolations(page, { label: '/ live canvas, no hint' });
   });
 
   test('desktop: the object list goes quiet until focus-within, but stays in the tab order @E-01', async ({
