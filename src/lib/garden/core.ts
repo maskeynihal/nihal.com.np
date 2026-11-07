@@ -72,6 +72,9 @@ export interface Ball {
   spin: number;
   /** Squash on landing, 0..1. */
   sq: number;
+  /** Where the ball sat against the pointer when it was picked up; eases to 0 so it does not jump. */
+  ox: number;
+  oy: number;
 }
 export interface Colors {
   stroke: string;

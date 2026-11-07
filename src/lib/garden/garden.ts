@@ -7,7 +7,7 @@ import {
   spawn,
   stepButterflies,
 } from './butterflies';
-import { drawBall, drawDog, mouth, spawnDogs, stepDogs } from './dogs';
+import { ballAt, drawBall, drawDog, mouth, spawnDogs, stepDogs } from './dogs';
 import {
   type Flora,
   drawFlowers,
@@ -91,6 +91,8 @@ export function mountGarden(root: HTMLElement): void {
     fetch,
     spin: 0,
     sq: 0,
+    ox: 0,
+    oy: 0,
   });
 
   const resize = () => {
@@ -156,7 +158,7 @@ export function mountGarden(root: HTMLElement): void {
     for (const d of dogs) {
       items.push([d.y, () => drawDog(ctx, w, d, col)]);
       if (d.ball?.held) {
-        const m = mouth(d, w.t);
+        const m = ballAt(d, w.t);
         const b = d.ball;
         items.push([d.y + 1, () => drawBall(ctx, b, col, true, m)]);
       }
@@ -192,9 +194,12 @@ export function mountGarden(root: HTMLElement): void {
       b.sq = Math.max(0, b.sq - dt * 5);
       if (b.grabbed) {
         const v = velocity();
-        b.x = clamp(w.px, 8, w.W - 8);
-        b.y = clamp(w.py + 24, w.g0 + 6, w.g1 + 6);
-        b.z = Math.max(0, b.y - w.py - 8);
+        const e = Math.exp(-dt * 12);
+        b.ox *= e;
+        b.oy *= e;
+        b.x = clamp(w.px + b.ox, 8, w.W - 8);
+        b.y = clamp(w.py + 24 + b.oy, w.g0 + 6, w.g1 + 6);
+        b.z = Math.max(0, b.y - w.py - b.oy - 8);
         b.spin += (v.x / 8) * dt * 0.5;
         continue;
       }
@@ -344,7 +349,7 @@ export function mountGarden(root: HTMLElement): void {
         if (b.held) {
           const d = dogs.find((o) => o.ball === b);
           if (!d) continue;
-          [bx, by] = mouth(d, w.t);
+          [bx, by] = ballAt(d, w.t);
         }
         const d = Math.hypot(x - bx, y - by);
         if (d < bd) {
@@ -422,18 +427,25 @@ export function mountGarden(root: HTMLElement): void {
     }
     const b = hit.ball;
     canvas.setPointerCapture(e.pointerId);
+    // The ball keeps the spot it was seen at and eases to the pointer: no jump.
+    let vx = b.x;
+    let vy = b.y - b.z - 8;
     if (b.held) {
-      // Taken back out of the dog's mouth.
+      // Taken back out of the dog's mouth: the dog lets go and stands down.
       const d = dogs.find((o) => o.ball === b);
       if (d) {
+        [vx, vy] = ballAt(d, w.t);
         d.ball = null;
         d.state = 'idle';
         d.timer = 1.2;
       }
       b.held = false;
-      b.x = clamp(x, 8, w.W - 8);
-      b.y = clamp(y + 24, w.g0 + 6, w.g1 + 6);
+      b.x = clamp(vx, 8, w.W - 8);
+      b.y = clamp(vy + 8, w.g0 + 6, w.g1 + 6);
+      b.z = 0;
     }
+    b.ox = vx - x;
+    b.oy = vy - y;
     b.claimed = false;
     b.fetch = false;
     b.grabbed = true;
@@ -524,6 +536,22 @@ export function mountGarden(root: HTMLElement): void {
           .filter((f) => f.grow >= 0.9)
           .map((f) => ({ ...at(f.hx, f.hy) })),
       bucket: () => ({ ...at(w.bucket.x, w.bucket.y), count: w.bucket.count }),
+      dogs: () =>
+        dogs.map((d) => {
+          const m = mouth(d, w.t);
+          return {
+            ...at(d.x, d.y),
+            f: d.f,
+            size: d.size,
+            state: d.state,
+            mouth: [at(m[0], m[1]).x, at(m[0], m[1]).y] as [number, number],
+            ball: d.ball
+              ? d.ball.held
+                ? { ...at(...ballAt(d, w.t)), held: true }
+                : { ...at(d.ball.x, d.ball.y - d.ball.z - 8), held: false }
+              : null,
+          };
+        }),
     };
   }
 }

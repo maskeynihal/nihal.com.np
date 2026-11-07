@@ -122,6 +122,15 @@ interface GardenHooks {
   }[];
   flowers(): { x: number; y: number }[];
   bucket(): { x: number; y: number; count: number };
+  dogs(): {
+    x: number;
+    y: number;
+    f: number;
+    size: number;
+    state: string;
+    mouth: [number, number];
+    ball: { x: number; y: number; held: boolean } | null;
+  }[];
 }
 
 interface Window {
