@@ -2,16 +2,13 @@ import { test, expect, expectNoAxeViolations } from './fixtures';
 import { readFileSync } from 'node:fs';
 import { copy } from '../src/content/copy';
 
-test('title block option A comes from content @A-04', async ({ page }) => {
-  const sentence = copy.titleBlock.options[copy.titleBlock.selected];
-  expect(copy.titleBlock.selected).toBe('A');
-  expect(sentence).toMatch(
-    /^I lead an engineering team at Leapfrog Technology/,
-  );
+test('title block sentence comes from content @A-04', async ({ page }) => {
+  const sentence = copy.titleBlock.line;
+  expect(sentence).toMatch(/^Lead engineer at Leapfrog Technology/);
 
   // Not hard-coded in the page source.
   const src = readFileSync('src/pages/index.astro', 'utf8');
-  expect(src).not.toContain('I lead an engineering team');
+  expect(src).not.toContain('Lead engineer at Leapfrog');
   expect(src).not.toContain('healthcare software on AWS');
 
   await page.goto('/');

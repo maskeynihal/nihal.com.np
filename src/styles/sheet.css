@@ -71,6 +71,23 @@
   margin-block-end: 1.5rem;
 }
 
+/* Arrival from the index (sheet-index.ts): the heading settles in over 200 ms. Opacity and
+   transform only. */
+.section-heading[data-arrive] {
+  animation: heading-arrive 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes heading-arrive {
+  from {
+    opacity: 0.45;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .section-body > * + * {
   margin-block-start: 1rem;
 }
@@ -81,6 +98,49 @@
   }
   .section[data-side='right'] .section-grid > * {
     grid-column: 6 / 13;
+  }
+}
+
+/* --- Section art (P6): a quiet drawing in the empty column. Absolute, so no layout shift;
+   hidden below 1024 px; hairline colour at reduced opacity so it never competes with the text.
+   The text columns never overlap it: left text ends at column 8, right text starts at column 6. */
+.section-art {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .section-art {
+    display: block;
+    position: absolute;
+    inset-block-start: 0;
+    width: calc((100% - 11 * var(--gutter)) / 12 * 4 + 3 * var(--gutter));
+    max-width: 17rem;
+    aspect-ratio: 1;
+    height: auto;
+    color: var(--hair-strong);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  /* Auto lines: an absolutely placed grid child would otherwise use the text's column span as
+     its containing block (the side rules above set grid-column on every child). */
+  .section[data-side] .section-grid > .section-art {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .section-grid {
+    position: relative;
+  }
+  .section[data-side='left'] .section-art {
+    inset-inline-end: calc((100% - 11 * var(--gutter)) / 12 + var(--gutter));
+  }
+  .section[data-side='right'] .section-art {
+    inset-inline-start: calc((100% - 11 * var(--gutter)) / 12 + var(--gutter));
+  }
+}
+
+@media print {
+  .section-art {
+    display: none;
   }
 }
 
@@ -282,27 +342,12 @@
   min-height: 44px;
 }
 
-/* --- Load (C-01): the h1 is real text, painted from the first frame (a 1% sliver is already
-   inside the clip, so LCP sees it); a clip-path wipe left to right rules it in over 600 ms, then
-   the rest of the title block is wiped in the same way over 240 ms. Nothing starts at opacity 0:
-   an opacity:0 start keeps the line out of LCP until the delay ends (measured LCP 2.41 s vs 0.75 s). The only draw-in on the site. Motion off
-   drops both through the global animation reset, which leaves everything fully shown. */
-.title-block .name {
-  /* The name starts half drawn: a thinner sliver is a smaller paint than the OLED caption that
-     arrives with the desk, and the caption would then become the largest contentful paint. */
-  --wipe-from: 50%;
-  animation: name-wipe 600ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-}
-
-.title-block .name ~ * {
-  animation: name-wipe 240ms cubic-bezier(0.2, 0.7, 0.2, 1) 600ms backwards;
-}
-
-@keyframes name-wipe {
-  from {
-    clip-path: inset(0 var(--wipe-from, 99%) 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
+/* --- Load (C-01, revised in v3.2 P1): the title block paints complete on the first frame, with
+   no entrance. The old clip-path wipe ran on the main thread, so a long task while the desk
+   loaded (measured 1.9 s at 4x CPU throttle) froze it half drawn. Panels still fade in with
+   opacity (compositor only, see .panel). The time slot shows a "--:--" placeholder from CSS
+   until the script fills the minute, so it does not read as stuck or missing. */
+.title-block .live-time:empty::before {
+  content: '--:--';
+  opacity: 0.5;
 }

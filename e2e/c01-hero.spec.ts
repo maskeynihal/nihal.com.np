@@ -1,7 +1,7 @@
 import { test, expect, expectNoAxeViolations } from './fixtures';
 
-test.describe('hero wipe and enters @C-01', () => {
-  test('h1 wipes in over 600 ms, text stays in the DOM, CLS 0 @C-01', async ({
+test.describe('hero paints complete, panels enter @C-01', () => {
+  test('title block has no clip-path entrance, text is in the DOM, CLS 0 @C-01', async ({
     page,
     javaScriptEnabled,
   }, info) => {
@@ -30,20 +30,22 @@ test.describe('hero wipe and enters @C-01', () => {
     });
     await page.goto('/');
     const h1 = page.locator('h1');
-    // Computed style, not getAnimations(): a slow load can finish the wipe before we look.
+    // v3.2 P1: no entrance on the title block. It paints complete on the first frame, so a
+    // main-thread stall can never show it half drawn.
     expect(
       await h1.evaluate((e) => {
         const cs = getComputedStyle(e);
-        return [cs.animationName, cs.animationDuration];
+        return [cs.animationName, cs.clipPath, cs.opacity];
       }),
-    ).toEqual(['name-wipe', '0.6s']);
-    // Painted from the first frame: the start keyframe leaves a sliver, never display/opacity 0.
-    expect(await h1.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
+    ).toEqual(['none', 'none', '1']);
     await expect(h1).toHaveText(/\S/);
-    await expect
-      .poll(() => h1.evaluate((e) => e.getAnimations().length))
-      .toBe(0);
-    await expect(h1).toHaveCSS('clip-path', /none|inset\(0(px)?( 0(px)?){3}\)/);
+    expect(
+      await page
+        .locator('.title-block, .title-block *')
+        .evaluateAll(
+          (els) => els.filter((e) => e.getAnimations().length > 0).length,
+        ),
+    ).toBe(0);
     await page.waitForTimeout(500);
     const { cls, lcp } = await page.evaluate(() => {
       const w = window as unknown as { __cls: number; __lcp: string[] };
@@ -71,7 +73,7 @@ test.describe('hero wipe and enters @C-01', () => {
         .getAnimations()
         .filter((a) => {
           const n = (a as CSSAnimation).animationName;
-          return n === 'name-wipe';
+          return n === 'name-wipe' || n === 'heading-arrive';
         })
         .map((a) => (a as CSSAnimation).animationName),
     );
