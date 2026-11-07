@@ -92,6 +92,8 @@ export interface Vase {
   y: number;
   s: number;
   bq: Bouquet | null;
+  /** Taken out of the garden: carried, or dropped to the bottom of the screen. */
+  gone: boolean;
 }
 export interface Ball {
   x: number;

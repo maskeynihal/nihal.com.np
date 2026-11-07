@@ -2,6 +2,7 @@ import {
   type Bloom,
   type Bouquet,
   type Colors,
+  type Vase,
   type World,
   TAU,
   clamp,
@@ -13,7 +14,7 @@ const ease = (v: number) => v * v * (3 - 2 * v);
 const unit = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Most bouquets the garden, the vase and the pinned ones hold between them. */
+/** Most bouquets the garden, the vase and the ones dropped to the bottom of the screen hold between them. */
 export const MAX_BOUQUETS = 3;
 /** Wrapping paper shows with this many flowers in the bucket. */
 export const WRAP_AT = 3;
@@ -64,7 +65,7 @@ export function lay(w: World, q: Bouquet, x: number, y: number) {
 
 export const laid = (w: World) => w.bqs.filter((q) => q.mode === 'lie');
 
-/** Takes a bouquet out of the garden (vase or ground), for carrying or pinning. */
+/** Takes a bouquet out of the garden (vase or ground), for carrying or dropping. */
 export function lift(w: World, q: Bouquet) {
   w.bqs = w.bqs.filter((o) => o !== q);
   if (w.vase.bq === q) w.vase.bq = null;
@@ -72,6 +73,7 @@ export function lift(w: World, q: Bouquet) {
 
 /** Stands a bouquet in the vase; one already there is laid beside it. */
 export function toVase(w: World, q: Bouquet) {
+  if (w.vase.gone) return;
   const old = w.vase.bq;
   if (old && old !== q) lay(w, old, w.vase.x + 78 * w.vase.s, w.vase.y + 6);
   if (!w.bqs.includes(q)) w.bqs.push(q);
@@ -296,8 +298,8 @@ export function drawPaper(c: CanvasRenderingContext2D, col: Colors, w: World) {
 }
 
 /** The vase, with a bouquet standing in it when there is one. Drawn as one depth-sorted item. */
-export function drawVase(c: CanvasRenderingContext2D, w: World, col: Colors) {
-  const { x, y, s, bq } = w.vase;
+export function drawVase(c: CanvasRenderingContext2D, v: Vase, col: Colors) {
+  const { x, y, s, bq } = v;
   const top = y - 56 * s;
   c.strokeStyle = col.stroke;
   c.fillStyle = col.page;
@@ -383,6 +385,13 @@ export const onPaper = (w: World, px: number, py: number) =>
   Math.abs(px - w.paper.x) < 46 &&
   Math.abs(py - w.paper.y) < 28;
 
+/** True when (px, py) is on the vase's body, below its rim. */
+export const onVase = (w: World, px: number, py: number) => {
+  const { x, y, s, gone } = w.vase;
+  return !gone && Math.abs(px - x) < 26 * s && py > y - 56 * s && py < y + 6;
+};
+
 /** Drops a bouquet near the vase: its mouth, or the bouquet standing in it. */
 export const nearVase = (w: World, px: number, py: number) =>
+  !w.vase.gone &&
   Math.hypot(px - w.vase.x, py - (w.vase.y - 40 * w.vase.s)) < 92;

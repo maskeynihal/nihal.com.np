@@ -20,6 +20,7 @@ import {
   newBouquet,
   onBouquet,
   onPaper,
+  onVase,
   placeVase,
   spot,
   startWrap,
@@ -27,16 +28,17 @@ import {
   toVase,
 } from './bouquet';
 import {
-  type Edge,
-  type Pin,
-  PH,
-  PW,
-  carryTo,
-  edgeAt,
-  makePin,
-  paintPin,
-  placePin,
-} from './pins';
+  type Kind,
+  type Rest,
+  fall,
+  floorY,
+  freeX,
+  gravityPx,
+  limits,
+  make,
+  paint,
+  place,
+} from './shelf';
 import {
   type Butterfly,
   drawButterfly,
@@ -78,7 +80,7 @@ export function mountGarden(root: HTMLElement): void {
   const newBtn = act('new');
   const wrapBtn = act('wrap');
   const vaseBtn = act('vase');
-  const pinBtn = act('pin');
+  const dropBtn = act('drop');
   const outBtn = act('out');
   const readout = root.querySelector<HTMLElement>('[data-garden-count]');
   const ctx = canvas?.getContext('2d');
@@ -96,7 +98,7 @@ export function mountGarden(root: HTMLElement): void {
     bucket: { x: 0, y: 0, s: 1, items: [], count: 0 },
     paper: null,
     bqs: [],
-    vase: { x: 0, y: 0, s: 1, bq: null },
+    vase: { x: 0, y: 0, s: 1, bq: null, gone: false },
     flying: [],
     held: null,
     cap: 9,
@@ -114,17 +116,25 @@ export function mountGarden(root: HTMLElement): void {
   let visible = false;
   let raf = 0;
   let last = 0;
-  const pins: Pin[] = [];
-  /** The bouquet under the pointer: shown by a fixed element so it can leave the canvas. */
+  /** Bouquets and the vase dropped to the bottom of the screen, oldest first. */
+  const rest: Rest[] = [];
+  /** What the pointer carries: shown by a fixed element so it can leave the canvas. */
   let carry: {
-    pin: Pin;
-    from: 'lie' | 'vase';
+    r: Rest;
+    from: 'lie' | 'vase' | 'garden' | 'rest';
     sw: number;
     swv: number;
+    /** Where the press began (viewport), and when. */
     x: number;
     y: number;
     t: number;
+    /** Where the pointer holds the element, from its top left. */
+    ax: number;
+    ay: number;
+    /** Where a rested item was lifted from, for a cancelled drag. */
+    rx: number;
   } | null = null;
+  let dragId = -1;
   let paperDown: { x: number; y: number } | null = null;
   let cx = 0;
   let cy = 0;
@@ -225,8 +235,8 @@ export function mountGarden(root: HTMLElement): void {
     drawFlowers(ctx, w, col);
     const items: [number, () => void][] = [
       [w.bucket.y, () => drawBucket(ctx, w, col)],
-      [w.vase.y, () => drawVase(ctx, w, col)],
     ];
+    if (!w.vase.gone) items.push([w.vase.y, () => drawVase(ctx, w.vase, col)]);
     for (const q of w.bqs)
       if (q.mode === 'lie')
         items.push([q.y, () => drawBouquet(ctx, col, q, q.x, q.y, q.rot, q.s)]);
@@ -319,7 +329,7 @@ export function mountGarden(root: HTMLElement): void {
   const show = (b: HTMLButtonElement | null, on: boolean) => {
     if (b) b.hidden = !on;
   };
-  /** Shows the controls that make sense now: wrap with paper down, vase and pin with a bouquet to place. */
+  /** Shows the controls that make sense now: wrap with paper down, vase and drop with something to place. */
   const syncUi = () => {
     const free = laid(w).length;
     const key = [
@@ -327,15 +337,20 @@ export function mountGarden(root: HTMLElement): void {
       w.paper ? 1 : 0,
       free,
       w.vase.bq ? 1 : 0,
+      w.vase.gone ? 1 : 0,
       w.bqs.some((q) => q.mode === 'wrap') ? 1 : 0,
-      pins.length,
     ].join();
     if (key === uiKey) return;
     uiKey = key;
     show(newBtn, w.bucket.count > 0);
     show(wrapBtn, !!w.paper);
-    show(vaseBtn, free > 0);
-    show(pinBtn, free > 0 || !!w.vase.bq);
+    show(vaseBtn, free > 0 && !w.vase.gone);
+    // A laid bouquet drops first, then the vase.
+    show(dropBtn, free > 0 || !w.vase.gone);
+    dropBtn?.setAttribute(
+      'aria-label',
+      `drop the ${free > 0 ? 'bouquet' : 'vase'} to the bottom of the screen`,
+    );
     show(outBtn, !!w.vase.bq);
   };
   const announce = (msg?: string) => {
@@ -375,10 +390,11 @@ export function mountGarden(root: HTMLElement): void {
         KEY,
         JSON.stringify({
           v: w.vase.bq ? enc(w.vase.bq) : null,
-          p: pins.map((p) => ({
-            e: p.edge,
-            a: Math.round(p.along),
-            i: enc(p.bq),
+          // What is at the bottom of the screen: kind, x as a share of the width, and the bouquet.
+          r: rest.map((o) => ({
+            k: o.kind === 'vase' ? 'v' : 'b',
+            x: +(o.tx / window.innerWidth).toFixed(3),
+            i: o.bq ? enc(o.bq) : null,
           })),
         }),
       );
@@ -410,80 +426,209 @@ export function mountGarden(root: HTMLElement): void {
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return;
-      const d = JSON.parse(raw) as { v?: unknown; p?: unknown };
+      const d = JSON.parse(raw) as { v?: unknown; r?: unknown; p?: unknown };
+      // v3.2 kept pins on an edge (`p`); they come back at the bottom of the screen.
+      const list: { k: string; x: number; i: unknown }[] = [];
+      if (Array.isArray(d.r))
+        for (const o of d.r.slice(0, MAX_BOUQUETS + 1))
+          list.push({ k: o?.k, x: Number(o?.x), i: o?.i });
+      else if (Array.isArray(d.p))
+        for (const o of d.p.slice(0, MAX_BOUQUETS - 1))
+          list.push({ k: 'b', x: 0.5, i: o?.i });
       const vq = dec(d.v);
-      if (vq) {
+      if (list.some((o) => o.k === 'v')) w.vase.gone = true;
+      else if (vq) {
         w.bqs.push(vq);
         toVase(w, vq);
         stepBouquets(w, 0, true);
       }
-      if (Array.isArray(d.p))
-        for (const o of d.p.slice(0, MAX_BOUQUETS - 1)) {
-          const q = dec(o?.i);
-          const e = o?.e;
-          if (q && 'lrtb'.includes(e) && e.length === 1 && Number.isFinite(o.a))
-            attachPin(q, e as Edge, o.a);
-        }
+      for (const o of list) {
+        const q = dec(o.i);
+        const kind: Kind | null = o.k === 'v' ? 'vase' : q ? 'bq' : null;
+        if (kind && !(kind === 'vase' && rest.some((r) => r.kind === 'vase')))
+          land(mk(kind, q), clamp(o.x || 0.5, 0, 1) * window.innerWidth, true);
+      }
     } catch {
       // Unreadable or blocked: start empty.
     }
   };
 
-  /** A fixed element drawing a bouquet, for carrying it and for pinning it to an edge. */
-  const pinFor = (q: Bouquet, label: string) => {
-    const { el, cv } = makePin(label);
-    paintPin(cv, col, q);
-    return { bq: q, el, cv, edge: 'r' as Edge, along: 0 };
-  };
-  const attachPin = (q: Bouquet, edge: Edge, along: number, pin?: Pin) => {
-    const p = pin ?? pinFor(q, 'take the bouquet back into the garden');
-    p.edge = edge;
-    p.along = along;
-    delete p.el.dataset.carry;
-    p.el.removeAttribute('aria-hidden');
-    p.el.setAttribute('aria-label', 'take the bouquet back into the garden');
-    p.el.tabIndex = 0;
-    placePin(p);
-    pins.push(p);
-    let down: { x: number; y: number } | null = null;
-    p.el.addEventListener('click', () => unpin(p));
-    p.el.addEventListener('pointerdown', (e) => {
-      down = { x: e.clientX, y: e.clientY };
-      p.el.setPointerCapture(e.pointerId);
-    });
-    p.el.addEventListener('pointermove', (e) => {
-      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10)
-        unpin(p);
-    });
-    return p;
-  };
-  const unpin = (p: Pin) => {
-    const i = pins.indexOf(p);
-    if (i < 0) return;
-    pins.splice(i, 1);
-    p.el.remove();
-    const [x, y] = spot(w);
-    lay(w, p.bq, x, y);
-    w.bqs.push(p.bq);
-    p.bq.x = p.bq.tx;
-    p.bq.y = p.bq.ty;
-    p.bq.rot = p.bq.trot;
-    announce('the bouquet is back in the garden');
-    save();
-    settle();
-  };
-  /** At most MAX_BOUQUETS between garden, vase and edges: the oldest one is put away for a new one. */
+  /** Bouquets in the garden, in the vase and at the bottom of the screen. */
+  const bouquets = () =>
+    w.bqs.length + rest.filter((r) => r.kind === 'bq' || r.bq).length;
+  /** At most MAX_BOUQUETS: the oldest one is put away for a new one. */
   const makeRoom = () => {
-    while (w.bqs.length + pins.length >= MAX_BOUQUETS) {
+    while (bouquets() >= MAX_BOUQUETS) {
       const old = laid(w)[0] ?? w.vase.bq;
       if (old) {
         lift(w, old);
         continue;
       }
-      const p = pins.shift();
-      if (!p) break;
-      p.el.remove();
+      const r = rest.find((o) => o.bq);
+      if (!r) break;
+      if (r.kind === 'vase') {
+        r.bq = null;
+        paint(r, col);
+      } else drop(r);
     }
+  };
+
+  // The bottom of the screen: dropped things fall to the floor (the sheet's inner edge) and stay while the page scrolls.
+  let fallRaf = 0;
+  let fallLast = 0;
+  const fallStep = (ts: number) => {
+    const dt = fallLast ? Math.min(0.05, (ts - fallLast) / 1000) : 0.016;
+    fallLast = ts;
+    const floor = floorY();
+    const g = gravityPx();
+    let any = false;
+    for (const r of rest) {
+      if (!r.falling) continue;
+      const k = Math.min(1, dt * 12);
+      r.x += (r.tx - r.x) * k;
+      r.tilt += (r.rest - r.tilt) * k;
+      if (fall(r, dt, g, floor)) {
+        r.falling = false;
+        r.x = r.tx;
+        r.tilt = r.rest;
+        settleRest(r);
+      } else any = true;
+      place(r);
+    }
+    fallRaf = any ? requestAnimationFrame(fallStep) : 0;
+    if (!any) fallLast = 0;
+  };
+  /** A resting item is a button: it can be focused and brought back. */
+  const settleRest = (r: Rest) => {
+    const el = r.el;
+    delete el.dataset.carry;
+    el.removeAttribute('aria-hidden');
+    el.tabIndex = 0;
+    el.setAttribute(
+      'aria-label',
+      `bring the ${r.kind === 'vase' ? 'vase' : 'bouquet'} back to the garden`,
+    );
+  };
+  /** Removes an item from the screen's floor. */
+  const drop = (r: Rest) => {
+    const i = rest.indexOf(r);
+    if (i >= 0) rest.splice(i, 1);
+    r.falling = false;
+    r.el.remove();
+  };
+  /** Where `r` lands: the free slot nearest `x`; with no room left, the oldest item goes back to the garden. */
+  const slot = (r: Rest, x: number) => {
+    const [lo, hi] = limits();
+    for (;;) {
+      const at = freeX(
+        rest.filter((o) => o !== r),
+        r.w,
+        x,
+        lo,
+        hi,
+      );
+      if (at !== null) return at;
+      const old = rest.find((o) => o !== r);
+      if (!old) return clamp(x, lo, Math.max(lo, hi - r.w));
+      bringBack(old);
+    }
+  };
+  /** Sets `r` on the floor at about `x`: it falls from where it is, or is simply there (reduced motion, reload). */
+  const land = (r: Rest, x: number, instant = false) => {
+    const tx = slot(r, x);
+    r.rest =
+      r.kind === 'vase' ? 0 : tx + r.w / 2 < window.innerWidth / 2 ? 9 : -9;
+    r.tx = tx;
+    r.bounces = 0;
+    r.vy = 0;
+    if (!rest.includes(r)) rest.push(r);
+    paint(r, col);
+    if (instant || still()) {
+      r.x = tx;
+      r.y = floorY() - r.h;
+      r.tilt = r.rest;
+      r.falling = false;
+      settleRest(r);
+      place(r);
+      return;
+    }
+    r.falling = true;
+    r.el.setAttribute('aria-hidden', 'true');
+    r.el.tabIndex = -1;
+    place(r);
+    if (!fallRaf) fallRaf = requestAnimationFrame(fallStep);
+  };
+
+  /** A fixed button for a bouquet or the vase: pressing it picks it up, a tap or Enter brings it back. */
+  const mk = (kind: Kind, bq: Bouquet | null) => {
+    const r = make(kind, bq);
+    r.el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (carry || !rest.includes(r) || r.falling) return;
+      e.preventDefault();
+      cx = e.clientX;
+      cy = e.clientY;
+      startCarry(r, 'rest', e.clientX - r.x, e.clientY - r.y, e);
+    });
+    // Keyboard and assistive tech: a click with no pointer behind it (a tap is handled on release).
+    r.el.addEventListener('click', (e) => {
+      if (e.detail === 0 && rest.includes(r)) bringBack(r);
+    });
+    return r;
+  };
+  /** Takes a rested item back into the garden: a bouquet lies by the bucket, the vase stands in its place. */
+  const bringBack = (r: Rest) => {
+    drop(r);
+    if (r.kind === 'vase') {
+      w.vase.gone = false;
+      placeVase(w);
+      const q = r.bq;
+      if (q) {
+        w.bqs.push(q);
+        q.x = w.vase.x;
+        q.y = w.vase.y;
+        toVase(w, q);
+      }
+      announce('the vase is back in the garden');
+    } else if (r.bq) {
+      const q = r.bq;
+      lay(w, q, ...spot(w));
+      q.x = q.tx;
+      q.y = q.ty;
+      q.rot = q.trot;
+      w.bqs.push(q);
+      announce('the bouquet is back in the garden');
+    }
+    save();
+    settle();
+  };
+  /** Where an item of the garden is on screen, for starting its fall. */
+  const startAt = (r: Rest, gx: number, gy: number) => {
+    const b = canvas.getBoundingClientRect();
+    r.x = b.left + gx - r.w / 2;
+    r.y = Math.max(0, b.top + gy - r.h * 0.9);
+  };
+  /** The keyboard's way to drop: the laid bouquet, else the vase (with what stands in it). */
+  const dropFromGarden = () => {
+    const q = laid(w).at(-1);
+    let r: Rest;
+    if (q) {
+      lift(w, q);
+      r = mk('bq', q);
+      startAt(r, q.x, q.y);
+    } else if (!w.vase.gone) {
+      const vq = w.vase.bq;
+      if (vq) lift(w, vq);
+      w.vase.gone = true;
+      r = mk('vase', vq);
+      startAt(r, w.vase.x, w.vase.y);
+    } else return;
+    land(r, r.x);
+    announce(
+      `the ${r.kind === 'vase' ? 'vase' : 'bouquet'} is at the bottom of the screen`,
+    );
+    save();
+    settle();
   };
   const doWrap = () => {
     makeRoom();
@@ -525,7 +670,7 @@ export function mountGarden(root: HTMLElement): void {
       const target = clamp(velocity().x * 0.0004, -0.6, 0.6);
       c.swv += ((target - c.sw) * 120 - c.swv * 12) * dt;
       c.sw += c.swv * dt;
-      carryTo(c.pin.el, cx, cy, c.sw);
+      carryTo(c);
     }
     if (w.bucket.count !== lastCount || !!w.paper !== lastPaper) announce();
     else syncUi();
@@ -612,6 +757,7 @@ export function mountGarden(root: HTMLElement): void {
   type Hit =
     | { kind: 'ball'; ball: Ball }
     | { kind: 'bouquet'; bq: Bouquet }
+    | { kind: 'vase' }
     | { kind: 'paper' }
     | { kind: 'flower'; flower: (typeof w.flowers)[number] };
   const hitTest = (x: number, y: number, touch: boolean): Hit | null => {
@@ -636,6 +782,8 @@ export function mountGarden(root: HTMLElement): void {
       }
       if (best) return { kind: 'ball', ball: best };
     }
+    // The vase's body takes the vase and what stands in it; the flowers above the rim come out on their own.
+    if (onVase(w, x, y)) return { kind: 'vase' };
     for (const q of w.bqs)
       if (q.mode !== 'wrap' && onBouquet(q, x, y))
         return { kind: 'bouquet', bq: q };
@@ -648,16 +796,82 @@ export function mountGarden(root: HTMLElement): void {
     if (canvas.style.cursor !== c) canvas.style.cursor = c;
   };
 
+  /** Moves the carried element to the pointer, swinging by `sw` radians. */
+  const carryTo = (c: NonNullable<typeof carry>) => {
+    c.r.x = cx - c.ax;
+    c.r.y = cy - c.ay;
+    c.r.tilt = (c.sw * 180) / Math.PI;
+    place(c.r);
+  };
+  /** Starts carrying `r` (a fresh element for something from the garden, or a rested one) with the pointer `ax`, `ay` into it. */
+  const startCarry = (
+    r: Rest,
+    from: 'lie' | 'vase' | 'garden' | 'rest',
+    ax: number,
+    ay: number,
+    e: PointerEvent,
+  ) => {
+    const i = rest.indexOf(r);
+    const rx = r.x;
+    if (i >= 0) rest.splice(i, 1);
+    r.falling = false;
+    r.el.dataset.carry = '';
+    r.el.removeAttribute('aria-label');
+    r.el.setAttribute('aria-hidden', 'true');
+    r.el.tabIndex = -1;
+    carry = {
+      r,
+      from,
+      sw: 0,
+      swv: 0,
+      x: e.clientX,
+      y: e.clientY,
+      t: performance.now(),
+      ax,
+      ay,
+      rx,
+    };
+    carryTo(carry);
+    setCursor('grabbing');
+    if (from === 'rest') {
+      // Nothing holds the pointer here, so the window follows it.
+      dragId = e.pointerId;
+      window.addEventListener('pointermove', onWinMove);
+      window.addEventListener('pointerup', onWinUp);
+      window.addEventListener('pointercancel', onWinUp);
+      const [lxx, lyy] = local(e);
+      w.px = lxx;
+      w.py = lyy;
+      trail.length = 0;
+      trail.push({ x: lxx, y: lyy, t: performance.now() });
+    }
+    save();
+    settle();
+  };
+  const onWinMove = (e: PointerEvent) => {
+    if (e.pointerId === dragId) onMove(e);
+  };
+  const onWinUp = (e: PointerEvent) => {
+    if (e.pointerId !== dragId) return;
+    cx = e.clientX;
+    cy = e.clientY;
+    release(e.type === 'pointercancel');
+  };
+
   let lx = 0;
   let lt = 0;
-  canvas.addEventListener('pointermove', (e) => {
+  let moved = 0;
+  const onMove = (e: PointerEvent) => {
+    // The canvas and the window can both see one event.
+    if (e.timeStamp === moved) return;
+    moved = e.timeStamp;
     const [x, y] = local(e);
     w.px = x;
     w.py = y;
     w.hover = true;
     cx = e.clientX;
     cy = e.clientY;
-    if (carry) carryTo(carry.pin.el, cx, cy, carry.sw);
+    if (carry) carryTo(carry);
     const now = performance.now();
     trail.push({ x, y, t: now });
     if (trail.length > 12) trail.shift();
@@ -677,7 +891,8 @@ export function mountGarden(root: HTMLElement): void {
       w.gusts.push({ x, y, s });
       if (w.gusts.length > 14) w.gusts.shift();
     }
-  });
+  };
+  canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerleave', () => (w.hover = false));
   // A press on a flower or a ball grabs it; a press anywhere else is left to scroll the page.
   canvas.addEventListener(
@@ -716,21 +931,24 @@ export function mountGarden(root: HTMLElement): void {
       sync();
       return;
     }
-    if (hit.kind === 'bouquet') {
-      const q = hit.bq;
+    if (hit.kind === 'bouquet' || hit.kind === 'vase') {
       canvas.setPointerCapture(e.pointerId);
-      const from = q.mode === 'vase' ? 'vase' : 'lie';
-      lift(w, q);
-      const p = pinFor(q, '');
-      p.el.dataset.carry = '';
-      p.el.removeAttribute('aria-label');
-      p.el.setAttribute('aria-hidden', 'true');
-      p.el.tabIndex = -1;
-      carryTo(p.el, cx, cy, 0);
-      carry = { pin: p, from, sw: 0, swv: 0, x, y, t: performance.now() };
-      setCursor('grabbing');
-      save();
-      settle();
+      let r: Rest;
+      let from: 'lie' | 'vase' | 'garden';
+      if (hit.kind === 'bouquet') {
+        from = hit.bq.mode === 'vase' ? 'vase' : 'lie';
+        lift(w, hit.bq);
+        r = mk('bq', hit.bq);
+      } else {
+        // The vase comes with what stands in it.
+        const vq = w.vase.bq;
+        if (vq) lift(w, vq);
+        w.vase.gone = true;
+        from = 'garden';
+        r = mk('vase', vq);
+      }
+      paint(r, col);
+      startCarry(r, from, r.w / 2, r.h * (r.kind === 'vase' ? 0.7 : 0.62), e);
       return;
     }
     if (hit.kind === 'flower') {
@@ -775,7 +993,7 @@ export function mountGarden(root: HTMLElement): void {
     setCursor('grabbing');
     sync();
   });
-  const release = () => {
+  const release = (cancelled = false) => {
     if (paperDown && w.paper) {
       const p = w.paper;
       p.drag = false;
@@ -790,18 +1008,35 @@ export function mountGarden(root: HTMLElement): void {
     if (carry) {
       const c = carry;
       carry = null;
-      const q = c.pin.bq;
+      dragId = -1;
+      window.removeEventListener('pointermove', onWinMove);
+      window.removeEventListener('pointerup', onWinUp);
+      window.removeEventListener('pointercancel', onWinUp);
+      const r = c.r;
+      const q = r.bq;
       const tap =
-        Math.hypot(w.px - c.x, w.py - c.y) < 8 && performance.now() - c.t < 500;
-      const edge = tap ? null : edgeAt(cx, cy);
-      if (edge) {
-        const along =
-          edge === 'l' || edge === 'r' ? cy - PH * 0.6 : cx - PW / 2;
-        w.bqs = w.bqs.filter((o) => o !== q);
-        attachPin(q, edge, along, c.pin);
-        announce('the bouquet is pinned to the edge');
-      } else {
-        c.pin.el.remove();
+        !cancelled &&
+        Math.hypot(cx - c.x, cy - c.y) < 8 &&
+        performance.now() - c.t < 500;
+      const b = canvas.getBoundingClientRect();
+      const inside =
+        cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom;
+      if (cancelled && c.from === 'rest') {
+        // A cancelled drag puts a rested item back where it was lifted from.
+        land(r, c.rx, true);
+        announce(
+          `the ${r.kind === 'vase' ? 'vase' : 'bouquet'} is at the bottom of the screen`,
+        );
+      } else if (tap && c.from === 'rest') bringBack(r);
+      else if (!inside && !tap && !cancelled) {
+        // Let go outside the garden: it falls to the bottom of the screen.
+        land(r, r.x);
+        announce(
+          `the ${r.kind === 'vase' ? 'vase' : 'bouquet'} is at the bottom of the screen`,
+        );
+      } else if (r.kind === 'vase') bringBack(r);
+      else if (q) {
+        drop(r);
         if (tap) {
           // A tap sends it to the vase, or back to the grass from the vase.
           if (c.from === 'vase') lay(w, q, ...spot(w));
@@ -840,8 +1075,12 @@ export function mountGarden(root: HTMLElement): void {
     }
     setCursor('default');
   };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerup', (e) => {
+    cx = e.clientX;
+    cy = e.clientY;
+    release();
+  });
+  canvas.addEventListener('pointercancel', () => release(true));
   btn?.addEventListener('click', () =>
     throwBall(
       40 + Math.random() * (w.W - 80),
@@ -887,24 +1126,35 @@ export function mountGarden(root: HTMLElement): void {
     settle();
     refocus(outBtn);
   });
-  pinBtn?.addEventListener('click', () => {
-    const q = laid(w).at(-1) ?? w.vase.bq;
-    if (!q) return;
-    lift(w, q);
-    attachPin(q, 'r', window.innerHeight * 0.4);
-    announce('the bouquet is pinned to the edge');
-    save();
-    settle();
-    refocus(pinBtn);
+  dropBtn?.addEventListener('click', () => {
+    dropFromGarden();
+    refocus(dropBtn);
   });
+  // The floor moves with the window (and a phone's URL bar): what rests on it follows, still apart from its neighbours.
   window.addEventListener('resize', () => {
-    for (const p of pins) placePin(p);
+    const [lo, hi] = limits();
+    const floor = floorY();
+    let cursor = lo;
+    for (const r of [...rest].sort((a, b) => a.tx - b.tx)) {
+      const x = Math.max(r.tx, cursor);
+      if (x + r.w > hi) {
+        bringBack(r);
+        continue;
+      }
+      r.tx = x;
+      cursor = x + r.w + 6;
+      if (!r.falling) {
+        r.x = x;
+        r.y = floor - r.h;
+        place(r);
+      }
+    }
   });
 
   const repaint = () => {
     readColors();
-    for (const p of pins) paintPin(p.cv, col, p.bq);
-    if (carry) paintPin(carry.pin.cv, col, carry.pin.bq);
+    for (const r of rest) paint(r, col);
+    if (carry) paint(carry.r, col);
     if (!raf && w.W) draw();
   };
   window.addEventListener('nihal:theme', repaint);
@@ -962,18 +1212,25 @@ export function mountGarden(root: HTMLElement): void {
       vase: () => ({
         ...at(w.vase.x, w.vase.y - 40 * w.vase.s),
         full: !!w.vase.bq,
+        gone: w.vase.gone,
       }),
-      pins: () =>
-        pins.map((p) => {
-          const r = p.el.getBoundingClientRect();
+      rested: () =>
+        rest.map((o) => {
+          const r = o.el.getBoundingClientRect();
           return {
-            edge: p.edge,
+            kind: o.kind,
+            falling: o.falling,
+            full: !!o.bq,
             x: r.left,
             y: r.top,
-            width: r.width,
-            height: r.height,
+            width: o.w,
+            height: o.h,
+            // Where the box is, before it is turned about its foot.
+            left: o.x,
+            top: o.y,
           };
         }),
+      carrying: () => (carry ? carry.r.kind : null),
       dogs: () =>
         dogs.map((d) => {
           const m = mouth(d, w.t);

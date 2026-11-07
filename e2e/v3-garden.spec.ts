@@ -244,10 +244,11 @@ test.describe('garden @V3-garden', () => {
       expect(fastest).toBeGreaterThan(30);
     });
 
-    test('three flowers bring wrapping paper; wrap, vase, pin to the edge and take back @V3-garden', async ({
+    test('three flowers bring wrapping paper; wrap, vase, drop to the bottom of the screen and bring back @V3-garden', async ({
       page,
       javaScriptEnabled,
     }, info) => {
+      test.setTimeout(90_000);
       const g = await ready(page, javaScriptEnabled, info);
       const hooks = {
         paper: () =>
@@ -256,8 +257,10 @@ test.describe('garden @V3-garden', () => {
           page.evaluate(() => (window.__hooks as Hooks).garden!.bouquets()),
         vase: () =>
           page.evaluate(() => (window.__hooks as Hooks).garden!.vase()),
-        pins: () =>
-          page.evaluate(() => (window.__hooks as Hooks).garden!.pins()),
+        rested: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.rested()),
+        carrying: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.carrying()),
       };
       const pick = g.root.getByRole('button', { name: 'pick a flower' });
       for (let i = 1; i <= 3; i++) {
@@ -291,33 +294,123 @@ test.describe('garden @V3-garden', () => {
         .getByRole('button', { name: 'put the bouquet in the vase' })
         .click();
       await expect.poll(async () => (await hooks.vase()).full).toBe(true);
-      // Take it out by drag, and pin it to the right edge of the screen.
+
+      const vp = page.viewportSize()!;
+      const box = (await g.root.locator('canvas').boundingBox())!;
+      expect(box.y, 'room above the garden to drop into').toBeGreaterThan(160);
+      // The floor is the sheet's inner edge: the tokens the desk's fall layer reads.
+      const floor = await page.evaluate(() => {
+        const s = getComputedStyle(document.documentElement);
+        const n = (v: string) => parseFloat(s.getPropertyValue(v));
+        return (
+          window.innerHeight -
+          n('--inset') -
+          (window.innerWidth < 1024 ? n('--strip-h') : 0)
+        );
+      });
+      const dragOut = async (at: { x: number; y: number }, x: number) => {
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down();
+        await page.mouse.move(x, box.y - 120, { steps: 12 });
+        // Held outside the garden, it is carried, not yet dropped.
+        await expect.poll(hooks.carrying).not.toBeNull();
+        await page.mouse.up();
+      };
+      const settled = async (n: number) => {
+        await expect
+          .poll(
+            async () => (await hooks.rested()).filter((r) => !r.falling).length,
+            { timeout: 10_000 },
+          )
+          .toBe(n);
+      };
+
+      // The vase drags out with the bouquet in it, falls and rests on the floor, upright.
+      await dragOut(await hooks.vase(), 600);
+      await settled(1);
+      const [r] = await hooks.rested();
+      expect(r!.kind).toBe('vase');
+      expect(r!.full, 'the bouquet went with the vase').toBe(true);
+      expect(r!.top + r!.height).toBeCloseTo(floor, 0);
+      expect(r!.y + r!.height, 'upright: no tilt').toBeCloseTo(floor, 0);
+      expect((await hooks.vase()).gone).toBe(true);
+      await expect(g.count).toContainText(
+        'the vase is at the bottom of the screen',
+      );
+      // Clear of the left index and of the bottom right corner (the desk's reset button).
+      expect(r!.left).toBeGreaterThanOrEqual(24 + 120);
+      expect(r!.left + r!.width).toBeLessThanOrEqual(vp.width - 80);
+      // It stays where it is while the page scrolls.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(300);
+      expect((await hooks.rested())[0]!.y).toBeCloseTo(r!.y, 0);
+      await expectNoAxeViolations(page, {
+        label: '/ garden with a dropped vase',
+      });
+      await g.root.scrollIntoViewIfNeeded();
+
+      // Keyboard: focus it and press Enter to bring it back.
+      const back = page.getByRole('button', {
+        name: 'bring the vase back to the garden',
+      });
+      await back.focus();
+      await page.keyboard.press('Enter');
+      await expect.poll(async () => (await hooks.rested()).length).toBe(0);
+      await expect.poll(async () => (await hooks.vase()).gone).toBe(false);
+      expect((await hooks.vase()).full).toBe(true);
+
+      // A bouquet out of the vase, dragged outside, lands at the bottom too; the vase beside it does not overlap.
       await g.root
         .getByRole('button', { name: 'take the bouquet out of the vase' })
         .click();
-      await g.root
-        .getByRole('button', { name: 'pin the bouquet to the edge' })
-        .click();
-      await expect.poll(async () => (await hooks.pins()).length).toBe(1);
-      // The pin glides to its edge for 250 ms; read it once it has settled.
-      await page.waitForTimeout(400);
-      const pin = (await hooks.pins())[0]!;
-      const vp = page.viewportSize()!;
-      // Inside the sheet, clear of the lamp (top right 120 px) and the left index.
-      expect(pin.x).toBeGreaterThan(120 + 24);
-      expect(pin.x + pin.width).toBeLessThanOrEqual(vp.width);
-      expect(pin.y).toBeGreaterThanOrEqual(120);
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.waitForTimeout(400);
-      expect((await hooks.pins())[0]!.y).toBeCloseTo(pin.y, 1);
-      await expectNoAxeViolations(page, {
-        label: '/ garden with a pinned bouquet',
+      await expect
+        .poll(async () => (await hooks.bouquets()).map((b) => b.mode))
+        .toEqual(['lie']);
+      await page.waitForTimeout(600);
+      await dragOut((await hooks.bouquets())[0]!, 700);
+      await settled(1);
+      await expect.poll(async () => (await hooks.bouquets()).length).toBe(0);
+      const bq = (await hooks.rested())[0]!;
+      expect(bq.kind).toBe('bq');
+      expect(bq.top + bq.height).toBeCloseTo(floor, 0);
+      await dragOut(await hooks.vase(), 700);
+      await settled(2);
+      const [a, b] = [...(await hooks.rested())].sort(
+        (p, q) => p.left - q.left,
+      );
+      expect(a!.left + a!.width, 'side by side').toBeLessThanOrEqual(b!.left);
+
+      // It comes back with a reload, at the bottom, without the garden scrolled near.
+      await page.reload();
+      await page.waitForFunction(
+        () => (window.__hooks as Hooks | undefined)?.garden !== undefined,
+        undefined,
+        { timeout: 15_000 },
+      );
+      await expect.poll(async () => (await hooks.rested()).length).toBe(2);
+      const again = await hooks.rested();
+      expect(again.map((o) => o.kind).sort()).toEqual(['bq', 'vase']);
+      for (const o of again) expect(o.top + o.height).toBeCloseTo(floor, 0);
+
+      // Dragging a rested bouquet back into the garden returns it to the grass.
+      await g.root.scrollIntoViewIfNeeded();
+      const rb = (await hooks.rested()).find((o) => o.kind === 'bq')!;
+      const cb = (await g.root.locator('canvas').boundingBox())!;
+      await page.mouse.move(rb.left + rb.width / 2, rb.top + rb.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(cb.x + cb.width * 0.45, cb.y + cb.height * 0.7, {
+        steps: 12,
       });
-      await page
-        .getByRole('button', { name: 'take the bouquet back into the garden' })
-        .click();
-      await expect.poll(async () => (await hooks.pins()).length).toBe(0);
-      await expect.poll(async () => (await hooks.bouquets()).length).toBe(1);
+      await page.mouse.up();
+      await expect
+        .poll(async () => (await hooks.bouquets()).map((o) => o.mode))
+        .toEqual(['lie']);
+      await expect.poll(async () => (await hooks.rested()).length).toBe(1);
+      // A tap on the vase that is left brings it home to its place.
+      const rv = (await hooks.rested())[0]!;
+      await page.mouse.click(rv.left + rv.width / 2, rv.top + rv.height / 2);
+      await expect.poll(async () => (await hooks.rested()).length).toBe(0);
+      await expect.poll(async () => (await hooks.vase()).gone).toBe(false);
     });
 
     test('the dog meets the ball with its mouth, carries it and sets it down @V3-garden', async ({
