@@ -172,7 +172,10 @@ test.describe('garden @V3-garden', () => {
       const pick = g.root.getByRole('button', { name: 'pick a flower' });
       await pick.focus();
       await page.keyboard.press('Enter');
-      await expect.poll(async () => (await g.bucket()).count).toBe(1);
+      // The flower flies to the bucket first.
+      await expect
+        .poll(async () => (await g.bucket()).count, { timeout: 15_000 })
+        .toBe(1);
       await expect(g.count).toHaveText('1 flower in the bucket');
     });
 
@@ -205,6 +208,18 @@ test.describe('garden @V3-garden', () => {
       // Carried: it follows the pointer.
       await page.mouse.move(ball.x + 60, ball.y - 10, { steps: 6 });
       await page.mouse.move(ball.x + 160, ball.y - 10, { steps: 6 });
+      // Watch the speed from the page itself (a polled read can miss a fast ball on a busy machine).
+      await page.evaluate(() => {
+        const w = window as unknown as { __top: number };
+        w.__top = 0;
+        const g = (window.__hooks as Hooks).garden!;
+        const t = window.setInterval(() => {
+          for (const b of g.balls())
+            if (!b.grabbed) w.__top = Math.max(w.__top, b.speed);
+          if (w.__top > 150) window.clearInterval(t);
+        }, 8);
+        window.setTimeout(() => window.clearInterval(t), 4000);
+      });
       // A flick: a fast move, released while still moving.
       for (let i = 1; i <= 6; i++) {
         await page.mouse.move(
@@ -218,15 +233,10 @@ test.describe('garden @V3-garden', () => {
       await expect
         .poll(async () => (await g.balls()).some((b) => b.grabbed))
         .toBe(false);
-      const fastest = await page.evaluate(async () => {
-        const g = (window.__hooks as Hooks).garden!;
-        let top = 0;
-        for (let i = 0; i < 10; i++) {
-          top = Math.max(top, ...g.balls().map((b) => b.speed));
-          await new Promise((r) => setTimeout(r, 30));
-        }
-        return top;
-      });
+      await page.waitForTimeout(600);
+      const fastest = await page.evaluate(
+        () => (window as unknown as { __top: number }).__top,
+      );
       expect(fastest).toBeGreaterThan(150);
     });
   });

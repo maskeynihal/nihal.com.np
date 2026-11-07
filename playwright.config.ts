@@ -7,6 +7,9 @@ const HEADER_PORT = process.env['E2E_HEADER_PORT'] ?? '4391';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // The desk and garden specs time real physics and software-GL frames; ten parallel Chromiums on a
+  // laptop starve them. E2E_WORKERS overrides.
+  workers: Number(process.env['E2E_WORKERS'] ?? 4),
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
   reporter: [
