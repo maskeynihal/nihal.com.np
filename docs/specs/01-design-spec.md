@@ -88,7 +88,7 @@ Three passes per object, no lights, no textures (one OLED canvas), no post-proce
 3. **Creases**: chosen per part in the code-built models (`scripts/models`), exported as a `LINES` primitive in the GLB, rendered with `LineSegments2` + `LineMaterial` (`linewidth 1.5`, `worldUnits false`, `resolution` updated on resize, `alphaToCoverage`, `toneMapped false`). Secondary dimension lines use `--line-2` opaque.
 Canvas: opaque (`alpha: false`), clear colour `--blue`, `flat` (no tone mapping), sRGB output. Camera 35° FOV, `near 0.5 / far 8`, fixed; pointer nudge ±2° on desktop, lerped with a convergence threshold. Colour check tolerance ±2/255. Lines are not raycastable; raycast against occluders only.
 
-### 4.3 Dimension callouts (signature interaction 1)
+### 4.3 Dimension callouts (signature interaction 1) [removed in v3.3 T1: the table carries no labels]
 Grabbing an object spawns 2-3 leader lines (`LineSegments2`, `--line-2`) from the object to anchor points at the edge of the drawing, each ending in a DOM label (positioned via `drei/Html transform={false}`, portaled under the canvas, `role="tooltip"`): a dimension in mm and a two-word note from `objects.ts` (e.g. "68.6 mm · uno r4", "ø 72 mm · ktm"). Fade in 160 ms, fade out 240 ms on release. Under reduced motion: static.
 
 ### 4.4 Exploded view (signature interaction 2)

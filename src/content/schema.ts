@@ -115,7 +115,6 @@ export const BodyDef = z.strictObject({
   }),
   mass: z.number().positive(),
   kinematicWhenIdle: z.boolean().optional(),
-  callouts: z.array(z.strictObject({ anchor: vec3, text })),
   /** Section id a tap goes to. Decorative objects (balls, letters) have none. */
   target: z
     .string()
@@ -157,7 +156,8 @@ export const Copy = z.strictObject({
     seeWork: text,
     reset: text,
     skip: text,
-    oledCaption: text,
+    /** Spoken with the board's entry in the object list: the screen shows invented readings. */
+    oledNote: text,
   }),
   headings: z.strictObject({
     about: text,

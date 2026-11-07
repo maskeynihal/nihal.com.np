@@ -1,6 +1,7 @@
 ---
-import { getObjects, getWork } from '../content';
+import { getCopy, getObjects, getWork } from '../content';
 import { objectLinks } from '../lib/object-links';
+import { phoneObjectIds } from '../lib/desk/phone';
 
 /**
  * One DOM node for every viewport: real links to the sections the drawn objects stand for,
@@ -9,13 +10,15 @@ import { objectLinks } from '../lib/object-links';
  * canvas replaces the poster; it stays the keyboard path). Not part of the Desk island.
  */
 const links = objectLinks(getObjects(), getWork());
+const { oledNote } = getCopy().titleBlock;
 ---
 
 <ul class="label object-list" data-object-list>
   {links.map((l) => (
-    <li>
+    <li data-phone-hidden={phoneObjectIds.has(l.id) ? undefined : ''}>
       <a href={l.href} data-object={l.id}>
         {l.label} → {l.targetLabel}
+        {l.id === 'arduino' ? <span> ({oledNote})</span> : null}
       </a>
     </li>
   ))}

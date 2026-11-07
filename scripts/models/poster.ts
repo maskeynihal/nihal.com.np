@@ -11,9 +11,11 @@ import { optimize } from 'svgo';
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import {
   heroCamera,
-  posterAspect,
+  phoneCamera,
+  phoneViewBox,
   posterViewBox,
 } from '../../src/assets/camera';
+import { phoneObjectIds } from '../../src/lib/desk/phone';
 import { objects } from '../../src/content/objects';
 import { models, type ModelDef } from './models';
 import type { Part } from './geom';
@@ -30,21 +32,32 @@ const EPS_LIFT = 2e-4;
 const EPS_HIT = 1e-4;
 const PRECISION = 1;
 
-const cam = new PerspectiveCamera(
-  heroCamera.fov,
-  posterAspect,
-  heroCamera.near,
-  heroCamera.far,
-);
-cam.position.set(...heroCamera.position);
-cam.lookAt(...heroCamera.lookAt);
-cam.updateMatrixWorld(true);
-cam.updateProjectionMatrix();
-const camPos: V = [...heroCamera.position];
-const viewProj = new Matrix4().multiplyMatrices(
-  cam.projectionMatrix,
-  cam.matrixWorldInverse,
-);
+// The camera and frame of the poster being built; `selectView` sets them (wide, or the phone's).
+let camPos: V = [...heroCamera.position];
+let viewProj = new Matrix4();
+let viewBox: { width: number; height: number } = posterViewBox;
+let near: number = heroCamera.near;
+
+function selectView(phone: boolean): void {
+  const def = phone ? phoneCamera : heroCamera;
+  viewBox = phone ? phoneViewBox : posterViewBox;
+  near = def.near;
+  const cam = new PerspectiveCamera(
+    def.fov,
+    viewBox.width / viewBox.height,
+    def.near,
+    def.far,
+  );
+  cam.position.set(...def.position);
+  cam.lookAt(...def.lookAt);
+  cam.updateMatrixWorld(true);
+  cam.updateProjectionMatrix();
+  camPos = [...def.position];
+  viewProj = new Matrix4().multiplyMatrices(
+    cam.projectionMatrix,
+    cam.matrixWorldInverse,
+  );
+}
 
 const sub = (a: V, b: V): V => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -195,7 +208,7 @@ function occluded(p: V, occluders: Occluder[]): boolean {
     const v = f * dot(d, qv);
     if (v < 0 || u + v > 1) continue;
     const tt = f * dot(e2, qv);
-    if (tt > heroCamera.near && tt < dist - EPS_HIT) return true;
+    if (tt > near && tt < dist - EPS_HIT) return true;
   }
   return false;
 }
@@ -251,8 +264,8 @@ const project = (v: V): P2 => {
     return Math.round(n * k) / k + 0;
   };
   return [
-    r(((p.x + 1) / 2) * posterViewBox.width),
-    r(((1 - p.y) / 2) * posterViewBox.height),
+    r(((p.x + 1) / 2) * viewBox.width),
+    r(((1 - p.y) / 2) * viewBox.height),
   ];
 };
 
@@ -310,9 +323,12 @@ function toPath(segs: [P2, P2][]): string {
 export interface PosterOptions {
   /** Include unconfirmed objects (owner preview). Default false: what ships by default. */
   includeUnconfirmed?: boolean;
+  /** The portrait view for phones: the phone camera, and only the objects shown at that width. */
+  phone?: boolean;
 }
 
 export function buildPoster(opts: PosterOptions = {}): string {
+  selectView(opts.phone ?? false);
   const byFile = new Map<string, ModelDef>(models.map((m) => [m.file, m]));
   const placed: Placed[] = [];
   const sheetDef = byFile.get('sheet')!;
@@ -320,6 +336,7 @@ export function buildPoster(opts: PosterOptions = {}): string {
   placed.push(sheet);
   for (const o of objects) {
     if (!o.confirmed && !opts.includeUnconfirmed) continue;
+    if (opts.phone && !phoneObjectIds.has(o.id)) continue;
     const def = byFile.get(o.model.replace(/\.glb$/, ''));
     if (!def) throw new Error(`poster: no model for ${o.id}`);
     placed.push(
@@ -358,7 +375,7 @@ export function buildPoster(opts: PosterOptions = {}): string {
       if (dedupe(a, b)) add(i === 0 ? structural : structural, a, b);
   });
 
-  const { width: W, height: H } = posterViewBox;
+  const { width: W, height: H } = viewBox;
   const attrs =
     'fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"';
   const svg =

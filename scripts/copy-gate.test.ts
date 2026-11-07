@@ -245,7 +245,6 @@ describe('content walk', () => {
       'writing.ts:',
       'cv.ts:',
       'objects.ts:arduino.label',
-      'objects.ts:arduino.callouts[0]',
       'poster-alt.ts:',
     ])
       expect(

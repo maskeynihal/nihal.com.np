@@ -8,7 +8,6 @@ const good = {
   q: [0, 0, 0, 1],
   collider: { kind: 'cuboid', args: [0.17, 0.03, 0.11], offset: [0, 0.03, 0] },
   mass: 1.2,
-  callouts: [{ anchor: [0.16, 0.02, 0], text: 'uno r4' }],
   target: '#work-car-sensors',
 };
 

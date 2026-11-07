@@ -110,20 +110,6 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     await expectNoAxeViolations(page, { label: '/ desk after a drag' });
   });
 
-  test('the OLED caption follows the board while it is held @E-05', async ({
-    page,
-  }) => {
-    await goLive(page);
-    const caption = page.locator('[data-oled-caption]');
-    await expect(caption).toBeVisible();
-    const before = (await caption.boundingBox())!;
-    await dragTo(page, 'arduino', 160, 40);
-    await expect
-      .poll(async () => ((await caption.boundingBox()) ?? before).x)
-      .toBeGreaterThan(before.x + 40);
-    await page.mouse.up();
-  });
-
   test('hover lifts the model 4 mm, not the body @E-05', async ({ page }) => {
     await goLive(page);
     const o = await where(page, 'arduino');

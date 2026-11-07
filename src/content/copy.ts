@@ -29,7 +29,7 @@ export const copy = {
     seeWork: 'see the work →',
     reset: 'put everything back',
     skip: 'skip the 3D desk',
-    oledCaption: 'demo values',
+    oledNote: 'the oled readings are demo values',
   },
   headings: {
     about: 'about',

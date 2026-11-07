@@ -115,13 +115,11 @@ describe('check-dist-leaks', () => {
     const unconfirmedObject = objects.find((o) => !o.confirmed)!;
     const trayt = work.find((w) => !w.confirmed)!;
 
-    it('collects unconfirmed work text and every unconfirmed label and callout', () => {
+    it('collects unconfirmed work text and every unconfirmed label', () => {
       const all = unconfirmedStrings();
       expect(all).toContain(trayt.title);
       expect(all).toContain(trayt.body[0]);
       expect(all).toContain(unconfirmedObject.label);
-      for (const c of unconfirmedObject.callouts ?? [])
-        expect(all).toContain(c.text);
       for (const o of objects.filter((o) => o.confirmed))
         expect(all).not.toContain(o.label);
       expect(all.some((s) => s.startsWith('http'))).toBe(false);

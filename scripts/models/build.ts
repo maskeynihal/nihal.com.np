@@ -53,6 +53,10 @@ async function main() {
     writeFileSync(resolve(OUT_DIR, name), bytes);
   writeFileSync(resolve(OUT_DIR, 'lines.json'), out.linesJson);
   writeFileSync(resolve(OUT_DIR, '../poster.svg'), buildPoster());
+  writeFileSync(
+    resolve(OUT_DIR, '../poster-phone.svg'),
+    buildPoster({ phone: true }),
+  );
   for (const s of out.stats) {
     console.log(
       `${s.file.padEnd(14)} ${String(s.tris).padStart(4)} tris  ${String(s.lineSegments).padStart(4)} segs  ${String(s.bytes).padStart(6)} B`,

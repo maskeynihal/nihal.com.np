@@ -1,5 +1,7 @@
 ---
 import posterSvg from '../assets/poster.svg?raw';
+import posterPhoneSvg from '../assets/poster-phone.svg?raw';
+import { phoneObjectIds } from '../lib/desk/phone';
 import { getCopy, getObjects } from '../content';
 import { buildPosterAlt } from '../content/poster-alt';
 
@@ -11,10 +13,10 @@ import { buildPosterAlt } from '../content/poster-alt';
  * while the canvas is live (the object list is the keyboard path) and restores it otherwise.
  *
  * Everything the live canvas needs to say is plain HTML here, hidden (`visibility`, so nothing
- * moves) until `data-desk-state="live"`: the drag hint, the reset button and the OLED caption.
+ * moves) until `data-desk-state="live"`: the reset button.
  * The Scene chunk must not import `content/objects.ts` (unconfirmed objects would ship in it),
  * so the shown objects are handed to it as `data-objects`: the confirmed ones only, with their
- * pose, collider, mass, callouts and target (everything the physics needs).
+ * pose, collider, mass and target (everything the physics needs).
  * The script below also owns `nihal:navigate`: the one scroll owner (design 5, impl spec 4).
  */
 const { titleBlock } = getCopy();
@@ -26,41 +28,50 @@ const objects = JSON.stringify(
     q: o.home.q,
     collider: o.collider,
     mass: o.mass,
-    callouts: o.callouts,
     ...(o.target ? { target: o.target } : {}),
   })),
 );
-const alt = buildPosterAlt(getObjects()).replaceAll('"', '&quot;');
+// Two drawings, each projected through its own camera: the wide table, and the portrait view with
+// fewer objects below 768 px. CSS shows one; the other is `display: none`, so it is neither painted
+// nor in the accessibility tree.
+const asSvg = (
+  raw: string,
+  cls: string,
+  shown: ReturnType<typeof getObjects>,
+) =>
+  raw
+    .trim()
+    .replace(
+      '<svg ',
+      `<svg class="poster ${cls}" role="img" aria-label="${buildPosterAlt(shown).replaceAll('"', '&quot;')}" focusable="false" `,
+    );
 // The drawing follows the theme: it strokes in `currentColor` (the `.poster` rule sets it to
 // the --stroke token).
-const svg = posterSvg
-  .trim()
-  .replace(
-    '<svg ',
-    `<svg class="poster" role="img" aria-label="${alt}" focusable="false" `,
+const svg =
+  asSvg(posterSvg, 'poster-wide', getObjects()) +
+  asSvg(
+    posterPhoneSvg,
+    'poster-phone',
+    getObjects().filter((o) => phoneObjectIds.has(o.id)),
   );
 ---
 
 <div class="poster-frame" data-poster data-objects={objects} set:html={svg} />
-<div class="desk-overlay" aria-hidden="true">
-  <span class="label oled-caption" data-oled-caption>
-    {titleBlock.oledCaption}
-  </span>
-</div>
 <div class="desk-controls" data-desk-controls>
-  <button type="button" class="label desk-reset" data-desk-reset>
-    {titleBlock.reset}
+  <button
+    type="button"
+    class="desk-reset"
+    data-desk-reset
+    aria-label={titleBlock.reset}
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+      <path d="M4.2 3.6v3.9h3.9" />
+    </svg>
   </button>
 </div>
 
 <script>
-  import {
-    CALLOUT_EVENT,
-    dateLineOf,
-    flyLabel,
-    type FlightLabel,
-  } from '../lib/shared-callout';
-
   const frame = document.querySelector<HTMLElement>('[data-poster]');
   const figure = frame?.closest<HTMLElement>('[data-desk]');
   if (frame && figure) {
@@ -76,16 +87,8 @@ const svg = posterSvg
 
   // A drawn object was tapped: scroll to its section and put focus on the section's heading.
   // Smooth only when motion is on; no global `scroll-behavior` (it would fight the sheet index).
-  // The tapped object's callout label is announced just before (`nihal:callout`) and flies to the
-  // section's date line (C-03); this handler stays the only thing that scrolls.
-  let pending: FlightLabel | null = null;
-  window.addEventListener(CALLOUT_EVENT, (e) => {
-    pending = (e as CustomEvent<FlightLabel>).detail;
-  });
   window.addEventListener('nihal:navigate', (e) => {
     const target = (e as CustomEvent<unknown>).detail;
-    const label = pending?.target === target ? pending : null;
-    pending = null;
     if (typeof target !== 'string' || !/^#[\w-]+$/.test(target)) return;
     const section = document.querySelector<HTMLElement>(target);
     if (!section) return;
@@ -97,7 +100,5 @@ const svg = posterSvg
     const heading = section.querySelector<HTMLElement>('h1, h2, h3') ?? section;
     if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
     heading.focus({ preventScroll: true });
-    // Reduced motion: a plain jump, no copy of the label.
-    if (label && smooth) void flyLabel(label, dateLineOf(section));
   });
 </script>

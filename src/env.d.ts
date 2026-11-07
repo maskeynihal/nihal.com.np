@@ -82,13 +82,13 @@ interface DeskSceneHooks {
   /** Hover lift of the model root, metres. */
   hoverLift(id: string): number;
   /** The scroll springs: shift (m) and speed per object that has one. */
-  motion(): { id: string; x: number; v: number }[];
-  /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
-  callouts(): {
+  motion(): {
     id: string;
-    text: string;
-    active: boolean;
-    lineOpacity: number;
+    x: number;
+    v: number;
+    /** Length of the pivot's offset (m) and the angle of its rotation (rad), as drawn. */
+    off: number;
+    rot: number;
   }[];
   /** `null` while sound is off or no press has armed it; else the context state and clips started. */
   audio(): { state: string; played: { clip: string; gain: number }[] } | null;

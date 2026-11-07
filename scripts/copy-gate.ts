@@ -3,7 +3,7 @@
  *
  * Input: every displayed string.
  *  1. `src/content/*` modules, imported and walked leaf by leaf (copy, client-copy,
- *     work, oss, writing, cv, objects labels and callouts, generated poster alt).
+ *     work, oss, writing, cv, objects labels, generated poster alt).
  *     `pending.ts` is skipped on purpose: it holds notes and candidates, never displayed.
  *  2. Template text and `aria-label` / `alt` / `title` / `placeholder` attributes in `src/**\/*.astro`.
  *
@@ -364,14 +364,11 @@ export function walkStrings(
   return out;
 }
 
-/** Objects: only `label` and callout `text` are displayed. */
+/** Objects: only `label` is displayed. */
 function objectEntries(): Entry[] {
   const out: Entry[] = [];
   for (const o of objects) {
     out.push({ path: `objects.ts:${o.id}.label`, text: o.label });
-    o.callouts?.forEach((c, i) =>
-      out.push({ path: `objects.ts:${o.id}.callouts[${i}]`, text: c.text }),
-    );
   }
   return out;
 }

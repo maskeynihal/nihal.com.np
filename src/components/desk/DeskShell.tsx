@@ -8,6 +8,7 @@ import {
   type ComponentType,
 } from 'react';
 import { onIdle, canRun3D, getMotion, subscribeMotion } from '../../lib/prefs';
+import { PHONE_QUERY, isPhoneWidth } from '../../lib/desk/phone';
 import { testHooks } from '../../lib/env';
 import { IslandBoundary, useIslandFailure } from './IslandBoundary';
 import { registerDeskHooks } from './desk-hooks';
@@ -52,6 +53,21 @@ function DeskContent({
   const [gone, setGone] = useState(false);
   const goneRef = useRef(false);
   const failAsync = useIslandFailure();
+
+  // Phone width has its own view and its own objects (fewer). Crossing 768 px (a rotation, a
+  // resize) swaps the Scene for a fresh one built for the new width: the poster for that width
+  // shows in between, and nothing of the old world (bodies, fall layer) is carried over.
+  const [phone, setPhone] = useState(isPhoneWidth);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(PHONE_QUERY);
+    const change = () => {
+      setPhone(mq.matches);
+      if (!goneRef.current) onStatus('poster');
+    };
+    mq.addEventListener('change', change);
+    return () => mq.removeEventListener('change', change);
+  }, [onStatus]);
 
   // Poster first. The Scene chunk is requested only when the device can run it, the hero is in
   // view and the browser is idle. Switching motion off while live goes back to the poster (and
@@ -140,7 +156,12 @@ function DeskContent({
   return (
     <div ref={hostRef} className="desk-canvas" aria-hidden="true">
       {Active ? (
-        <IslandBoundary island="scene" fallback={() => null} onError={onFail}>
+        <IslandBoundary
+          key={phone ? 'phone' : 'wide'}
+          island="scene"
+          fallback={() => null}
+          onError={onFail}
+        >
           <Suspense fallback={null}>
             <Active onReady={ready} onContext={onContext} />
           </Suspense>

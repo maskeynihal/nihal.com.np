@@ -60,7 +60,7 @@ test.describe('title block and poster @B-03', () => {
     page,
   }) => {
     await page.goto('/');
-    const poster = page.locator('#desk svg.poster');
+    const poster = page.locator('#desk svg.poster:visible');
     await expect(poster).toHaveCount(1);
     await expect(poster).toHaveAttribute('role', 'img');
     await expect(poster).toHaveAttribute(

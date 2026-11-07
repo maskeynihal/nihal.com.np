@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3, type PerspectiveCamera } from 'three';
 import { getMotion, subscribeMotion } from '../../lib/prefs';
 import {
   atRest,
-  leanFor,
-  pushFor,
+  frameSpeed,
+  rollAngle,
   scrollFeelFor,
+  smoothSpeed,
   stepSpring,
+  targetPx,
   type Spring,
 } from '../../lib/desk/scroll-spring';
 import { registry } from './registry';
@@ -15,27 +17,34 @@ import { physicsBridge } from './physics-bridge';
 import { setMotionProbe } from './scene-hooks';
 
 /**
- * Two small motions that need no physics (and so no physics chunk): the objects on the table sway
- * a little with the page's scroll speed, each on its own damped spring, and one small ball rocks
- * once after first paint so the desk shows it can be played with.
+ * Two small motions that need no physics (and so no physics chunk): a scroll nudges the table, so
+ * every object slides a few screen pixels along it and eases back (balls most, the laptop and the
+ * board barely), and one small ball rocks once after first paint so the desk shows it can be
+ * played with. Only a ball turns, and only by rolling the distance it slid, about its own centre.
+ * Nothing tilts, and at rest every offset and rotation is exactly zero.
  *
- * Each object's spring moves only its pivot group (`registry.pivot`, between the body's group and
+ * Each object's slide moves only its pivot group (`registry.pivot`, between the body's group and
  * the model), so it never touches a body, a drag, a pick or a handoff; anything held, moving or
- * free is let go to zero instead. Nothing here draws a frame unless a spring is moving, it is off
- * under reduced motion and while the canvas is off screen or the tab is hidden, and the table
- * canvas stays in the page flow (no transform on the page or the canvas).
+ * free is let go to zero instead. Nothing here draws a frame unless something is moving, it is
+ * off under reduced motion and while the canvas is off screen or the tab is hidden, and the
+ * table canvas stays in the page flow (no transform on the page or the canvas).
  */
 
-/** Ball that rocks once per visit, and how hard (m/s along the table, about 5 px of travel). */
-const NUDGE_ID = 'ball-s';
-const NUDGE_SPEED = 0.6;
+/** Ball that rocks once per visit, and how hard (px/s along the table, about 5 px of travel). */
+/** The small ball, else the medium one (the phone desk has no small ball). */
+const NUDGE_IDS = ['ball-s', 'ball-m'];
+const nudgeId = () => NUDGE_IDS.find((id) => registry.get(id));
+const NUDGE_SPEED = 190;
 const NUDGE_DELAY_MS = 1800;
 const NUDGE_KEY = 'nihal:desk-nudge';
 
 const _q = new Quaternion();
-const _t = new Quaternion();
+const _r = new Quaternion();
 const _inv = new Quaternion();
 const _p = new Vector3();
+const _c = new Vector3();
+const _a = new Vector3();
+const _b = new Vector3();
 const AXIS_X = new Vector3(1, 0, 0);
 
 function seen(): boolean {
@@ -53,15 +62,27 @@ function markSeen(): void {
   }
 }
 
+/** Screen px per metre along the table's depth axis at the table's centre, for this canvas. */
+function pxPerMetre(
+  cam: PerspectiveCamera,
+  size: { width: number; height: number },
+): number {
+  cam.updateMatrixWorld();
+  _a.set(0, 0, 0).project(cam);
+  _b.set(0, 0, 0.1).project(cam);
+  return (Math.abs(_b.y - _a.y) / 2) * size.height * 10 || 1;
+}
+
 export function ScrollMotion() {
-  const { gl, invalidate } = useThree();
+  const { gl, invalidate, camera, size } = useThree();
   const springs = useRef(new Map<string, Spring>());
   const on = useRef({ motion: getMotion() === 'full', visible: true });
-  const scroll = useRef({ y: 0, t: 0, vel: 0, pk: 0 });
+  // `acc`: page travel (px) since the last frame. `idle`: the last frame had nothing moving.
+  const scroll = useRef({ y: 0, acc: 0, vel: 0, idle: true });
+  const scale = useRef({ w: 0, h: 0, k: 1 });
 
   useEffect(() => {
     scroll.current.y = window.scrollY;
-    scroll.current.t = performance.now();
     const el = gl.domElement;
     const io =
       typeof IntersectionObserver === 'function'
@@ -76,16 +97,9 @@ export function ScrollMotion() {
       invalidate();
     });
     const onScroll = () => {
-      const now = performance.now();
       const s = scroll.current;
-      const dt = now - s.t;
-      if (dt < 4) return;
-      const inst = ((window.scrollY - s.y) / dt) * 1000;
-      s.vel = s.vel * 0.5 + inst * 0.5;
-      // A slow frame must not miss a push that came and went between two frames.
-      if (Math.abs(s.vel) > Math.abs(s.pk)) s.pk = s.vel;
+      s.acc += window.scrollY - s.y;
       s.y = window.scrollY;
-      s.t = now;
       if (on.current.motion && on.current.visible && !document.hidden)
         invalidate();
     };
@@ -95,8 +109,10 @@ export function ScrollMotion() {
     let timer = 0;
     let off: (() => void) | null = null;
     const fire = () => {
-      const entry = registry.get(NUDGE_ID);
+      const id = nudgeId();
+      const entry = id ? registry.get(id) : undefined;
       if (
+        !id ||
         !entry ||
         seen() ||
         !on.current.motion ||
@@ -107,14 +123,14 @@ export function ScrollMotion() {
       )
         return;
       markSeen();
-      const s = springs.current.get(NUDGE_ID) ?? { x: 0, v: 0 };
+      const s = springs.current.get(id) ?? { x: 0, v: 0 };
       s.v += NUDGE_SPEED;
-      springs.current.set(NUDGE_ID, s);
+      springs.current.set(id, s);
       invalidate();
     };
     if (!seen()) {
       const arm = () => {
-        if (!registry.get(NUDGE_ID) || timer) return;
+        if (!nudgeId() || timer) return;
         timer = window.setTimeout(fire, NUDGE_DELAY_MS);
         off?.();
         off = null;
@@ -124,7 +140,16 @@ export function ScrollMotion() {
     }
 
     setMotionProbe(() =>
-      [...springs.current].map(([id, s]) => ({ id, x: s.x, v: s.v })),
+      [...springs.current].map(([id, s]) => {
+        const pv = registry.get(id)?.pivot;
+        return {
+          id,
+          x: s.x,
+          v: s.v,
+          off: pv ? pv.position.length() : 0,
+          rot: pv ? pv.quaternion.angleTo(_r.identity()) : 0,
+        };
+      }),
     );
     return () => {
       io?.disconnect();
@@ -141,20 +166,34 @@ export function ScrollMotion() {
     };
   }, [gl, invalidate]);
 
-  useFrame((_, dt) => {
+  useFrame((_, delta) => {
     const { motion, visible } = on.current;
     const enabled = motion && visible && !document.hidden;
     const sc = scroll.current;
-    // The page's speed decays when no scroll event arrives.
-    if (performance.now() - sc.t > 60) sc.vel *= Math.exp(-dt * 14);
-    if (Math.abs(sc.vel) < 5) sc.vel = 0;
-    const vel = Math.abs(sc.pk) > Math.abs(sc.vel) ? sc.pk : sc.vel;
-    sc.pk = 0;
-    let busy = false;
+    if (!enabled) {
+      sc.acc = 0;
+      sc.vel = 0;
+    }
+    // Page speed over this frame, smoothed. The first frame after idle is a normal one, not the
+    // whole idle gap.
+    const dt = sc.idle ? 1 / 60 : Math.min(Math.max(delta, 1 / 240), 0.25);
+    const inst = frameSpeed(sc.acc, dt);
+    sc.acc = 0;
+    sc.vel = smoothSpeed(sc.vel, inst, dt);
+    if (inst === 0 && Math.abs(sc.vel) < 4) sc.vel = 0;
+
+    const k = scale.current;
+    if (k.w !== size.width || k.h !== size.height) {
+      k.w = size.width;
+      k.h = size.height;
+      k.k = pxPerMetre(camera as PerspectiveCamera, size);
+    }
+
+    let busy = sc.vel !== 0;
     for (const e of registry.all()) {
       let s = springs.current.get(e.id);
       const feel = scrollFeelFor(e.def.model);
-      // Held, moving or free: let the spring go. A body must never carry the pivot's offset.
+      // Held, moving or free: let it go. A body must never carry the pivot's offset.
       const calm = e.free || !!physicsBridge.api()?.awake(e.id);
       if (!enabled && !s) continue;
       if (!s) {
@@ -165,26 +204,36 @@ export function ScrollMotion() {
         s.x = 0;
         s.v = 0;
       }
-      const target = enabled && !calm ? pushFor(vel, feel) : 0;
+      const target = enabled && !calm ? targetPx(sc.vel, feel) : 0;
       if (motion) stepSpring(s, target, dt, calm || !enabled);
       if (atRest(s, target)) {
         s.x = 0;
         s.v = 0;
-        if (e.pivot.position.lengthSq() !== 0) {
-          e.pivot.position.set(0, 0, 0);
-          e.pivot.quaternion.identity();
-        }
+        e.pivot.position.set(0, 0, 0);
+        e.pivot.quaternion.identity();
         continue;
       }
       busy = true;
-      // The shift is along the table towards the viewer, in world axes; the pivot sits in the
+      // The slide is along the table towards the viewer, in world axes; the pivot sits in the
       // object's own frame, so turn it back by the object's world rotation.
+      const metres = s.x / k.k;
       e.obj.getWorldQuaternion(_q);
       _inv.copy(_q).invert();
-      e.pivot.position.copy(_p.set(0, 0, s.x).applyQuaternion(_inv));
-      _t.setFromAxisAngle(AXIS_X, leanFor(s.x, feel));
-      e.pivot.quaternion.copy(_inv).multiply(_t).multiply(_q);
+      _p.set(0, 0, metres).applyQuaternion(_inv);
+      const roll = rollAngle(metres, feel);
+      if (roll === 0) {
+        e.pivot.quaternion.identity();
+      } else {
+        // Turn about the ball's own centre (the model's origin is its contact point), around the
+        // world X axis, which is the axis a ball rolling along the table turns about.
+        _r.setFromAxisAngle(AXIS_X, roll);
+        e.pivot.quaternion.copy(_inv).multiply(_r).multiply(_q);
+        const centre = _c.set(0, feel.rollRadius, 0);
+        _p.add(centre).sub(_a.copy(centre).applyQuaternion(e.pivot.quaternion));
+      }
+      e.pivot.position.copy(_p);
     }
+    sc.idle = !busy;
     if (busy) invalidate();
   });
   return null;

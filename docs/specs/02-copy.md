@@ -41,8 +41,7 @@ Under the drawing (mono): "drag things around. tap one to jump to its section." 
 Skip link: "skip the 3D desk"
 Poster description (`role=img`): "Line drawing of an Arduino board with a small OLED screen, three desk clocks, a Nepali desk calendar and a Pac-Man ghost laid out on blueprint paper." (+ ", and a toy Land Cruiser" if confirmed)
 Object list labels (mono links): "arduino water monitor → car sensors" · "clocks → contact" · "calendar → open source" · "pac-man ghost → pac-man" · ("land cruiser → car sensors")
-Callout notes (`objects.ts`, two words each): arduino "uno r4" · clocks "ktm / [city] / [city]" · calendar "bikram sambat" · ghost "canvas, 2020" · cruiser "hj60" [CONFIRM]
-OLED caption (DOM, mono): "demo values"
+No labels on the table (v3.3 T1): the callout notes and the OLED caption are gone. The board's entry in the object list says "(the oled readings are demo values)" instead.
 
 ### #work
 Heading: **work**

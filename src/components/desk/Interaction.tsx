@@ -12,11 +12,9 @@ import {
 import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { entryIdOf, registry } from './registry';
-import { activity } from './activity';
 import { fallBridge, physicsBridge } from './physics-bridge';
 import { setInteractionProbe } from './scene-hooks';
 import { armSound } from '../../lib/sound';
-import { CALLOUT_EVENT, type FlightLabel } from '../../lib/shared-callout';
 
 /** Height of the plane the pointer is projected onto while dragging on the table, metres. */
 const PLANE_Y = 0.03;
@@ -85,7 +83,6 @@ export function Interaction() {
 
   useEffect(() => {
     const el = gl.domElement;
-    const figure = document.querySelector<HTMLElement>('[data-desk]');
     const html = document.documentElement;
     const raycaster = new Raycaster();
     const ndc = new Vector2();
@@ -153,7 +150,6 @@ export function Interaction() {
     const setHover = (id: string | null) => {
       if (hover.current.id === id) return;
       hover.current.id = id;
-      activity.set({ hover: id });
       setCursor(id ? 'grab' : '');
       invalidate();
     };
@@ -161,26 +157,6 @@ export function Interaction() {
     const navigate = (id: string) => {
       const target = registry.get(id)?.def.target;
       if (!target) return;
-      // The label that flies to the section (C-03); the navigate handler picks it up.
-      const label = figure?.querySelector<HTMLElement>(
-        `[data-callout="${id}"]`,
-      );
-      const rect = label?.getBoundingClientRect();
-      if (label?.textContent && rect && rect.width > 0)
-        window.dispatchEvent(
-          new CustomEvent<FlightLabel>(CALLOUT_EVENT, {
-            detail: {
-              target,
-              text: label.textContent,
-              rect: {
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-              },
-            },
-          }),
-        );
       window.dispatchEvent(
         new CustomEvent('nihal:navigate', { detail: target }),
       );
@@ -227,7 +203,6 @@ export function Interaction() {
       lastPointer = { x: p.x0, y: p.y0 };
       setCursor('grabbing');
       setHover(null);
-      activity.set({ grabbed: p.id });
       sendDrag(true);
       if (p.id === 'ghost' && p.layer === 'table')
         ghostLook.set({ x: p.last.x, z: p.last.y });
@@ -250,7 +225,6 @@ export function Interaction() {
           api?.release(v.x, v.z);
         } else api?.drop();
       }
-      activity.set({ grabbed: null });
       sendDrag(false);
     };
 
@@ -473,7 +447,6 @@ export function Interaction() {
       document.removeEventListener('visibilitychange', onVisibility);
       setCursor('');
       html.style.userSelect = '';
-      activity.set({ hover: null, grabbed: null });
       setInteractionProbe(null);
     };
   }, [gl, camera, scene, invalidate]);
