@@ -14,7 +14,6 @@ export const pending = {
     '[CONFIRM] contact.lead: append "I reply within a day or two."',
     '[ASK] contact clocks: cities 2 and 3 (Kathmandu is the only confirmed clock).',
     '[CONFIRM] contact.overlap: regions sentence ("My mornings are Australia\'s afternoon and the US West Coast\'s evening.")',
-    '[CONFIRM] colophon: analytics statement ("Analytics: Vercel only, no cookies.")',
     '[Q5] cv: resume (pdf) link only if a live PDF exists (live URL returned 404 on 2026-11-05).',
     '[CONFIRM] poster/objects: Land Cruiser (see objects.ts cruiser).',
   ],
