@@ -4,6 +4,7 @@ import { copy } from '../src/content/copy';
 import { objects } from '../src/content/objects';
 import { buildPosterAlt } from '../src/content/poster-alt';
 import { formatClock } from '../src/lib/time';
+import { phoneObjectIds } from '../src/lib/desk/phone';
 
 // The default build shows confirmed objects only (content/index.ts getObjects).
 // Decorative objects (balls, letters) have no target and are not in the list.
@@ -63,9 +64,17 @@ test.describe('title block and poster @B-03', () => {
     const poster = page.locator('#desk svg.poster:visible');
     await expect(poster).toHaveCount(1);
     await expect(poster).toHaveAttribute('role', 'img');
+    // The phone drawing (poster-phone) shows fewer objects than the wide one.
+    const isPhone = await poster.evaluate((e) =>
+      e.classList.contains('poster-phone'),
+    );
     await expect(poster).toHaveAttribute(
       'aria-label',
-      buildPosterAlt(objects.filter((o) => o.confirmed)),
+      buildPosterAlt(
+        objects.filter(
+          (o) => o.confirmed && (!isPhone || phoneObjectIds.has(o.id)),
+        ),
+      ),
     );
     await expect(poster).toBeVisible();
     const box = await poster.boundingBox();
