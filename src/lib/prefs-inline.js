@@ -45,7 +45,8 @@
     d.dataset.lamp = l;
     d.dataset.theme = l > 1 ? 'paper' : 'blue';
     var c = document.querySelector('meta[name=theme-color]');
-    if (c) c.content = ['#0A1348', '#1F3FE0', '#B3B4C6', '#E6E4DC', '#F6F5F1'][l];
+    if (c)
+      c.content = ['#0A1348', '#1F3FE0', '#B3B4C6', '#E6E4DC', '#F6F5F1'][l];
     d.dataset.sound = s === 'on' ? 'on' : 'off';
     var t = {
       '#projects': '#work',
