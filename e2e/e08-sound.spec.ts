@@ -23,22 +23,6 @@ const audio = (page: Page) =>
 const taps = async (page: Page) =>
   ((await audio(page))?.played ?? []).filter((p) => p.clip.startsWith('tap-'));
 
-/** Starts the engine, drops `id` from `y` metres and waits for it to settle. */
-async function drop(page: Page, id: string, y: number) {
-  await page.evaluate(() => window.__hooks!.desk!.scene!.requestPhysics());
-  await expect
-    .poll(
-      () => page.evaluate(() => window.__hooks!.desk!.scene!.physics().state),
-      { timeout: 30_000 },
-    )
-    .toBe('ready');
-  await page.evaluate(
-    ([i, h]) =>
-      window.__hooks!.desk!.scene!.teleport(i as string, 0, h as number, 0),
-    [id, y],
-  );
-}
-
 test.describe('sound @E-08', () => {
   test.describe.configure({ timeout: 120_000 });
   // Playwright needs the destructuring pattern for the fixtures argument.
@@ -85,24 +69,29 @@ test.describe('sound @E-08', () => {
       page.evaluate(() =>
         window.__hooks!.desk!.scene!.physics().bodies.every((b) => b.asleep),
       );
-    // Learn where the floor is: let it fall from high in the right margin and settle.
-    await drop(page, 'arduino', 1.2);
-    await page.evaluate(() =>
-      window.__hooks!.desk!.scene!.teleport('arduino', 1.1, 1.2, 0),
-    );
+    // The table has no side walls now, so drop it over its own spot on the table: the table top is
+    // the floor, and its home pose says where that is.
+    await page.evaluate(() => window.__hooks!.desk!.scene!.requestPhysics());
+    await expect
+      .poll(
+        () => page.evaluate(() => window.__hooks!.desk!.scene!.physics().state),
+        { timeout: 30_000 },
+      )
+      .toBe('ready');
     await expect.poll(asleep, { timeout: 30_000 }).toBe(true);
-    const floor = await page.evaluate(
+    const [hx, floor, hz] = await page.evaluate(
       () =>
         window
           .__hooks!.desk!.scene!.physics()
-          .bodies.find((b) => b.id === 'arduino')!.p[1],
+          .bodies.find((b) => b.id === 'arduino')!.p,
     );
     const seen = async () => (await taps(page)).length;
     const hop = async (h: number) => {
       const n = await seen();
       await page.evaluate(
-        ([y]) => window.__hooks!.desk!.scene!.teleport('arduino', 1.1, y!, 0),
-        [floor + h],
+        ([x, y, z]) =>
+          window.__hooks!.desk!.scene!.teleport('arduino', x!, y!, z!),
+        [hx!, floor! + h, hz!],
       );
       await expect.poll(seen, { timeout: 20_000 }).toBeGreaterThan(n);
       await expect.poll(asleep, { timeout: 30_000 }).toBe(true);

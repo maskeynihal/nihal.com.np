@@ -6,7 +6,9 @@ import {
 } from '../scripts/write-vercel-json.ts';
 
 // Served by e2e/header-server.ts with the production headers.
-test.use({ baseURL: 'http://localhost:4391' });
+test.use({
+  baseURL: `http://localhost:${process.env['E2E_HEADER_PORT'] ?? '4391'}`,
+});
 
 const violations = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (window as unknown as { __csp: string[] }).__csp.slice());
@@ -146,7 +148,7 @@ test.describe('CSP and headers @A-09', () => {
     // A separate context: the blocked requests log console errors on purpose, so the
     // auto console guard on the default page must not see them.
     const context = await browser.newContext({
-      baseURL: 'http://localhost:4391',
+      baseURL: `http://localhost:${process.env['E2E_HEADER_PORT'] ?? '4391'}`,
     });
     const page = await context.newPage();
     await page.addInitScript(() => {

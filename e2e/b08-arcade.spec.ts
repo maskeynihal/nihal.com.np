@@ -163,7 +163,9 @@ test.describe('arcade panel @B-08', () => {
 });
 
 test.describe('arcade under the production CSP @B-08', () => {
-  test.use({ baseURL: 'http://localhost:4391' });
+  test.use({
+    baseURL: `http://localhost:${process.env['E2E_HEADER_PORT'] ?? '4391'}`,
+  });
 
   test('opening the game raises no CSP violation @B-08', async ({
     page,

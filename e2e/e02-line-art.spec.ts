@@ -9,7 +9,9 @@ const SHOTS = process.env['E2E_SHOTS'] === '1';
 const SHOT_DIR = 'docs/reviews/E-02';
 
 const figure = (page: Page) => page.locator('[data-desk]');
-const viewport = (page: Page) => raster(page);
+// Pixels of the table canvas (the probes answer in canvas px); the canvas is in the page flow.
+const viewport = (page: Page) =>
+  raster(page.locator('[data-desk] canvas').first());
 
 async function goLive(page: Page) {
   await page.goto('/');
@@ -245,7 +247,10 @@ test.describe('line-art rendering @E-02', () => {
       const meta = await sharp(shot).metadata();
       expect(meta.width).toBeGreaterThan(200);
       await quiet(page);
-      const r = await viewport(page);
+      // On a phone the drawing is wider than the screen (it bleeds past the column), and an element
+      // screenshot only has pixels where the screen is: read the viewport there.
+      await page.locator('[data-desk] canvas').first().scrollIntoViewIfNeeded();
+      const r = name === 'phone' ? await raster(page) : await viewport(page);
       expect(near(r.at(40, 40), BLUE, 2), `${name} background`).toBe(true);
       let white = 0;
       for (const v of whiteMask(r)) white += v;
@@ -278,10 +283,18 @@ test.describe('line-art rendering @E-02', () => {
     await goLive(page);
     await page.setViewportSize({ width: 1000, height: 800 });
     await expect
-      .poll(() =>
-        page.evaluate(() => window.__hooks!.desk!.scene!.size().width),
-      )
-      .toBe(1000);
+      .poll(async () => {
+        const w = await page.evaluate(
+          () => window.__hooks!.desk!.scene!.size().width,
+        );
+        const box = await page
+          .locator('[data-desk] canvas')
+          .first()
+          .boundingBox();
+        // The canvas follows the drawing (in the page flow), not the viewport.
+        return Math.abs(w - box!.width) < 1.5 && w > 600;
+      })
+      .toBe(true);
     await page.waitForTimeout(500);
     await quiet(page);
     const r = await viewport(page);

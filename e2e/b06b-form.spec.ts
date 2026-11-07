@@ -268,7 +268,9 @@ test.describe('contact form @B-06b', () => {
 });
 
 test.describe('contact form under the production CSP @B-06b', () => {
-  test.use({ baseURL: 'http://localhost:4391' });
+  test.use({
+    baseURL: `http://localhost:${process.env['E2E_HEADER_PORT'] ?? '4391'}`,
+  });
 
   test('submit with a mocked response raises no CSP violation @B-06b', async ({
     page,
