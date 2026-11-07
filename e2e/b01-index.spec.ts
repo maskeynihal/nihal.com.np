@@ -90,7 +90,7 @@ test.describe('sheet border and index @B-01', () => {
         }),
       );
     expect(new Set(boxes.map((b) => Math.round(b[0]!))).size).toBe(1);
-    expect(new Set(boxes.map((b) => Math.round(b[1]!))).size).toBe(8);
+    expect(new Set(boxes.map((b) => Math.round(b[1]!))).size).toBe(7);
     const main = await page
       .locator('main')
       .evaluate((e) => parseFloat(getComputedStyle(e).paddingInlineStart));

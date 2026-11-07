@@ -171,28 +171,40 @@ export function initSheetIndex(nav: HTMLElement): void {
     const duration = scrollDuration(distance);
     const start = performance.now();
     let raf = 0;
-    const stop = () => {
+    const unhook = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('wheel', stop);
       window.removeEventListener('touchstart', stop);
       window.removeEventListener('keydown', stop);
       cancel = null;
+    };
+    // The user took over (or a newer glide starts): hand the row back to the observers.
+    const stop = () => {
+      unhook();
       held = false;
       schedule();
     };
     const step = (now: number) => {
       const t = (now - start) / duration;
       window.scrollTo({
-        top: from + distance * easeInOutCubic(t),
+        // Re-read the target each frame: content above it can still settle while the glide runs.
+        top: from + (targetTop(el) - from) * easeInOutCubic(t),
         behavior: 'instant',
       });
       if (t < 1) {
         raf = requestAnimationFrame(step);
         return;
       }
-      stop();
+      unhook();
       arrive(el, hash);
-      resolve();
+      // The observers still hold crossings from mid-flight until they report this frame's
+      // position. Keep the clicked row for two frames, then let them have it back.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          held = false;
+          resolve();
+        }),
+      );
     };
     // Any user input takes the wheel back; the observers then pick the row as usual.
     window.addEventListener('wheel', stop, { passive: true });
