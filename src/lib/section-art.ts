@@ -1,131 +1,101 @@
 /**
- * Pointer behaviour of the section drawings (S1), loaded on the first pointer move.
- *  - Parallax: while the pointer is in the drawing's column, the drawing shifts a few px against
- *    it (a transform on `.art-par`, eased by CSS).
- *  - One small reaction per hover or click, with a cooldown: rack LEDs toggle, the branch dot
- *    starts over, the pen wiggles, the plane hops, the flags puff, the ladder restarts. Web
- *    Animations on `translate` / `rotate` only, so they compose with the CSS loops and stay on
- *    the compositor.
- * Off under reduced motion. Decoration: no text, nothing focusable.
+ * Pointer behaviour of the section art (S5), loaded on the first pointer move.
+ *  - Light: while the pointer is over an art column, a soft round window, holding a brighter copy of
+ *    the art, follows it. Both the window and the copy move with `transform` only.
+ *  - Click: a ripple (two rings) spreads from the click point; on the server racks it also toggles
+ *    the LEDs. Web Animations on `transform` / `opacity`, so it stays on the compositor.
+ * The art takes no pointer events: the pointer is read from the document, so text and links under
+ * or near it are never blocked. Off under reduced motion. Decoration: no text, nothing focusable.
  */
 
-const COOLDOWN_MS = 900;
-const SHIFT_PX = 6;
+const HALF = 100; // half the spot window, px
 
 const reduced = (): boolean =>
   document.documentElement.dataset['motion'] === 'reduce' ||
   matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const layer = (art: HTMLElement, cls: string): Element | null =>
-  art.querySelector(`.${cls}`);
+interface Spot {
+  win: HTMLElement;
+  lit: HTMLElement;
+}
 
-const wiggle = (
-  el: Element | null,
-  frames: Keyframe[],
-  duration: number,
-  easing = 'ease-in-out',
-): void => {
-  el?.animate(frames, { duration, easing });
+const makeSpot = (art: HTMLElement): Spot => {
+  const win = document.createElement('div');
+  win.className = 'art-spot';
+  const lit = document.createElement('div');
+  lit.className = 'art-lit';
+  const top = art.querySelector('.art-top')?.cloneNode() as Element | null;
+  const bot = art.querySelector('.art-bot')?.cloneNode() as Element | null;
+  const body = document.createElement('div');
+  body.className = 'art-body';
+  const mid = art.querySelector('.art-mid')?.cloneNode();
+  if (mid) body.append(mid);
+  if (top) lit.append(top);
+  lit.append(body);
+  if (bot) lit.append(bot);
+  win.append(lit);
+  art.append(win);
+  return { win, lit };
 };
 
-const restart = (el: Element | null): void => {
-  el?.getAnimations().forEach((a) => {
-    a.currentTime = 0;
-  });
+const ripple = (art: HTMLElement, x: number, y: number): void => {
+  for (const delay of [0, 220]) {
+    const r = document.createElement('div');
+    r.className = 'art-ripple';
+    r.style.left = `${x}px`;
+    r.style.top = `${y}px`;
+    art.append(r);
+    const a = r.animate(
+      [
+        { opacity: 0.55, transform: 'scale(0.2)' },
+        { opacity: 0, transform: 'scale(3.2)' },
+      ],
+      { duration: 1100, delay, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' },
+    );
+    a.onfinish = () => r.remove();
+  }
 };
-
-const reactions: Record<string, (art: HTMLElement) => void> = {
-  projects: (art) => {
-    art.toggleAttribute('data-off');
-  },
-  opensource: (art) => restart(layer(art, 'art-walk')),
-  cv: (art) => restart(layer(art, 'art-climb')),
-  contact: (art) =>
-    wiggle(
-      layer(art, 'art-plane'),
-      [
-        { translate: '0 0', rotate: '0deg' },
-        { translate: '4% -9%', rotate: '-5deg', offset: 0.4 },
-        { translate: '0 0', rotate: '0deg' },
-      ],
-      900,
-      'cubic-bezier(0.3, 0.7, 0.3, 1)',
-    ),
-  about: (art) =>
-    wiggle(
-      layer(art, 'art-flags'),
-      [
-        { rotate: '0deg' },
-        { rotate: '3deg' },
-        { rotate: '-2deg' },
-        { rotate: '0deg' },
-      ],
-      1400,
-    ),
-  writing: (art) =>
-    wiggle(
-      layer(art, 'art-pen'),
-      [
-        { translate: '0 0' },
-        { translate: '-3% 1.5%' },
-        { translate: '1.5% -0.5%' },
-        { translate: '0 0' },
-      ],
-      1000,
-    ),
-};
-
-const clamp = (n: number): number => Math.max(-1, Math.min(1, n));
 
 export function initSectionArt(arts: Iterable<HTMLElement>): void {
   const list = [...arts];
-  const last = new WeakMap<HTMLElement, number>();
-
-  const react = (art: HTMLElement) => {
-    if (reduced()) return;
-    const now = performance.now();
-    if (now - (last.get(art) ?? -COOLDOWN_MS) < COOLDOWN_MS) return;
-    last.set(art, now);
-    reactions[art.dataset['art'] ?? '']?.(art);
-  };
-
-  for (const art of list) {
-    art.addEventListener('pointerenter', (e) => {
-      if (e.pointerType !== 'touch') react(art);
-    });
-    art.addEventListener('click', () => react(art));
-  }
-
+  const spots = new WeakMap<HTMLElement, Spot>();
   let frame = 0;
   let pointer: { x: number; y: number } | null = null;
+
   const tick = () => {
     frame = 0;
     for (const art of list) {
-      const par = art.firstElementChild as HTMLElement | null;
-      if (!par) continue;
       const box = art.getBoundingClientRect();
-      const col = art.parentElement?.getBoundingClientRect();
-      if (
-        !pointer ||
-        reduced() ||
-        box.width === 0 ||
-        !col ||
-        pointer.y < col.top ||
-        pointer.y > col.bottom ||
-        Math.abs(pointer.x - (box.left + box.width / 2)) > box.width
-      ) {
-        par.style.transform = '';
+      const inside =
+        !!pointer &&
+        !reduced() &&
+        box.width > 0 &&
+        pointer.x >= box.left &&
+        pointer.x <= box.right &&
+        pointer.y >= box.top &&
+        pointer.y <= box.bottom;
+      let spot = spots.get(art);
+      if (!inside) {
+        spot?.win.removeAttribute('data-on');
         continue;
       }
-      // -1..1 from the drawing's centre; the drawing leans away from the pointer.
-      const nx = clamp((pointer.x - box.left - box.width / 2) / box.width);
-      const ny = clamp((pointer.y - box.top - box.height / 2) / box.height);
-      par.style.transform = `translate3d(${(-nx * SHIFT_PX).toFixed(1)}px, ${(-ny * SHIFT_PX).toFixed(1)}px, 0)`;
+      if (!spot) {
+        spot = makeSpot(art);
+        spots.set(art, spot);
+      }
+      const x = pointer!.x - box.left - HALF;
+      const y = pointer!.y - box.top - HALF;
+      spot.lit.style.width = `${box.width}px`;
+      spot.lit.style.height = `${box.height}px`;
+      spot.win.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      spot.lit.style.transform = `translate3d(${(-x).toFixed(1)}px, ${(-y).toFixed(1)}px, 0)`;
+      spot.win.setAttribute('data-on', '');
     }
   };
   const schedule = () => {
     if (!frame) frame = requestAnimationFrame(tick);
   };
+
   addEventListener(
     'pointermove',
     (e) => {
@@ -139,4 +109,23 @@ export function initSectionArt(arts: Iterable<HTMLElement>): void {
     pointer = null;
     schedule();
   });
+  addEventListener(
+    'click',
+    (e) => {
+      if (reduced()) return;
+      for (const art of list) {
+        const box = art.getBoundingClientRect();
+        if (
+          e.clientX < box.left ||
+          e.clientX > box.right ||
+          e.clientY < box.top ||
+          e.clientY > box.bottom
+        )
+          continue;
+        ripple(art, e.clientX - box.left, e.clientY - box.top);
+        if (art.dataset['art'] === 'projects') art.toggleAttribute('data-off');
+      }
+    },
+    { passive: true },
+  );
 }

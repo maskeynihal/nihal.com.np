@@ -63,11 +63,11 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
       const arts = page.locator('.section-art');
       await expect(arts).toHaveCount(6);
       for (const a of await arts.all()) {
-        // The box sits inside the aria-hidden column; the drawing is SVG layers, no text.
+        // The box sits inside the aria-hidden column; the art is mask layers, no text.
         await expect(
           a.locator('xpath=ancestor::*[@aria-hidden="true"]'),
         ).toHaveCount(1);
-        expect(await a.locator('svg').count()).toBeGreaterThan(0);
+        expect(await a.locator('.art-mid').count()).toBe(1);
         expect(await a.locator('text').count()).toBe(0);
       }
       if (!shown) {

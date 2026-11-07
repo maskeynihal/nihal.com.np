@@ -23,7 +23,7 @@ async function scrollToMid(page: Page, id: string) {
   }, id);
 }
 
-test.describe('side column drawings @V3-3-S1', () => {
+test.describe('side column art @V3-3-S1', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
   });
@@ -41,59 +41,110 @@ test.describe('side column drawings @V3-3-S1', () => {
         (await col.evaluate((e) => e.textContent ?? '')).trim(),
         `${id} art has no text`,
       ).toBe('');
-      await expect(
-        page.locator(`#${id} .section-art svg`).first(),
-      ).toBeAttached();
+      await expect(page.locator(`#${id} .section-art .art-mid`)).toBeAttached();
     }
     await page.setViewportSize({ width: 1000, height: 800 });
     for (const id of SECTIONS)
       await expect(page.locator(`#${id} .section-art-col`)).toBeHidden();
   });
 
-  test('the drawing stays centred in the viewport through a tall section and never leaves it @V3-3-S1', async ({
+  test('the art fills its whole column at every width, scrolls with the page and is not sticky @V3-3-S5', async ({
     page,
   }) => {
     await page.goto('/');
-    for (const id of ['projects', 'cv'] as const) {
-      const sec = page.locator(`#${id}`);
-      const h = (await sec.boundingBox())!.height;
-      expect(h, `${id} is taller than the viewport`).toBeGreaterThan(1200);
-      // Three points: near the top, the middle, near the end.
-      for (const f of [0.3, 0.5, 0.7]) {
-        await page.evaluate(
-          ([i, frac]) => {
-            const r = document
-              .getElementById(i as string)!
-              .getBoundingClientRect();
-            window.scrollTo(
-              0,
-              window.scrollY +
-                r.top +
-                r.height * (frac as number) -
-                innerHeight / 2,
-            );
-          },
-          [id, f],
-        );
+    for (const width of [1024, 1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const id of SECTIONS) {
         const m = await page.evaluate((i) => {
+          const col = document
+            .querySelector(`#${i} .section-art-col`)!
+            .getBoundingClientRect();
+          const art = document.querySelector(`#${i} .section-art`)!;
+          const a = art.getBoundingClientRect();
+          const q = (s: string) =>
+            art.querySelector(s)!.getBoundingClientRect();
+          const top = q('.art-top');
+          const bot = q('.art-bot');
+          const mid = q('.art-mid');
+          const cs = getComputedStyle(art);
+          return {
+            colTop: col.top,
+            colBottom: col.bottom,
+            top: a.top,
+            bottom: a.bottom,
+            topPiece: top.top,
+            botPiece: bot.bottom,
+            midH: mid.height,
+            gap:
+              Math.abs(top.bottom - mid.top) + Math.abs(mid.bottom - bot.top),
+            position: cs.position,
+            events: cs.pointerEvents,
+            repeat: getComputedStyle(art.querySelector('.art-mid')!).maskRepeat,
+            ratio: bot.width / bot.height,
+          };
+        }, id);
+        const msg = `${id} @${width}`;
+        expect(m.position, `${msg} not sticky`).toBe('absolute');
+        expect(
+          Math.abs(m.top - m.colTop),
+          `${msg} starts at the section top`,
+        ).toBeLessThan(1);
+        expect(
+          Math.abs(m.bottom - m.colBottom),
+          `${msg} ends at the section bottom`,
+        ).toBeLessThan(1);
+        expect(m.topPiece, `${msg} top piece anchored`).toBeCloseTo(
+          m.colTop,
+          0,
+        );
+        expect(m.botPiece, `${msg} bottom piece anchored`).toBeCloseTo(
+          m.colBottom,
+          0,
+        );
+        expect(m.gap, `${msg} no blank between pieces`).toBeLessThan(1);
+        expect(m.midH, `${msg} has a repeating middle`).toBeGreaterThan(40);
+        expect(m.repeat, `${msg} repeats down`).toContain('repeat');
+        expect(m.events, `${msg} never blocks clicks`).toBe('none');
+        expect(m.ratio, `${msg} bottom piece is not distorted`).toBeGreaterThan(
+          1,
+        );
+      }
+    }
+    // Scrolling does not move the art relative to its section.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    for (const id of ['projects', 'cv'] as const) {
+      const rel = async () =>
+        page.evaluate((i) => {
           const s = document.getElementById(i)!.getBoundingClientRect();
           const a = document
             .querySelector(`#${i} .section-art`)!
             .getBoundingClientRect();
-          return {
-            artMid: (a.top + a.bottom) / 2,
-            vh: innerHeight,
-            inSection: a.top >= s.top - 1 && a.bottom <= s.bottom + 1,
-            inView: a.top >= 0 && a.bottom <= innerHeight,
-          };
+          return [a.top - s.top, a.bottom - s.bottom];
         }, id);
-        expect(m.inView, `${id} @${f} in view`).toBe(true);
-        expect(m.inSection, `${id} @${f} inside its section`).toBe(true);
+      await page.evaluate(
+        (i) => document.getElementById(i)!.scrollIntoView(),
+        id,
+      );
+      const first = await rel();
+      for (const dy of [300, 700, 1100]) {
+        await page.evaluate((y) => window.scrollBy(0, y), dy);
+        const now = await rel();
         expect(
-          Math.abs(m.artMid - m.vh / 2),
-          `${id} @${f} centred`,
-        ).toBeLessThan(3);
+          Math.abs(now[0]! - first[0]!),
+          `${id} top after +${dy}`,
+        ).toBeLessThan(1);
+        expect(
+          Math.abs(now[1]! - first[1]!),
+          `${id} bottom after +${dy}`,
+        ).toBeLessThan(1);
       }
+      expect(
+        await page.evaluate((i) => {
+          const s = document.getElementById(i)!.getBoundingClientRect();
+          return s.height;
+        }, id),
+        `${id} is taller than the viewport`,
+      ).toBeGreaterThan(1200);
     }
   });
 
@@ -171,7 +222,9 @@ test.describe('side column drawings @V3-3-S1', () => {
       const props = await art.evaluate((a) => {
         const out = new Set<string>();
         let count = 0;
-        for (const l of a.querySelectorAll('.art-layer'))
+        for (const l of a.querySelectorAll(
+          '.art-layer, .art-dot, .art-dot > i',
+        ))
           for (const an of l.getAnimations()) {
             count++;
             for (const kf of (an.effect as KeyframeEffect).getKeyframes())
@@ -201,7 +254,7 @@ test.describe('side column drawings @V3-3-S1', () => {
     );
   });
 
-  test('pointer: hover reacts once, parallax leans the drawing; both off under reduced motion @V3-3-S1', async ({
+  test('pointer: a soft light follows the pointer, a click ripples and toggles the LEDs; off under reduced motion @V3-3-S5', async ({
     page,
     javaScriptEnabled,
     hasTouch,
@@ -218,30 +271,31 @@ test.describe('side column drawings @V3-3-S1', () => {
     );
     const art = page.locator('#projects .section-art');
     const box = (await art.boundingBox())!;
-    await page.mouse.move(box.x - 300, box.y + 10);
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
-      steps: 6,
-    });
-    await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.9, {
-      steps: 6,
-    });
+    const cx = box.x + box.width / 2;
+    const cy = Math.max(box.y, 0) + 300;
+    await page.mouse.move(cx - 400, cy);
+    await page.mouse.move(cx, cy, { steps: 6 });
+    await page.mouse.move(cx + 20, cy + 20, { steps: 4 });
+    await page.mouse.click(cx + 20, cy + 20);
     if (reduced) {
       await expect(art).not.toHaveAttribute('data-off', '');
-      await expect(page.locator('#projects .art-par')).toHaveCSS(
-        'transform',
-        'none',
-      );
+      await expect(page.locator('#projects .art-spot')).toHaveCount(0);
+      await expect(page.locator('#projects .art-ripple')).toHaveCount(0);
       return;
     }
-    // The LEDs toggled off on hover.
+    await expect(page.locator('#projects .art-spot[data-on]')).toHaveCount(1);
+    await expect(page.locator('#projects .art-ripple').first()).toBeAttached();
     await expect(art).toHaveAttribute('data-off', '');
-    // The drawing leans away from the pointer (a transform on the inner wrapper).
-    await expect
-      .poll(() =>
-        page.locator('#projects .art-par').evaluate((e) => e.style.transform),
-      )
-      .toMatch(/translate3d\(-/);
-    await expectNoAxeViolations(page, { label: '/ projects drawing hover' });
+    // The window and its copy move by transform only.
+    expect(
+      await page
+        .locator('#projects .art-spot')
+        .evaluate((e) => e.style.transform),
+    ).toMatch(/translate3d/);
+    // Leaving the art switches the light off; the art never took the pointer.
+    await page.mouse.move(box.x - 300, cy, { steps: 4 });
+    await expect(page.locator('#projects .art-spot[data-on]')).toHaveCount(0);
+    await expectNoAxeViolations(page, { label: '/ projects art hover' });
   });
 });
 
