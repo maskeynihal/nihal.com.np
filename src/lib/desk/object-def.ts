@@ -19,7 +19,6 @@ export interface ObjectDef {
   q: [number, number, number, number];
   collider: ColliderDef;
   mass: number;
-  callouts: { anchor: Vec3; text: string }[];
   /** Section id such as `#work-car-sensors`. Decorative objects have none. */
   target?: string;
 }
@@ -44,10 +43,6 @@ function valid(o: unknown): o is ObjectDef {
     Array.isArray(c.args) &&
     isNums(c.offset, 3) &&
     typeof d.mass === 'number' &&
-    Array.isArray(d.callouts) &&
-    d.callouts.every(
-      (k) => typeof k?.text === 'string' && isNums(k?.anchor, 3),
-    ) &&
     (d.target === undefined ||
       (typeof d.target === 'string' && d.target.startsWith('#')))
   );

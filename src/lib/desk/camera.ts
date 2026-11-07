@@ -1,17 +1,37 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
-import { heroCamera, posterAspect } from '../../assets/camera';
+import {
+  heroCamera,
+  phoneAspect,
+  phoneCamera,
+  posterAspect,
+} from '../../assets/camera';
 
 /**
- * The one camera of the table canvas, at every width: the canvas keeps the poster's aspect, so
- * a narrower page just draws the same view smaller. Pure maths, no DOM and no WebGL.
+ * The one camera of the table canvas at each width: the wide view, or below 768 px the portrait
+ * view (`assets/camera.ts`). The canvas keeps its poster's aspect, so a different width just draws
+ * the same view at another size. The view is chosen when a Scene mounts (the shell remounts the
+ * Scene when the page crosses 768 px). Pure maths, no DOM and no WebGL.
  */
+let phone = false;
+let ready = false;
+
+/** Chooses the view for the Scene about to draw. */
+export function setPhoneView(on: boolean): void {
+  if (phone === on) return;
+  phone = on;
+  ready = false;
+}
+
+export const activeView = () => (phone ? phoneCamera : heroCamera);
+
 export function applyHeroCamera(cam: PerspectiveCamera): void {
-  cam.fov = heroCamera.fov;
-  cam.near = heroCamera.near;
-  cam.far = heroCamera.far;
-  cam.aspect = posterAspect;
-  cam.position.set(...heroCamera.position);
-  cam.lookAt(...heroCamera.lookAt);
+  const v = activeView();
+  cam.fov = v.fov;
+  cam.near = v.near;
+  cam.far = v.far;
+  cam.aspect = phone ? phoneAspect : posterAspect;
+  cam.position.set(...v.position);
+  cam.lookAt(...v.lookAt);
   cam.updateProjectionMatrix();
   cam.updateMatrixWorld(true);
 }
@@ -21,8 +41,7 @@ export const focalPx = (height: number, fov: number = heroCamera.fov): number =>
   height / 2 / Math.tan((fov * Math.PI) / 360);
 
 const _cam = new PerspectiveCamera();
-let ready = false;
-/** The hero camera as a shared, fully updated instance (world matrices current). */
+/** The table camera as a shared, fully updated instance (world matrices current). */
 export function heroPose(): PerspectiveCamera {
   if (!ready) {
     applyHeroCamera(_cam);

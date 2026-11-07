@@ -24,7 +24,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { dprFor, getMotion, subscribeMotion } from '../../lib/prefs';
 import { testHooks } from '../../lib/env';
-import { applyHeroCamera } from '../../lib/desk/camera';
+import { applyHeroCamera, setPhoneView } from '../../lib/desk/camera';
+import { isPhoneWidth, phoneObjectIds } from '../../lib/desk/phone';
 import { heroCamera } from '../../assets/camera';
 import { handAngles, clockZone, pivotY } from '../../lib/desk/clock';
 import { calendarFace } from '../../lib/desk/calendar';
@@ -63,7 +64,6 @@ import {
   setOledProbe,
   setSphereProbe,
 } from './scene-hooks';
-import { Callouts } from './Callouts';
 import { disposedProbe } from './disposed-probe';
 import { createContextPolicy, type ContextEvent } from './context-loss';
 import { Interaction } from './Interaction';
@@ -112,7 +112,6 @@ const SHEET_DEF: ObjectDef = {
   q: [0, 0, 0, 1],
   collider: { kind: 'cuboid', args: [0.8, 0.01, 0.6], offset: [0, 0, 0] },
   mass: 1,
-  callouts: [],
 };
 
 // The physics layer is its own chunk: requested on the first grab, never with the Scene.
@@ -195,47 +194,6 @@ function Rig({ art }: { art: LineArt }) {
   useEffect(() => {
     gl.domElement.setAttribute('aria-hidden', 'true');
   }, [gl]);
-  return null;
-}
-
-/**
- * Puts the "demo values" caption under the Arduino's screen, in canvas CSS px. It follows the
- * board: recomputed on every frame that is drawn (a grab, a throw or a resize each draw one).
- */
-function OledCaption({ target }: { target: React.RefObject<Object3D | null> }) {
-  const { camera, size, gl } = useThree();
-  const caption = useRef<HTMLElement | null>(null);
-  const last = useRef('');
-  useLayoutEffect(() => {
-    caption.current =
-      gl.domElement
-        .closest('[data-desk]')
-        ?.querySelector<HTMLElement>('[data-oled-caption]') ?? null;
-    const el = caption.current;
-    return () => {
-      if (el) el.style.transform = '';
-      last.current = '';
-    };
-  }, [gl]);
-  const at = useMemo(() => new Vector3(), []);
-  const place = () => {
-    const node = target.current;
-    const el = caption.current;
-    if (!node || !el) return;
-    camera.updateMatrixWorld();
-    node.updateWorldMatrix(true, false);
-    // Just in front of the board's lower edge, below the screen.
-    node.getWorldPosition(at).add(new Vector3(0, -0.05, 0.1));
-    at.project(camera);
-    const x = ((at.x + 1) / 2) * size.width;
-    const y = ((1 - at.y) / 2) * size.height;
-    const t = `translate(${Math.round(x - el.offsetWidth / 2)}px, ${Math.round(y) + 4}px)`;
-    if (t === last.current) return;
-    last.current = t;
-    el.style.transform = t;
-  };
-  useLayoutEffect(place);
-  useFrame(place);
   return null;
 }
 
@@ -468,17 +426,8 @@ function GhostEyes({ root }: { root: Object3D }) {
 
 // ---- the desk ---------------------------------------------------------------------------------
 
-function ObjectNode({
-  def,
-  url,
-  captionTargetRef,
-}: {
-  def: ObjectDef;
-  url: string;
-  captionTargetRef: React.RefObject<Object3D | null>;
-}) {
-  if (def.model === 'arduino')
-    return <Arduino def={def} url={url} captionTargetRef={captionTargetRef} />;
+function ObjectNode({ def, url }: { def: ObjectDef; url: string }) {
+  if (def.model === 'arduino') return <Arduino def={def} url={url} />;
   if (def.model === 'calendar') return <Calendar def={def} url={url} />;
   if (def.model === 'clock')
     return (
@@ -495,27 +444,10 @@ function ObjectNode({
   return <Model url={url} def={def} />;
 }
 
-function Arduino({
-  def,
-  url,
-  captionTargetRef,
-}: {
-  def: ObjectDef;
-  url: string;
-  captionTargetRef: React.RefObject<Object3D | null>;
-}) {
+function Arduino({ def, url }: { def: ObjectDef; url: string }) {
   const material = useOled();
   const textured = useMemo(() => ({ 'screen-mesh': material }), [material]);
-  return (
-    <Model
-      url={url}
-      def={def}
-      textured={textured}
-      onRoot={(root) => {
-        captionTargetRef.current = root.getObjectByName('screen') ?? null;
-      }}
-    />
-  );
+  return <Model url={url} def={def} textured={textured} />;
 }
 
 function Calendar({ def, url }: { def: ObjectDef; url: string }) {
@@ -535,7 +467,6 @@ function Desk({
   probeOn: boolean;
   onReady: () => void;
 }) {
-  const captionTargetRef = useRef<Object3D | null>(null);
   const tableRef = useRef<Group>(null);
   const sheetUrl = urls['sheet'];
   // The table group is where the sheet and every object that is on the table live; the Rig moves it.
@@ -551,17 +482,9 @@ function Desk({
         {sheetUrl ? <Model url={sheetUrl} def={SHEET_DEF} sheet /> : null}
         {objects.map((def) => {
           const url = urls[def.model];
-          return url ? (
-            <ObjectNode
-              key={def.id}
-              def={def}
-              url={url}
-              captionTargetRef={captionTargetRef}
-            />
-          ) : null;
+          return url ? <ObjectNode key={def.id} def={def} url={url} /> : null;
         })}
       </group>
-      <OledCaption target={captionTargetRef} />
       <Ready onReady={onReady} />
     </>
   );
@@ -711,7 +634,14 @@ export default function Scene({
   const hostRef = useRef<HTMLDivElement>(null);
   const { active, shown } = useActiveState();
   const art = useMemo(() => createLineArt(), []);
-  const objects = useMemo(() => readObjects(), []);
+  // The view and the object set are chosen once per mount; the shell remounts the Scene when the
+  // page crosses 768 px. A dropped object is not rendered and so never gets a body.
+  const objects = useMemo(() => {
+    const phone = isPhoneWidth();
+    setPhoneView(phone);
+    const all = readObjects();
+    return phone ? all.filter((o) => phoneObjectIds.has(o.id)) : all;
+  }, []);
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
   const [probeOn, setProbeOn] = useState(false);
   const [physicsOn, setPhysicsOn] = useState(false);
@@ -807,7 +737,6 @@ export default function Scene({
             <ThemeWatch art={art} />
             <Interaction />
             <ScrollMotion />
-            <Callouts />
             {physicsOn ? (
               <IslandBoundary
                 island="physics"

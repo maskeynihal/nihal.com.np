@@ -39,7 +39,7 @@ const SKIP_KEYS = new Set(['id', 'model', 'target', 'href']);
 
 /**
  * Displayed strings of `confirmed: false` rows (work, cv, objects) that the getters filter
- * out of a plain build. Strings of 12+ characters, plus every object label and callout.
+ * out of a plain build. Strings of 12+ characters, plus every object label.
  * The cv org suffix ("for Trayt Health") lives in pending.candidates and is picked up by
  * `pendingStrings`.
  */
@@ -56,7 +56,6 @@ export function unconfirmedStrings(): string[] {
   for (const o of objects) {
     if (o.confirmed) continue;
     out.add(o.label);
-    for (const c of o.callouts ?? []) out.add(c.text);
   }
   return [...out];
 }

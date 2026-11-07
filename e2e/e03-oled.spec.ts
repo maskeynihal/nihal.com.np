@@ -62,27 +62,18 @@ test.describe('OLED texture @E-03', () => {
     expect([...seen].sort()).toEqual(['AIR 21.1C', 'RH 54%', 'WATER 18.4C']);
   });
 
-  test('the "demo values" caption is DOM text under the screen, shown with the canvas @E-03', async ({
+  test('no label is drawn over the table, and the object list says the readings are demo values @E-03', async ({
     page,
   }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'needs SwiftShader');
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/');
-    const caption = page.locator('[data-oled-caption]');
-    await expect(caption).toHaveText('demo values');
-    await expect(caption).toBeHidden();
-    await expect(figure(page)).toHaveAttribute('data-desk-state', 'live', {
-      timeout: 45_000,
-    });
-    await expect(caption).toBeVisible();
-    // It sits inside the drawing, near the middle where the Arduino is.
-    const box = (await caption.boundingBox())!;
-    const frame = (await page.locator('.desk-live').boundingBox())!;
-    expect(box.x).toBeGreaterThan(frame.x + frame.width * 0.3);
-    expect(box.x + box.width).toBeLessThan(frame.x + frame.width * 0.7);
-    expect(box.y).toBeGreaterThan(frame.y + frame.height * 0.3);
-    expect(box.y + box.height).toBeLessThan(frame.y + frame.height);
-    await expectNoAxeViolations(page, { label: '/ OLED caption' });
+    await goLive(page);
+    await expect(page.locator('[data-oled-caption]')).toHaveCount(0);
+    await expect(page.locator('.desk-callout, .desk-callouts')).toHaveCount(0);
+    await expect(
+      page.locator('[data-object-list] [data-object="arduino"]').locator('..'),
+    ).toContainText('the oled readings are demo values');
+    await expectNoAxeViolations(page, { label: '/ desk without labels' });
   });
 
   test('no ticks run without the canvas (reduced motion, no WebGL) @E-03', async ({

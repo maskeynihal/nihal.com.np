@@ -92,7 +92,7 @@ Deps: B-03. `clip-path` wipe 600 ms; panel opacity enters; all off under reduce.
 ### C-02 Ledger hover leader lines
 Deps: B-04. Row hover/focus extends a 24 px leader line 160 ms. Verify: visual hover state; focus-visible screenshot.
 
-### C-03 Object-tap shared callout transition
+### C-03 Object-tap shared callout transition [removed in v3.3 T1: no labels on the table, no @C-03 spec]
 Deps: E-06, B-04. Tapped object's callout label clones into a fixed layer, travels 600 ms to the section date line, removed on arrival; single scroll owner; reduced motion: plain jump. Verify @C-03: hook `grab`/`release` tap → section focused, clone removed, no duplicate text for SR (clone `aria-hidden`).
 
 ## Epic D: Assets (PR 4; D-01 and D-06 start day 1)
@@ -135,7 +135,7 @@ Deps: E-02, B-09. Clock hands 1 s; calendar shows BS date + holiday; ghost stati
 ### E-05 Physics world, drag, throw, touch (merged E-05/06/10)
 Deps: E-02, E-11, A-09. Registry + imperative reparenting (no flash, bodies start asleep); `objects.ts` defs; 6 static colliders; `useAfterPhysicsStep` invalidate; watchdog; pointer capture; press-hold on touch with `pan-y` + conditional preventDefault; ring-buffer `setLinvel` clamp 4 m/s; tap → `nihal:navigate`; hover lift on mesh; `R` and double-tap reset; index dims on drag; ≤ 7 bodies; phone framing + list. Verify @E-05: desktop drag/throw/tap/reset; android CDP: pan scrolls page, press-hold grabs, drag does not scroll; throw stays in bounds; teleport → respawn ≤ 2 s; bodies asleep → 0 frames over 2 s; no flash on physics load (screenshot diff before/after < 0.5%).
 
-### E-06 Callouts
+### E-06 Callouts [removed in v3.3 T1: no labels on the table, no @E-06 spec]
 Deps: E-05. Leader lines + DOM labels on grab; labels at rest 0.5 → 1.0; 160/240 ms. Verify @E-06: labels are DOM nodes with `role=tooltip`; opacity values.
 
 ### E-07 Exploded view

@@ -27,7 +27,7 @@ test.describe('desk island shell @E-01', () => {
     expect(html).not.toMatch(/Scene\.[\w-]+\.js/);
     expect(html).not.toMatch(/modulepreload[^>]*Scene/);
     // Readable desk text is plain HTML, hidden (not removed) until the canvas is live.
-    expect(html).toContain('put everything back');
+    expect(html).toContain('aria-label="put everything back"');
     // No visible instructions (v3.2 D1): play is guessed from the cursor and the hover response.
     expect(html).not.toContain('pick something up');
   });
@@ -169,6 +169,12 @@ test.describe('desk island shell @E-01', () => {
       timeout: 45_000,
     });
     await expect(page.getByText('pick something up')).toHaveCount(0);
+    // Icon only (v3.3 T2): no visible text, an accessible name, a 44 px target.
+    await expect(reset).toHaveText('');
+    await expect(reset).toHaveAttribute('aria-label', 'put everything back');
+    const box = await reset.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
     // Nothing is free yet: the button stays hidden (the falling desk spec drives the rest).
     await expect(reset).toHaveCSS('visibility', 'hidden');
     await expectNoAxeViolations(page, { label: '/ live canvas, no hint' });

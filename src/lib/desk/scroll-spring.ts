@@ -1,72 +1,90 @@
 /**
- * Scroll motion for the objects on the table (D3): each object sits on a damped spring that the
- * page's scroll speed pushes, so a faster scroll moves them more and light things (balls,
- * pac-men) more than heavy ones (the laptop). Pure maths, no three.js and no DOM, so the Scene
- * chunk can use it without the physics engine and it can be unit tested.
+ * Scroll motion for the objects on the table (v3.3 T3). A scroll is a nudge to the table: every
+ * object slides a little along the table, towards the viewer when the page scrolls down (it lags
+ * the table, like something on a tray), and eases back. Only a ball turns, and only by rolling:
+ * its turn is exactly the distance it slid over its radius. Nothing else rotates or tilts.
+ *
+ * Pure maths, no three.js and no DOM, so the Scene chunk can use it without the physics engine
+ * and so it can be unit tested at 60 Hz. Distances here are screen pixels; the caller converts to
+ * metres with the table's scale, which is what keeps the push to about 6 px at every width.
  */
 
-/** What one model does in response to scroll. Heavy things barely move, light things lean. */
+/** What one model does in response to scroll. */
 export interface ScrollFeel {
-  /** 0..1: share of the largest shift and tilt this object gets. */
+  /** 0..1: share of the largest slide this object gets (lightness). */
   gain: number;
-  /** A ball rolls: its tilt is the shift over its radius (m), not a lean. 0 for everything else. */
+  /** A ball rolls by slide / radius (m). 0 for everything else, which never turns. */
   rollRadius: number;
 }
 
-const LIGHT: ScrollFeel = { gain: 1, rollRadius: 0 };
-const MID: ScrollFeel = { gain: 0.4, rollRadius: 0 };
-const HEAVY: ScrollFeel = { gain: 0.15, rollRadius: 0 };
-
 const byModel: Record<string, ScrollFeel> = {
   'ball-s': { gain: 1, rollRadius: 0.035 },
-  'ball-m': { gain: 0.8, rollRadius: 0.05 },
-  'ball-l': { gain: 0.6, rollRadius: 0.07 },
-  pacman: LIGHT,
-  ghost: LIGHT,
-  clock: MID,
-  calendar: MID,
-  arduino: MID,
-  cruiser: MID,
-  'letter-n': MID,
-  'letter-i': MID,
-  'letter-h': MID,
-  'letter-a': MID,
-  'letter-l': MID,
-  laptop: HEAVY,
+  'ball-m': { gain: 0.95, rollRadius: 0.05 },
+  'ball-l': { gain: 0.85, rollRadius: 0.07 },
+  pacman: { gain: 0.55, rollRadius: 0 },
+  ghost: { gain: 0.55, rollRadius: 0 },
+  clock: { gain: 0.25, rollRadius: 0 },
+  calendar: { gain: 0.25, rollRadius: 0 },
+  cruiser: { gain: 0.3, rollRadius: 0 },
+  'letter-n': { gain: 0.3, rollRadius: 0 },
+  'letter-i': { gain: 0.3, rollRadius: 0 },
+  'letter-h': { gain: 0.3, rollRadius: 0 },
+  'letter-a': { gain: 0.3, rollRadius: 0 },
+  'letter-l': { gain: 0.3, rollRadius: 0 },
+  // The board and the laptop barely move.
+  arduino: { gain: 0.1, rollRadius: 0 },
+  laptop: { gain: 0.1, rollRadius: 0 },
 };
 
 export function scrollFeelFor(model: string): ScrollFeel {
-  return byModel[model] ?? HEAVY;
+  return byModel[model] ?? { gain: 0.1, rollRadius: 0 };
 }
 
-/** Largest shift along the table (m): about 5 screen px at the table's scale, for gain 1. */
-export const MAX_SHIFT = 0.008;
-/** Largest lean (rad) for gain 1, about 5 degrees. */
-export const MAX_LEAN = 0.09;
-/** Scroll speed (px/s) at which the push reaches its maximum. */
-export const FULL_SPEED = 2500;
-/** Spring: natural frequency (Hz) and damping ratio. Under-damped, so it overshoots once. */
-export const SPRING_HZ = 3.2;
-export const SPRING_ZETA = 0.4;
-/** Below this (m) with no speed, the spring is at rest and no frames are asked for. */
-export const REST = 0.00025;
+/** Largest slide on screen (px) for gain 1. */
+export const MAX_PX = 6;
+/** Scroll speed (px/s) scale: the push is `tanh(speed / SPEED_SCALE)` of the maximum. */
+export const SPEED_SCALE = 2200;
+/** Time constant (s) of the scroll-speed smoothing: a wheel step is a burst, not a jerk. */
+export const SPEED_TAU = 0.09;
+/** One frame that moves the page further than this (px) is a jump, not a scroll: ignored. */
+export const JUMP_PX = 500;
+/**
+ * +1: scroll down slides the objects towards the viewer (down the screen); -1 the other way.
+ * The page content moves up while scrolling down, the objects lag behind it.
+ */
+export const SLIDE_SIGN = 1;
+/** Spring: natural frequency (Hz) and damping ratio. Close to critical: about 1.5 % overshoot. */
+export const SPRING_HZ = 2.6;
+export const SPRING_ZETA = 0.8;
+/** At rest below this (px) with no speed: snapped to exactly zero. */
+export const REST_PX = 0.02;
 
 export interface Spring {
-  /** Shift (m, towards the viewer is positive) and its speed. */
+  /** Slide (px, towards the viewer is positive) and its speed (px/s). */
   x: number;
   v: number;
 }
 
-/** The shift the spring is pulled towards for a scroll speed `vel` (px/s, down is positive). */
-export function pushFor(vel: number, feel: ScrollFeel): number {
-  const k = Math.max(-1, Math.min(1, vel / FULL_SPEED));
-  // Content moves up as the page scrolls down; the objects trail it, so they lean the other way.
-  return -k * MAX_SHIFT * feel.gain;
+/** Low-pass of the scroll speed: `inst` is this frame's speed (px/s), `dt` the frame time (s). */
+export function smoothSpeed(prev: number, inst: number, dt: number): number {
+  const a = 1 - Math.exp(-Math.max(0, dt) / SPEED_TAU);
+  return prev + (inst - prev) * a;
+}
+
+/** Speed of the page over one frame, or 0 when the frame was a jump. */
+export function frameSpeed(deltaY: number, dt: number): number {
+  if (Math.abs(deltaY) > JUMP_PX || dt <= 0) return 0;
+  return deltaY / dt;
+}
+
+/** The slide (px) the spring is pulled towards for a smoothed scroll speed `vel` (px/s). */
+export function targetPx(vel: number, feel: ScrollFeel): number {
+  return SLIDE_SIGN * Math.tanh(vel / SPEED_SCALE) * MAX_PX * feel.gain;
 }
 
 /**
- * One step of the damped spring towards `target`. Semi-implicit Euler with a small fixed sub-step,
- * stable at any frame time. `calm` makes it settle faster (a held or moving object).
+ * One step of the spring towards `target`. Semi-implicit Euler with a fixed sub-step, stable at
+ * any frame time. `calm` settles faster and without overshoot (a held or moving object).
  */
 export function stepSpring(
   s: Spring,
@@ -74,24 +92,23 @@ export function stepSpring(
   dt: number,
   calm = false,
 ): void {
-  const w = 2 * Math.PI * SPRING_HZ * (calm ? 1.6 : 1);
+  const w = 2 * Math.PI * SPRING_HZ * (calm ? 1.8 : 1);
   const z = calm ? 1 : SPRING_ZETA;
-  let left = Math.min(dt, 0.1);
+  let left = Math.min(dt, 0.25);
   while (left > 1e-6) {
-    const h = Math.min(left, 1 / 120);
+    const h = Math.min(left, 1 / 240);
     s.v += (w * w * (target - s.x) - 2 * z * w * s.v) * h;
     s.x += s.v * h;
     left -= h;
   }
 }
 
-/** True when the spring has settled at zero (so it can stop asking for frames). */
+/** True when the spring has settled (so it can stop asking for frames and be set to zero). */
 export function atRest(s: Spring, target: number): boolean {
-  return target === 0 && Math.abs(s.x) < REST && Math.abs(s.v) < REST * 4;
+  return target === 0 && Math.abs(s.x) < REST_PX && Math.abs(s.v) < REST_PX * 8;
 }
 
-/** The lean (rad) for a shift: a ball rolls by shift / radius, anything else tips a little. */
-export function leanFor(x: number, feel: ScrollFeel): number {
-  if (feel.rollRadius > 0) return x / feel.rollRadius;
-  return (x / MAX_SHIFT) * MAX_LEAN * feel.gain;
+/** A ball's turn (rad) for a slide of `distance` metres: it rolls. Everything else: exactly 0. */
+export function rollAngle(distance: number, feel: ScrollFeel): number {
+  return feel.rollRadius > 0 ? distance / feel.rollRadius : 0;
 }

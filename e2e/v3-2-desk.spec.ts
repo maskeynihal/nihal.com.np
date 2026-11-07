@@ -7,25 +7,34 @@ import { test, expect } from './fixtures';
 
 const figure = (page: Page) => page.locator('[data-desk]');
 
-/** Samples the springs every 16 ms for `ms`; the largest |shift| (m) per object id. */
-function sample(page: Page, ms: number) {
+/**
+ * Samples the springs every 16 ms for `ms`: the largest |slide| (screen px) and the largest
+ * rotation (rad) of the drawn pivot, per object id.
+ */
+function sampleBoth(page: Page, ms: number) {
   return page.evaluate(
     (total) =>
-      new Promise<Record<string, number>>((resolve) => {
-        const peak: Record<string, number> = {};
-        const t0 = performance.now();
-        const id = setInterval(() => {
-          for (const s of window.__hooks!.desk!.scene!.motion())
-            peak[s.id] = Math.max(peak[s.id] ?? 0, Math.abs(s.x));
-          if (performance.now() - t0 > total) {
-            clearInterval(id);
-            resolve(peak);
-          }
-        }, 16);
-      }),
+      new Promise<{ x: Record<string, number>; rot: Record<string, number> }>(
+        (resolve) => {
+          const x: Record<string, number> = {};
+          const rot: Record<string, number> = {};
+          const t0 = performance.now();
+          const id = setInterval(() => {
+            for (const s of window.__hooks!.desk!.scene!.motion()) {
+              x[s.id] = Math.max(x[s.id] ?? 0, Math.abs(s.x));
+              rot[s.id] = Math.max(rot[s.id] ?? 0, s.rot);
+            }
+            if (performance.now() - t0 > total) {
+              clearInterval(id);
+              resolve({ x, rot });
+            }
+          }, 16);
+        },
+      ),
     ms,
   );
 }
+const sample = async (page: Page, ms: number) => (await sampleBoth(page, ms)).x;
 
 async function live(page: Page) {
   await page.setViewportSize({ width: 1280, height: 1100 });
@@ -48,9 +57,9 @@ test.describe('desk v3.2 @V3-2-desk', () => {
     await live(page);
     await expect(page.getByText('pick something up')).toHaveCount(0);
     const peak = await sample(page, 7000);
-    // About 8 px of travel: a few millimetres to a centimetre in the table's units.
-    expect(peak['ball-s'] ?? 0).toBeGreaterThan(0.004);
-    expect(peak['ball-s'] ?? 0).toBeLessThan(0.02);
+    // About 5 px of travel on screen.
+    expect(peak['ball-s'] ?? 0).toBeGreaterThan(2);
+    expect(peak['ball-s'] ?? 0).toBeLessThan(7);
     // Nothing else moved on its own, and the engine was not asked for.
     expect(peak['laptop'] ?? 0).toBe(0);
     expect(
@@ -62,39 +71,61 @@ test.describe('desk v3.2 @V3-2-desk', () => {
       timeout: 45_000,
     });
     const again = await sample(page, 4500);
-    expect(again['ball-s'] ?? 0).toBeLessThan(0.0005);
+    expect(again['ball-s'] ?? 0).toBeLessThan(0.05);
   });
 
-  test('scroll sways the objects: light ones more than heavy ones, back to rest, no physics, no drift @V3-2-desk', async ({
+  test('a wheel scroll nudges the table: balls slide most, only balls turn, exact zero at rest, no physics @V3-2-desk', async ({
     page,
   }) => {
     await live(page);
     await page.evaluate(() => sessionStorage.setItem('nihal:desk-nudge', '1'));
     await figure(page).locator('canvas').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
-    const pos = async () =>
-      (await page.evaluate(() => window.__hooks!.desk!.scene!.pick('ball-m')))!;
-    const y0 = (await pos()).y + (await page.evaluate(() => scrollY));
-    const done = sample(page, 1500);
-    // Scroll events arrive about every 150 ms under SwiftShader, so a wheel step of 380 px is a
-    // fast scroll (about 2500 px/s). Alternate directions so the table stays on screen.
+    const where = async () =>
+      page.evaluate(() => {
+        const s = window.__hooks!.desk!.scene!;
+        return ['ball-m', 'laptop', 'pacman-1', 'arduino'].map((id) => {
+          const p = s.pick(id)!;
+          return [p.x, p.y + scrollY];
+        });
+      });
+    const before = await where();
+    const done = sampleBoth(page, 1800);
+    // Real wheel input. Scroll events arrive about every 150 ms under SwiftShader, so a wheel
+    // step of 380 px is a fast scroll (about 2500 px/s). Alternate directions so the table stays
+    // on screen.
     for (let i = 0; i < 6; i++) {
       await page.mouse.wheel(0, i % 2 ? -380 : 380);
       await page.waitForTimeout(40);
     }
-    const peak = await done;
-    expect(peak['pacman-1'] ?? 0).toBeGreaterThan(0.001);
-    // A few px at most: never more than 0.01 m (6 px) for any object.
-    for (const v of Object.values(peak)) expect(v).toBeLessThan(0.01);
+    const { x: peak, rot } = await done;
+    expect(peak['pacman-1'] ?? 0).toBeGreaterThan(0.3);
+    // About 6 px on screen at most, for any object.
+    for (const v of Object.values(peak)) expect(v).toBeLessThan(6.5);
+    expect(peak['ball-m'] ?? 0).toBeGreaterThan(peak['pacman-1'] ?? 0);
     expect(peak['pacman-1'] ?? 0).toBeGreaterThan((peak['laptop'] ?? 0) * 2);
+    expect(peak['pacman-1'] ?? 0).toBeGreaterThan((peak['arduino'] ?? 0) * 2);
+    // Nothing tilts: only the balls turn, and they roll.
+    for (const [id, r] of Object.entries(rot))
+      if (!id.startsWith('ball')) expect(r, id).toBe(0);
+    expect(Math.max(rot['ball-m'] ?? 0, rot['ball-l'] ?? 0)).toBeGreaterThan(0);
     await page.waitForTimeout(1500);
+    // Exactly zero offset and zero rotation at rest, read from the drawn transforms.
     const rest = await page.evaluate(() =>
       window.__hooks!.desk!.scene!.motion(),
     );
-    for (const s of rest) expect(Math.abs(s.x)).toBeLessThan(0.0005);
-    const y1 = (await pos()).y + (await page.evaluate(() => scrollY));
-    // The table itself did not move against the page; only its objects swayed, and they are back.
-    expect(Math.abs(y1 - y0)).toBeLessThan(1.5);
+    for (const s of rest) {
+      expect(s.x, s.id).toBe(0);
+      expect(s.v, s.id).toBe(0);
+      expect(s.off, s.id).toBe(0);
+      expect(s.rot, s.id).toBe(0);
+    }
+    // The table itself did not move against the page, and every object is back where it was.
+    const after = await where();
+    after.forEach((p, i) => {
+      expect(Math.abs(p[0]! - before[i]![0]!)).toBeLessThan(1.5);
+      expect(Math.abs(p[1]! - before[i]![1]!)).toBeLessThan(1.5);
+    });
     expect(
       await page.evaluate(() => window.__hooks!.desk!.scene!.physics().state),
     ).toBe('idle');
