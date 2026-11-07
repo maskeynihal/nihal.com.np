@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en" data-lamp="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Side art prototype</title>
+<style>
+:root{
+  --blue:#1f3fe0;--blue-deep:#142fb8;--blue-ink:#0a1c6b;--paper:#f6f5f1;
+  --page:#1f3fe0;--page-deep:#142fb8;--ink:#fff;--ink-soft:rgb(255 255 255/.85);
+  --stroke:rgb(255 255 255/.85);--hair:rgb(255 255 255/.12);--hair-strong:rgb(255 255 255/.3);
+  --panel:#f6f5f1;--panel-ink:#0a1c6b;--panel-ink-soft:rgb(10 28 107/.65);--panel-hair:rgb(10 28 107/.14);
+  --inset:12px;--gutter:24px;--index-w:7.5rem;
+}
+:root[data-lamp='4']{--page:#f6f5f1;--page-deep:#ecebe5;--ink:#0a1c6b;--ink-soft:rgb(10 28 107/.7);--stroke:#1f3fe0;--hair:rgb(31 63 224/.1);--hair-strong:rgb(31 63 224/.3);--panel:#fff}
+:root[data-lamp='2']{--page:#b3b4c6;--page-deep:#a6a7bb;--ink:#0a1c6b;--ink-soft:rgb(10 28 107/.82);--stroke:#142fb8;--hair:rgb(10 28 107/.16);--hair-strong:rgb(10 28 107/.38);--panel:#d6d6e0;--panel-ink-soft:rgb(10 28 107/.74);--panel-hair:rgb(10 28 107/.2)}
+:root[data-lamp='0']{--page:#0a1348;--page-deep:#060d33;--ink:#e8ecff;--ink-soft:rgb(232 236 255/.82);--stroke:rgb(232 236 255/.8);--hair:rgb(232 236 255/.1);--hair-strong:rgb(232 236 255/.26);--panel:#c3c7dc;--panel-ink-soft:rgb(10 28 107/.74);--panel-hair:rgb(10 28 107/.2)}
+*{box-sizing:border-box}
+html{background:var(--page);color:var(--ink)}
+body{margin:0;font:18px/1.6 Georgia,'Times New Roman',serif;color:var(--ink);background:var(--page)}
+#art{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:0}
+.sheet-border{position:fixed;inset:0;z-index:30;pointer-events:none;border:var(--inset) solid var(--page-deep)}
+.sheet-border::after{content:'';position:absolute;inset:-1px;border:1px solid var(--stroke)}
+.index{position:fixed;z-index:5;left:calc(var(--inset) + var(--gutter));top:calc(var(--inset) + 28px);width:var(--index-w);font:11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.index div{padding:6px 0;border-top:1px solid var(--hair-strong)}
+.index b{display:block;font-weight:400;opacity:.6}
+.sheet{position:relative;z-index:1;padding:calc(var(--inset) + var(--gutter)) calc(var(--inset) + var(--gutter)) var(--inset) calc(var(--inset) + var(--index-w) + var(--gutter)*2)}
+.section{padding-block:48px}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gutter);max-width:80rem;margin-inline:auto}
+.txt{min-width:0}
+.txt.l{grid-column:1/7}.txt.r{grid-column:7/13}
+.empty-col{min-width:0}
+.empty-col.l{grid-column:1/7;grid-row:1}.empty-col.r{grid-column:7/13;grid-row:1}
+.txt{grid-row:1}
+.eyebrow{font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px}
+h2{font-weight:500;font-size:38px;line-height:1.1;margin:0 0 24px;letter-spacing:-.01em}
+p{margin:0 0 22px;color:var(--ink-soft);max-width:34rem}
+.panel{background:var(--panel);color:var(--panel-ink);border:1px solid var(--panel-hair);border-radius:6px;padding:22px 24px;margin:8px 0 30px;max-width:34rem}
+.panel .eyebrow{color:var(--panel-ink-soft)}
+.panel p{color:var(--panel-ink-soft);margin:0}
+.panel dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 20px;font-size:15px}
+.panel dt{font:12px/1.9 ui-monospace,Menlo,monospace;color:var(--panel-ink-soft);text-transform:uppercase;letter-spacing:.06em}
+.panel dd{margin:0;border-bottom:1px solid var(--panel-hair)}
+.panel blockquote{margin:0;font-size:21px;line-height:1.4;color:var(--panel-ink)}
+.ctl{position:fixed;z-index:40;right:28px;bottom:28px;font:11px/1 ui-monospace,Menlo,monospace;color:var(--ink);background:var(--page-deep);border:1px solid var(--hair-strong);border-radius:6px;padding:8px 10px;display:grid;grid-template-columns:auto auto;gap:6px 10px;align-items:center;opacity:.92}
+.ctl span{opacity:.7;letter-spacing:.08em;text-transform:uppercase}
+.ctl .row{display:flex;gap:4px}
+.ctl button{font:inherit;color:inherit;background:transparent;border:1px solid var(--hair-strong);border-radius:4px;width:26px;height:24px;cursor:pointer;padding:0}
+.ctl button[aria-pressed=true]{background:var(--ink);color:var(--page)}
+.ctl button:focus-visible{outline:2px solid var(--stroke);outline-offset:1px}
+.ctl .names,.ctl .note{grid-column:1/-1;letter-spacing:.02em;text-transform:none;opacity:.85}
+@media (pointer:coarse){.ctl{right:20px;bottom:20px;transform:scale(1.45);transform-origin:bottom right}}
+@media (max-width:1023px){.index{display:none}.sheet{padding-left:calc(var(--inset) + var(--gutter))}.txt.l,.txt.r{grid-column:1/-1;grid-row:2}
+  .txt>p:not(.eyebrow):nth-of-type(n+3),.txt>.panel{display:none}
+  .empty-col.l,.empty-col.r{display:block;grid-column:1/-1;grid-row:1;height:75vh}}
+</style>
+</head>
+<body>
+<canvas id="art" aria-hidden="true"></canvas>
+<div class="sheet-border"></div>
+<nav class="index" aria-hidden="true"></nav>
+<main class="sheet" id="sheet"></main>
+<div class="ctl" role="group" aria-label="Prototype controls">
+  <span>Dir</span><div class="row" id="dirs"></div>
+  <span>Lamp</span><div class="row" id="lamps"></div>
+  <span class="names">A contour · B dots · C strands</span>
+  <span class="note">Placeholder text, art only</span>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* ---------- mock page ---------- */
+const PARAS = [
+ 'I build web products where the interesting problem is usually somewhere between the database and the person using it. Most of my work has been on logistics and booking tools, where a slow query is a missed flight.',
+ 'The last three years were spent on a platform that moves goods across a land-locked country. Customs paperwork, driver hand-offs, a dozen carriers who each expect a different file format. The software had to be boring in all the right places.',
+ 'I like small teams and long feedback loops. A deploy that takes four minutes changes how you write code; one that takes forty changes what you are willing to try. Most of the speedups came from deleting things rather than adding them.',
+ 'Before that I wrote forms for a bank. Forms are underrated: they are contracts, interfaces and legal documents at once. I learned to read an error message as if I were the person on the other end of it, tired, on a phone, in a queue.',
+ 'On the side I keep a handful of tools running for friends: a calendar that understands monsoon-season road closures, a ledger for a village cooperative, a pipeline that turns scanned survey sheets into something a computer can search.',
+ 'Everything here is built to be maintained by someone who is not me. That means plain dependencies, written decisions, and tests that fail with a sentence rather than a stack trace. It is slower on day one and much faster on day four hundred.',
+ 'My approach to a new codebase is to read the tests first, then the commit history, then the code. The history tells you what hurt. The tests tell you what the team was afraid of. The code is just the current answer.',
+ 'Interfaces get the same treatment. I draw them on paper, then build the dullest version that works, then spend the remaining time on the states nobody screenshots: empty, loading, offline, half-failed, and finished.',
+ 'Teaching has been a quiet thread through all of it. Pairing sessions, short internal talks, a notebook of explanations that worked. If I cannot explain a design to a new hire in ten minutes, the design is not finished.',
+ 'I am based in Kathmandu and work across time zones without fuss. Async by default, a call when a call is faster, and a written summary afterwards so that nobody has to remember anything.',
+ 'A recent project replaced a spreadsheet that ran a warehouse. The spreadsheet had eleven tabs, three authors and one formula nobody dared touch. We kept the formula, wrapped it in a test, and moved everything around it.',
+ 'Performance work taught me to measure before touching anything. A profile is a map; without one you are just walking in the dark and renaming functions. The fastest fix was usually a missing index and an afternoon of patience.'
+];
+const PANELS = [
+ ['Fact sheet',[['Role','Full-stack engineer'],['Based','Kathmandu, NP'],['Stack','TypeScript, Postgres, Go'],['Since','2014']]],
+ ['Quote',null,'The best handover note I have ever received was four lines long and every line was true.'],
+ ['Current',[['Project','Freight booking platform'],['Team','Six engineers'],['Uptime','99.96% over twelve months'],['Deploy','About four minutes']]],
+ ['Reading list',[['Now','Release It!'],['Next','The Design of Everyday Things'],['Always','The man page']]],
+ ['Quote',null,'Make the change easy, then make the easy change. Mostly the first part is the job.']
+];
+const SECTIONS = [
+ ['01','Hello','r',4,0],['02','Work','l',7,2],['03','Projects','r',11,3],['04','Notes','l',5,1],
+ ['05','Writing','r',11,3],['06','Process','l',6,2],['07','Contact','r',8,2]
+];
+const sheet=document.getElementById('sheet'), idx=document.querySelector('.index');
+let pi=0, qi=0;
+for(const [n,label,side,np,nq] of SECTIONS){
+  const txtSide = side==='r' ? 'l' : 'r';           // text on the opposite half
+  let h=`<section class="section" id="s${n}"><div class="grid"><div class="txt ${txtSide}"><p class="eyebrow">Section ${n}</p><h2>${label}</h2>`;
+  let panelsLeft=nq;
+  for(let i=0;i<np;i++){
+    h+=`<p>${PARAS[pi++%PARAS.length]}</p>`;
+    if(panelsLeft>0 && i%3===1){
+      const P=PANELS[qi++%PANELS.length]; panelsLeft--;
+      h+= P[1] ? `<div class="panel"><p class="eyebrow">${P[0]}</p><dl>${P[1].map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl></div>`
+                : `<div class="panel"><p class="eyebrow">${P[0]}</p><blockquote>${P[2]}</blockquote></div>`;
+    }
+  }
+  h+=`</div><div class="empty-col ${side}" data-empty="${side}"></div></div></section>`;
+  sheet.insertAdjacentHTML('beforeend',h);
+  idx.insertAdjacentHTML('beforeend',`<div><b>${n}</b>${label}</div>`);
+}
+
+/* ---------- state ---------- */
+const cv=document.getElementById('art'), ctx=cv.getContext('2d');
+const root=document.documentElement;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// colour is the stroke token of each lamp level; k scales the whole art per level
+const PAL={
+  4:{rgb:'31,63,224',  k:0.78},
+  3:{rgb:'31,63,224',  k:0.85},
+  2:{rgb:'20,47,184',  k:0.95},
+  1:{rgb:'255,255,255',k:1.00},
+  0:{rgb:'232,236,255',k:1.05}
+};
+let dir='A', lamp=1;
+let W=innerWidth, H=innerHeight, dpr=1, pageH=0;
+let cols=[];
+let tt=0;                        // animation clock, seconds
+let sy=0;
+// pointer
+let ptx=-9999, pty=-9999, px=-9999, py=-9999, pI=0, pPresent=false;
+const ripples=[];
+
+/* ---------- noise ---------- */
+const P=new Uint8Array(512), GX=new Float32Array(256), GY=new Float32Array(256);
+(function(){
+  let s=1234567; const rnd=()=>{s=(s+0x6D2B79F5)|0;let t=Math.imul(s^(s>>>15),1|s);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296};
+  const perm=[...Array(256).keys()];
+  for(let i=255;i>0;i--){const j=Math.floor(rnd()*(i+1));[perm[i],perm[j]]=[perm[j],perm[i]]}
+  for(let i=0;i<512;i++)P[i]=perm[i&255];
+  for(let i=0;i<256;i++){const a=rnd()*Math.PI*2;GX[i]=Math.cos(a);GY[i]=Math.sin(a)}
+})();
+function pn(x,y){
+  let xi=Math.floor(x), yi=Math.floor(y); const xf=x-xi, yf=y-yi; xi&=255; yi&=255;
+  const u=xf*xf*xf*(xf*(xf*6-15)+10), v=yf*yf*yf*(yf*(yf*6-15)+10);
+  const a=P[P[xi]+yi], b=P[P[xi+1]+yi], c=P[P[xi]+yi+1], d=P[P[xi+1]+yi+1];
+  const n00=GX[a]*xf+GY[a]*yf, n10=GX[b]*(xf-1)+GY[b]*yf, n01=GX[c]*xf+GY[c]*(yf-1), n11=GX[d]*(xf-1)+GY[d]*(yf-1);
+  const x1=n00+u*(n10-n00), x2=n01+u*(n11-n01); return x1+v*(x2-x1);
+}
+const hash1=n=>{const s=Math.sin(n*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+
+/* ---------- layout ---------- */
+function layout(){
+  W=innerWidth; H=innerHeight;
+  dpr=Math.min(devicePixelRatio||1,2);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const sc=scrollY; cols=[];
+  document.querySelectorAll('.empty-col').forEach((el,i)=>{
+    const r=el.getBoundingClientRect(); if(r.width<80) return;
+    const sec=el.closest('.section').getBoundingClientRect();
+    const side=el.dataset.empty;
+    // the empty half, pulled in a little from the text-facing side
+    let l=r.left, rr=r.right; if(side==='r') l+=10; else rr-=10;
+    const narrow=W<1024;
+    cols.push({id:i,l,r:rr,t:(narrow?r.top:sec.top)+sc,b:(narrow?r.bottom:sec.bottom)+sc});
+  });
+  pageH=document.documentElement.scrollHeight;
+  gcols=Math.ceil(W/SPB)+3; grows=Math.ceil(pageH/SPB)+3;
+  gdx=new Float32Array(gcols*grows); gdy=new Float32Array(gcols*grows);
+  gvx=new Float32Array(gcols*grows); gvy=new Float32Array(gcols*grows);
+  kick();
+}
+
+/* ---------- segment buckets (batched strokes at quantised alpha) ---------- */
+const NB=24, MAXA=0.72, SEGCAP=26000;
+const bk=[]; for(let i=0;i<NB*2;i++) bk.push({a:new Float32Array(SEGCAP*4),n:0});
+function addSeg(maj,alpha,x1,y1,x2,y2){
+  let q=Math.round(alpha/MAXA*(NB-1)); if(q<=0) return; if(q>=NB) q=NB-1;
+  const b=bk[maj*NB+q]; if(b.n+4>b.a.length) return;
+  const a=b.a, n=b.n; a[n]=x1;a[n+1]=y1;a[n+2]=x2;a[n+3]=y2; b.n=n+4;
+}
+function flushSegs(rgb,w0,w1){
+  for(let m=0;m<2;m++){
+    ctx.lineWidth=m?w1:w0;
+    for(let q=1;q<NB;q++){
+      const b=bk[m*NB+q]; if(!b.n) continue;
+      ctx.strokeStyle=`rgba(${rgb},${(q/(NB-1)*MAXA).toFixed(3)})`;
+      ctx.beginPath(); const a=b.a;
+      for(let i=0;i<b.n;i+=4){ctx.moveTo(a[i],a[i+1]);ctx.lineTo(a[i+2],a[i+3])}
+      ctx.stroke(); b.n=0;
+    }
+  }
+}
+const FXE=64, FYE=80;
+function fade(c,x,y){
+  let dx=Math.min(x-c.l,c.r-x)/FXE, dy=Math.min(y-c.t,c.b-y)/FYE;
+  if(dx<=0||dy<=0) return 0;
+  if(dx>1)dx=1; if(dy>1)dy=1;
+  return dx*dx*(3-2*dx)*dy*dy*(3-2*dy);
+}
+
+/* ---------- A: contour map ---------- */
+const CS=16, STEP=0.052;
+const VAL=new Float32Array(200*200);
+function drawA(c,k){
+  const gx0=Math.floor(c.l/CS), gx1=Math.ceil(c.r/CS);
+  const y0=Math.max(c.t,sy-CS), y1=Math.min(c.b,sy+H+CS);
+  const gy0=Math.floor(y0/CS), gy1=Math.ceil(y1/CS);
+  const nx=gx1-gx0+1, ny=gy1-gy0+1; if(nx*ny>VAL.length||nx<2||ny<2) return;
+  const ca=Math.cos(tt*.05), sa=Math.sin(tt*.05), cb=Math.cos(tt*.083+1), sb=Math.sin(tt*.083+1);
+  const dX=tt*1.1, dY=-tt*.7;
+  const usePtr=pI>.003, nr=ripples.length;
+  const pwx=px, pwy=py+sy;
+  for(let j=0;j<ny;j++){
+    const y=(gy0+j)*CS;
+    for(let i=0;i<nx;i++){
+      const x=(gx0+i)*CS;
+      const X1=(x+dX)/290, Y1=(y+dY)/290, X2=(x-dX*1.4)/135, Y2=(y+dY*.6)/135;
+      let h=.5+.64*(ca*pn(X1,Y1)+sa*pn(X1+31.7,Y1+17.3))
+              +.27*(cb*pn(X2+5.1,Y2+9.2)+sb*pn(X2+44.4,Y2+3.3))
+              +.07*pn(x/62+tt*.03+3,y/62-tt*.02);
+      if(usePtr){
+        const ddx=x-pwx, ddy=y-pwy, r2=ddx*ddx+ddy*ddy;
+        if(r2<90000){
+          const r=Math.sqrt(r2);
+          h+=pI*(.15*Math.exp(-r2/(2*85*85)) + .011*Math.cos(r/17-tt*1.8)*Math.exp(-r2/(2*130*130)));
+        }
+      }
+      for(let q=0;q<nr;q++){
+        const rp=ripples[q], a=tt-rp.t0, ddx=x-rp.x, ddy=y-rp.y;
+        const R=230*Math.pow(a,.82), d=Math.sqrt(ddx*ddx+ddy*ddy)-R;
+        if(d>-170&&d<170) h+=.07*Math.exp(-a*.75)*Math.cos(d*.16)*Math.exp(-(d*d)/(2*48*48));
+      }
+      VAL[j*nx+i]=h;
+    }
+  }
+  const base=.17*k;
+  for(let j=0;j<ny-1;j++){
+    const yt=(gy0+j)*CS, yb=yt+CS;
+    for(let i=0;i<nx-1;i++){
+      const xl=(gx0+i)*CS, xr=xl+CS;
+      const a=VAL[j*nx+i], b=VAL[j*nx+i+1], cc=VAL[(j+1)*nx+i+1], d=VAL[(j+1)*nx+i];
+      const mn=Math.min(a,b,cc,d), mx=Math.max(a,b,cc,d);
+      const k0=Math.ceil(mn/STEP), k1=Math.floor(mx/STEP);
+      if(k1<k0) continue;
+      const mxm=xl+CS/2, mym=yt+CS/2;
+      const f=fade(c,mxm,mym); if(f<.02) continue;
+      let br=0;
+      if(usePtr){const ddx=mxm-pwx, ddy=mym-pwy; br+=pI*Math.exp(-(ddx*ddx+ddy*ddy)/(2*120*120))}
+      for(let q=0;q<nr;q++){
+        const rp=ripples[q], a2=tt-rp.t0, ddx=mxm-rp.x, ddy=mym-rp.y;
+        const d2=Math.sqrt(ddx*ddx+ddy*ddy)-230*Math.pow(a2,.82);
+        br+=.9*Math.exp(-a2*.75)*Math.exp(-(d2*d2)/(2*50*50));
+      }
+      const gain=f*(1+1.7*br);
+      for(let kk=k0;kk<=k1;kk++){
+        const L=kk*STEP;
+        const idx=(a>L?8:0)|(b>L?4:0)|(cc>L?2:0)|(d>L?1:0);
+        if(idx===0||idx===15) continue;
+        const tx=xl+CS*(L-a)/(b-a), ry=yt+CS*(L-b)/(cc-b), bx=xl+CS*(L-d)/(cc-d), ly=yt+CS*(L-a)/(d-a);
+        const maj=(((kk%5)+5)%5===0)?1:0;
+        const al=base*(maj?1.55:1)*gain;
+        switch(idx){
+          case 1:case 14: addSeg(maj,al,xl,ly,bx,yb);break;
+          case 2:case 13: addSeg(maj,al,bx,yb,xr,ry);break;
+          case 3:case 12: addSeg(maj,al,xl,ly,xr,ry);break;
+          case 4:case 11: addSeg(maj,al,tx,yt,xr,ry);break;
+          case 6:case 9:  addSeg(maj,al,tx,yt,bx,yb);break;
+          case 7:case 8:  addSeg(maj,al,tx,yt,xl,ly);break;
+          case 5:case 10: {
+            const ctr=(a+b+cc+d)/4>L;
+            if((idx===5)===ctr){addSeg(maj,al,tx,yt,xr,ry);addSeg(maj,al,xl,ly,bx,yb)}
+            else {addSeg(maj,al,tx,yt,xl,ly);addSeg(maj,al,bx,yb,xr,ry)}
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ---------- B: drafting dot grid ---------- */
+const SPB=24;
+let gcols=0,grows=0,gdx,gdy,gvx,gvy;
+function drawB(c,k,dt,rgb){
+  const ix0=Math.ceil(c.l/SPB), ix1=Math.floor(c.r/SPB);
+  const iy0=Math.max(0,Math.ceil(Math.max(c.t,sy-SPB)/SPB)), iy1=Math.floor(Math.min(c.b,sy+H+SPB)/SPB);
+  const usePtr=pI>.003, nr=ripples.length, pwx=px, pwy=py+sy;
+  const K=26, C=5.2, PUSH=420;
+  ctx.fillStyle=`rgb(${rgb})`;
+  const base=.58*k;
+  for(let iy=iy0;iy<=iy1;iy++){
+    const ry=iy*SPB;
+    for(let ix=ix0;ix<=ix1;ix++){
+      const rx=ix*SPB;
+      const f=fade(c,rx,ry); if(f<.02) continue;
+      const id=iy*gcols+ix;
+      let dx=gdx[id], dy=gdy[id];
+      // brightness terms
+      let bp=0, wv=0;
+      let fx=-K*dx-C*gvx[id], fy=-K*dy-C*gvy[id];
+      if(usePtr){
+        const ex=rx-pwx, ey=ry-pwy, r2=ex*ex+ey*ey;
+        if(r2<76000){
+          const r=Math.sqrt(r2)+.5, g=Math.exp(-r2/(2*78*78));
+          const m=PUSH*pI*g*(r/(r+10));
+          fx+=m*ex/r; fy+=m*ey/r;
+          bp=pI*Math.exp(-r2/(2*105*105));
+        }
+      }
+      for(let q=0;q<nr;q++){
+        const rp=ripples[q], a=tt-rp.t0, ex=rx-rp.x, ey=ry-rp.y;
+        const r=Math.sqrt(ex*ex+ey*ey)+.5, s=(r-270*a)/34;
+        if(s>-3&&s<3){
+          const am=Math.exp(-a*.9)/(1+r/260)*Math.exp(-s*s);
+          fx+=1500*am*ex/r; fy+=1500*am*ey/r; wv+=am;
+        }
+      }
+      if(dt>0){
+        const vx=gvx[id]+fx*dt, vy=gvy[id]+fy*dt;
+        gvx[id]=vx; gvy[id]=vy; dx+=vx*dt; dy+=vy*dt; gdx[id]=dx; gdy[id]=dy;
+      }
+      const x=rx+dx, y=ry+dy;
+      // very slow crossing waves of size and brightness
+      const amb=.5+.25*Math.sin((rx*.55+ry*.84)*.0056-tt*.42)+.25*Math.sin((rx*-.8+ry*.6)*.0041+tt*.3);
+      const al=base*(.38+.62*amb)*(1+2.3*bp+3*wv)*f;
+      if(al<.01) continue;
+      ctx.globalAlpha=al>.9?.9:al;
+      if((ix&3)===0&&(iy&3)===0){
+        const L=3.5+3*bp+4*wv;
+        ctx.fillRect(x-L,y-.5,L*2,1); ctx.fillRect(x-.5,y-L,1,L*2);
+      } else {
+        const s=1.05+.75*amb+1.2*bp+1.5*wv;
+        ctx.fillRect(x-s/2,y-s/2,s,s);
+      }
+    }
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ---------- C: drawn strands ---------- */
+const SPC=14, RSC=20, CK=24, CC=3.6;
+const comm=new Float32Array(400);
+function drawC(c,k,dt){
+  const w=c.r-c.l, n=Math.floor((w-40)/SPC), rows=Math.ceil((c.b-c.t)/RSC)+1;
+  if(n<2) return;
+  if(!c.so||c.so.length!==n*rows){c.so=new Float32Array(n*rows);c.sv=new Float32Array(n*rows)}
+  const ox=c.l+(w-(n-1)*SPC)/2;
+  const j0=Math.max(0,Math.floor((sy-40-c.t)/RSC)), j1=Math.min(rows-1,Math.ceil((sy+H+40-c.t)/RSC));
+  if(j1-j0>=comm.length) return;
+  const ca=Math.cos(tt*.06), sa=Math.sin(tt*.06);
+  for(let j=j0;j<=j1;j++){const y=c.t+j*RSC; comm[j-j0]=pn(y*.0011+tt*.014+c.id*3.7,5.5+c.id)}
+  const usePtr=pI>.003, nr=ripples.length, pwx=px, pwy=py+sy;
+  const base=.25*k;
+  for(let i=0;i<n;i++){
+    const x0=ox+i*SPC, maj=(i%6===0)?1:0, sv=.72+.5*hash1(i*1.7+c.id*13.3);
+    let pxp=0,pyp=0,pal=0;
+    for(let j=j0;j<=j1;j++){
+      const y=c.t+j*RSC, id=i*rows+j;
+      const yy=y*.0030, ii=i*.61+c.id*7.3;
+      const rest=x0+3.0*comm[j-j0]*1.6+2.4*(ca*pn(ii,yy)+sa*pn(ii+37.7,yy+11));
+      let o=c.so[id], v=c.sv[id];
+      let fo=-CK*o-CC*v, br=0;
+      if(usePtr){
+        const ex=rest-pwx, ey=y-pwy, r2=ex*ex+ey*ey;
+        if(r2<62000){
+          const g=Math.exp(-r2/(2*80*80)), ax=Math.abs(ex);
+          fo+=Math.sign(ex)*400*pI*g*(ax/(ax+12));
+          br+=pI*Math.exp(-r2/(2*105*105));
+        }
+      }
+      for(let q=0;q<nr;q++){
+        const rp=ripples[q], a=tt-rp.t0, ex=x0-rp.x;
+        const wx=Math.exp(-(ex*ex)/(2*58*58)); if(wx<.02) continue;
+        const life=Math.exp(-a*.85), yu=rp.y-a*480, yd=rp.y+a*480;
+        const su=(y-yu)/36, sd=(y-yd)/36;
+        const pul=wx*life*(Math.exp(-su*su)+Math.exp(-sd*sd));
+        br+=pul*1.5; fo+=((i&1)?1:-1)*pul*700;
+      }
+      if(dt>0){v+=fo*dt; o+=v*dt; c.so[id]=o; c.sv[id]=v}
+      const x=rest+o;
+      const al=base*sv*(maj?1.4:1)*fade(c,x,y)*(1+1.9*br);
+      if(j>j0){addSeg(maj,(al+pal)*.5,pxp,pyp,x,y)}
+      pxp=x;pyp=y;pal=al;
+    }
+  }
+}
+
+/* ---------- frame ---------- */
+const stats={A:{n:0,sum:0,max:0},B:{n:0,sum:0,max:0},C:{n:0,sum:0,max:0}};
+function draw(dt){
+  sy=scrollY;
+  const vis=[]; for(const c of cols) if(c.b>sy&&c.t<sy+H) vis.push(c);
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
+  if(!vis.length) return 0;
+  const pal=PAL[lamp], rgb=pal.rgb, k=pal.k;
+  ctx.setTransform(dpr,0,0,dpr,0,-sy*dpr);
+  ctx.lineCap='butt'; ctx.lineJoin='round';
+  if(dir==='A'){ for(const c of vis) drawA(c,k); flushSegs(rgb,.8,1.15) }
+  else if(dir==='B'){ for(const c of vis) drawB(c,k,dt,rgb) }
+  else { for(const c of vis) drawC(c,k,dt); flushSegs(rgb,.75,1.1) }
+  return vis.length;
+}
+function step(dt){
+  tt+=dt;
+  const e=1-Math.exp(-dt*13);
+  if(pPresent){ if(px<-5000){px=ptx;py=pty} px+=(ptx-px)*e; py+=(pty-py)*e; pI=Math.min(1,pI+dt*3.2) }
+  else pI=Math.max(0,pI-dt*1.6);
+  for(let i=ripples.length-1;i>=0;i--) if(tt-ripples[i].t0>5) ripples.splice(i,1);
+}
+let raf=0, last=0, running=false;
+function frame(now){
+  raf=0; if(!running) return;
+  const el=now-last;
+  if(el<1000/30-3){ raf=requestAnimationFrame(frame); return }
+  last=now; const dt=Math.min(.05,el/1000);
+  step(dt);
+  const t0=performance.now(); const n=draw(dt); const cost=performance.now()-t0;
+  const s=stats[dir]; if(n){s.n++;s.sum+=cost;if(cost>s.max)s.max=cost}
+  const settled=!pPresent&&pI<=0&&!ripples.length;
+  if(!n){ running=false; return }              // nothing on screen: sleep until scroll
+  raf=requestAnimationFrame(frame);
+}
+function kick(){
+  if(reduced){ if(!raf) raf=requestAnimationFrame(()=>{raf=0;ripples.length=0;pI=0;draw(0)}); return }
+  if(document.hidden) return;
+  if(!running){running=true;last=performance.now()-40}
+  if(!raf) raf=requestAnimationFrame(frame);
+}
+
+/* ---------- input ---------- */
+addEventListener('pointermove',e=>{ptx=e.clientX;pty=e.clientY;pPresent=true;kick()},{passive:true});
+document.documentElement.addEventListener('pointerleave',()=>{pPresent=false});
+addEventListener('blur',()=>{pPresent=false});
+addEventListener('pointerdown',e=>{
+  if(reduced||e.target.closest('.ctl')) return;
+  ripples.push({x:e.clientX,y:e.clientY+scrollY,t0:tt}); if(ripples.length>4) ripples.shift(); kick();
+},{passive:true});
+addEventListener('scroll',kick,{passive:true});
+addEventListener('resize',layout);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){running=false} else kick() });
+if(window.ResizeObserver) new ResizeObserver(()=>layout()).observe(sheet);
+addEventListener('load',layout);
+
+/* ---------- controls ---------- */
+const dirsEl=document.getElementById('dirs'), lampsEl=document.getElementById('lamps');
+for(const d of ['A','B','C']){const b=document.createElement('button');b.textContent=d;b.dataset.d=d;b.title='Direction '+d;dirsEl.appendChild(b)}
+for(const l of [4,2,1,0]){const b=document.createElement('button');b.textContent=l;b.dataset.l=l;b.title='Lamp level '+l;lampsEl.appendChild(b)}
+function setDir(d){dir=d;ripples.length=0;dirsEl.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===d));
+  if(reduced) kick(); else kick()}
+function setLamp(l){lamp=l;root.dataset.lamp=l;lampsEl.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.l===l));kick()}
+dirsEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setDir(b.dataset.d)});
+lampsEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLamp(+b.dataset.l)});
+addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const m={'1':'A','2':'B','3':'C'}[e.key]; if(m) setDir(m);
+  if(e.key==='l'||e.key==='L'){const o=[4,2,1,0];setLamp(o[(o.indexOf(lamp)+1)%4])}
+});
+const qs=new URLSearchParams(location.search);
+setLamp(+(qs.get('l')??1)); setDir((qs.get('d')||'A').toUpperCase());
+
+/* ---------- test hooks ---------- */
+window.__art={
+  stats, get cols(){return cols},
+  pointer(x,y,on=true){ptx=x;pty=y;pPresent=on;if(on&&px<-5000){px=x;py=y} },
+  click(x,y){ripples.push({x,y:y+scrollY,t0:tt})},
+  advance(sec){ // settle simulation without drawing
+    for(let i=0;i<Math.round(sec*30);i++){step(1/30);draw(1/30)} },
+  bench(d,frames,flush){
+    const prev=dir; dir=d; const arr=[];
+    for(let i=0;i<frames;i++){
+      step(1/30); const t0=performance.now(); draw(1/30);
+      if(flush) ctx.getImageData(0,0,1,1);
+      arr.push(performance.now()-t0);
+    }
+    dir=prev; arr.sort((a,b)=>a-b);
+    return {avg:arr.reduce((a,b)=>a+b,0)/arr.length,p95:arr[Math.floor(arr.length*.95)],max:arr[arr.length-1]};
+  }
+};
+layout();
+})();
+</script>
+</body>
+</html>
