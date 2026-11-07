@@ -66,6 +66,16 @@
     padding-block: 0;
   }
 
+  /* --- Garden: the contact section already pads its end and the footer its start, so the strip adds
+     no spacing of its own. Without this the garden sat in a void of about 190 px at 390 px wide. */
+  .garden[data-garden] {
+    padding-block-start: 0;
+  }
+
+  .garden[data-garden] .garden-foot {
+    padding-block-end: 0;
+  }
+
   /* --- Footer: one tidy block, no paragraph gaps. */
   .sheet-footer {
     padding-block-start: 1.5rem;
