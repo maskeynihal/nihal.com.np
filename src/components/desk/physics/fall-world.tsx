@@ -27,6 +27,7 @@ import {
   screenVelocity,
   startGravityScale,
   unproject,
+  WALL_MARGIN,
   type Bounds,
 } from '../../../lib/desk/fall';
 import {
@@ -35,7 +36,12 @@ import {
   vecToWorld,
   worldToCamera,
 } from '../../../lib/desk/camera';
-import { GRAVITY, feelFor } from '../../../lib/desk/materials';
+import {
+  GRAVITY,
+  HANDOFF_RAMP_STEPS,
+  SURFACE,
+  feelFor,
+} from '../../../lib/desk/materials';
 import { playImpact } from '../../../lib/sound';
 import { registry, type RegistryEntry } from '../registry';
 import { table, tableFrame } from '../table';
@@ -71,8 +77,8 @@ import { screenRect } from './handoff';
  */
 
 const STEP = 1 / 60;
-/** Steps over which a handed-over body's gravity grows from the matched value to the real one. */
-const RAMP_STEPS = 14;
+/** Steps over which a handed-over body's gravity grows from the matched value to the full one. */
+const RAMP_STEPS = HANDOFF_RAMP_STEPS;
 const WALL = 0.5;
 /** Nearest and farthest depth a body may have, metres from the camera. */
 const Z_NEAR = 2.0;
@@ -175,8 +181,8 @@ function FallWorld({
         rapier.ColliderDesc.cuboid(hx, hy, hz)
           .setTranslation(p.x, p.y, p.z)
           .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
-          .setFriction(1)
-          .setRestitution(0)
+          .setFriction(SURFACE.friction)
+          .setRestitution(SURFACE.restitution)
           .setFrictionCombineRule(rapier.CoefficientCombineRule.Multiply)
           .setRestitutionCombineRule(rapier.CoefficientCombineRule.Max),
         body,
@@ -241,8 +247,8 @@ function FallWorld({
     const bd = bounds.current;
     if (!bd) return;
     const depth = clamp(-p.z, bd.zNear + 0.15, bd.zFar - 0.15);
-    const xMin = bd.left * depth + 0.1;
-    const xMax = bd.right * depth - 0.1;
+    const xMin = bd.left * depth + WALL_MARGIN;
+    const xMax = bd.right * depth - WALL_MARGIN;
     if (p.x < xMin) v.x = Math.max(v.x, 0);
     if (p.x > xMax) v.x = Math.min(v.x, 0);
     if (-p.z < bd.zNear + 0.15) v.z = Math.min(v.z, 0);

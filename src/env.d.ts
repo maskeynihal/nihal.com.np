@@ -69,7 +69,13 @@ interface DeskSceneHooks {
   /** Asks for the physics chunk as a first grab would. */
   requestPhysics(): void;
   /** Moves a body (waking it); false while physics is not loaded. */
-  teleport(id: string, x: number, y: number, z: number): boolean;
+  teleport(
+    id: string,
+    x: number,
+    y: number,
+    z: number,
+    v?: [number, number, number],
+  ): boolean;
   /** Viewport px of a point inside the object, or null. */
   pick(id: string): { x: number; y: number } | null;
   hovered(): string | null;

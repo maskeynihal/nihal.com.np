@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import type { Frame } from '../../components/desk/physics-bridge';
-import { GRAVITY } from './materials';
+import { GRAVITY, HANDOFF_MIN_GRAVITY } from './materials';
 
 /**
  * Maths for the fall layer (vectors only: no DOM and no WebGL).
@@ -96,7 +96,7 @@ export function startGravityScale(
   v: Vector3,
   aTable: Vector3,
   f: number,
-  lo = 0.3,
+  lo = HANDOFF_MIN_GRAVITY,
 ): { scale: number; aBefore: number } {
   const aBefore = screenAccelDown(p, v, aTable, f);
   const z = -p.z;
@@ -197,4 +197,28 @@ export function liftForFloor(
 ): number {
   if (y - prev.floorSlope * depth > reach) return 0;
   return Math.max(0, (next.floorSlope - prev.floorSlope) * depth);
+}
+
+/** How far inside the viewport's side edges (m, at the body's depth) a handed-over body is kept. */
+export const WALL_MARGIN = 0.1;
+
+/**
+ * True when a body flying beyond the table's rim is about to leave the part of the screen the table
+ * canvas shows (or the viewport), so it must be handed to the fall layer now, while its picture is
+ * still inside it: the fall world keeps bodies inside the viewport's edges, and a body handed over
+ * outside them is moved back in, which is a visible jump. `sx` and `svx` are the centre's screen x
+ * (px) and screen speed (px/s), `depth` its distance from the camera (m), `lead` how far ahead to
+ * look (s). The margin is the fall world's own wall margin in px at that depth, plus the lead.
+ */
+export function leavingView(
+  sx: number,
+  svx: number,
+  depth: number,
+  f: number,
+  box: { left: number; right: number },
+  lead: number,
+): boolean {
+  const margin = (WALL_MARGIN * f) / depth + 6;
+  const ahead = sx + svx * lead;
+  return ahead < box.left + margin || ahead > box.right - margin;
 }

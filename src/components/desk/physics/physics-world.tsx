@@ -21,7 +21,9 @@ import {
   type RapierCollider,
   type RapierRigidBody,
 } from '@react-three/rapier';
-import { Euler, Quaternion, type Group } from 'three';
+import { Euler, Quaternion, Vector3, type Group } from 'three';
+import { screenVelocity } from '../../../lib/desk/fall';
+import { vecToCamera } from '../../../lib/desk/camera';
 import {
   FOLLOW,
   LIFT,
@@ -30,7 +32,7 @@ import {
   outOfBounds,
   tiltFor,
 } from '../../../lib/desk/drag';
-import { feelFor } from '../../../lib/desk/materials';
+import { GRAVITY, SURFACE, feelFor } from '../../../lib/desk/materials';
 import type { ObjectDef } from '../../../lib/desk/object-def';
 import { registry, type RegistryEntry } from '../registry';
 import { table, tableFrame } from '../table';
@@ -43,6 +45,7 @@ import {
   type PhysicsApi,
 } from '../physics-bridge';
 import { handToFall } from './handoff';
+import { leavingView } from '../../../lib/desk/fall';
 
 /**
  * The table world: this file and its siblings are the only place that imports
@@ -80,12 +83,13 @@ const CLEAR_STEPS = 2;
 const LOOKAHEAD_S = 0.7;
 const NEAR_RIM = 0.12;
 const STEP = 1 / 60;
+/** Look this far ahead (s) when deciding that a body is about to leave the visible canvas. */
+const EDGE_LEAD_S = 3 * STEP;
 /** The slab is the table: its top is y = 0, where the sheet is drawn. */
 const SLAB_THICK = 0.05;
 
 const NEUTRAL = {
-  friction: 1,
-  restitution: 0,
+  ...SURFACE,
   frictionCombineRule: CoefficientCombineRule.Multiply,
   restitutionCombineRule: CoefficientCombineRule.Max,
 } as const;
@@ -221,6 +225,20 @@ const _q = new Quaternion();
 const _tilt = new Quaternion();
 const _cur = new Quaternion();
 const _e = new Euler();
+const _p = new Vector3();
+const _w = new Vector3();
+
+/** How far (m) from its origin any part of the body reaches: its collider's extent. */
+function reachOf(entry: RegistryEntry): number {
+  const c = entry.def.collider;
+  const o = Math.hypot(...c.offset);
+  if (c.kind === 'ball') return o + (c.args[0] ?? 0.05);
+  if (c.kind === 'capsule')
+    return o + (c.args[0] ?? 0.05) + (c.args[1] ?? 0.03);
+  return (
+    o + Math.hypot(c.args[0] ?? 0.05, c.args[1] ?? 0.05, c.args[2] ?? 0.05)
+  );
+}
 
 function World({
   entries,
@@ -381,6 +399,30 @@ function World({
     return true;
   };
 
+  /** True when the body's picture is about to leave the visible canvas sideways. */
+  const leaving = (rb: RapierRigidBody): boolean => {
+    const frame = tableFrame();
+    const cam = table.camera;
+    if (!frame || !cam) return false;
+    const t = rb.translation();
+    const v = rb.linvel();
+    const pc = _p.set(t.x, t.y, t.z).applyMatrix4(cam.matrixWorldInverse);
+    const vc = vecToCamera(cam, _w.set(v.x, v.y, v.z));
+    const [svx] = screenVelocity(pc, vc, frame.f);
+    const sx = frame.cx + (frame.f * pc.x) / -pc.z;
+    return leavingView(
+      sx,
+      svx,
+      -pc.z,
+      frame.f,
+      {
+        left: Math.max(0, frame.left),
+        right: Math.min(window.innerWidth, frame.left + frame.w),
+      },
+      EDGE_LEAD_S,
+    );
+  };
+
   /** True while any part of the body touches the slab. */
   const touchingSlab = (rb: RapierRigidBody): boolean => {
     const sc = slab.current;
@@ -421,10 +463,14 @@ function World({
           ? 0
           : (clear.current.get(entry.id) ?? 0) + 1;
         clear.current.set(entry.id, gap);
+        // A hard throw flies past the canvas's edge before it has dropped below the table top: the
+        // fall layer takes it there, at the edge, instead of after it has left the picture (it
+        // would then be moved back inside, a jump of 100 px or more). Only once it is clear of the
+        // slab by more than its own reach, so it cannot be about to land on the rim.
+        const ready = fallBridge.state() === 'ready' && gap >= CLEAR_STEPS;
         if (
-          fallBridge.state() === 'ready' &&
-          gap >= CLEAR_STEPS &&
-          p.y < -0.01 &&
+          ready &&
+          (p.y < -0.01 || (off > reachOf(entry) && leaving(rb))) &&
           handOver(entry, rb)
         )
           continue;
@@ -550,13 +596,13 @@ function World({
             },
           ];
         }),
-      teleport(id, x, y, z) {
+      teleport(id, x, y, z, v) {
         const rb = live(id);
         if (!rb || handed.current.has(id)) return false;
         grab.current = grab.current?.id === id ? null : grab.current;
         rb.setBodyType(rapier.RigidBodyType.Dynamic, true);
         rb.setTranslation({ x, y, z }, true);
-        rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        rb.setLinvel({ x: v?.[0] ?? 0, y: v?.[1] ?? 0, z: v?.[2] ?? 0 }, true);
         invalidate();
         return true;
       },
@@ -613,7 +659,7 @@ export default function PhysicsWorld({ paused }: { paused: boolean }) {
       timeStep={STEP}
       interpolate
       paused={paused || manual}
-      gravity={[0, -9.81, 0]}
+      gravity={[0, -GRAVITY, 0]}
     >
       <World entries={entries} setManual={setManual} />
     </Physics>

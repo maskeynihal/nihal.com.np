@@ -106,8 +106,8 @@ export function installSceneHooks(): () => void {
       fallBridge.api()?.step(n);
     },
     requestPhysics: () => physicsBridge.request(),
-    teleport: (id, x, y, z) =>
-      physicsBridge.api()?.teleport(id, x, y, z) ?? false,
+    teleport: (id, x, y, z, v) =>
+      physicsBridge.api()?.teleport(id, x, y, z, v) ?? false,
     pick: (id) => probe.interaction.pick(id),
     hovered: () => probe.interaction.hovered(),
     hoverLift: (id) => probe.interaction.lift(id),
