@@ -280,9 +280,23 @@
   transition: opacity 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/* Below 1024 the button sits in the right end of the bottom strip: no fixed spot above it is clear of
+   both the title card (on a short screen at the top of the page) and the objects resting on the strip.
+   The strip's links make room for it while it shows. */
 @media (max-width: 1023px) {
   .desk-reset {
-    inset-block-end: calc(var(--inset) + var(--strip-h) + 6.5rem);
+    inset-inline-end: var(--inset);
+    inset-block-end: var(--inset);
+    block-size: var(--strip-h);
+    inline-size: var(--strip-h);
+    border-radius: 0;
+    border-width: 0 0 0 1px;
+    background: var(--page-deep);
+  }
+
+  body:has(.desk[data-desk-state='live'][data-desk-free='true'])
+    .sheet-index-list {
+    padding-inline-end: var(--strip-h);
   }
 }
 
