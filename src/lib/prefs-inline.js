@@ -6,7 +6,7 @@
    Lamp: stored level 0-4 (nihal:lamp), else the old theme choice (blue 1, paper 4), else the OS
    colour scheme (light 4, dark 1). Sets data-lamp, data-theme (paper for 4/3/2, blue for 1/0)
    and theme-color.
-   Legacy fragments (#projects #blog #experience #education, plus #skills #home)
+   Legacy fragments (#work #blog #experience #education, plus #skills #home)
    are rewritten with replaceState, then the hash is re-applied to scroll to the target. */
 (function () {
   try {
@@ -49,7 +49,7 @@
       c.content = ['#0A1348', '#1F3FE0', '#B3B4C6', '#E6E4DC', '#F6F5F1'][l];
     d.dataset.sound = s === 'on' ? 'on' : 'off';
     var t = {
-      '#projects': '#work',
+      '#work': '#projects',
       '#blog': '#writing',
       '#experience': '#cv',
       '#education': '#cv',

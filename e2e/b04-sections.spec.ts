@@ -15,7 +15,7 @@ test.describe('work, open source, writing, cv @B-04', () => {
     page,
   }) => {
     await page.goto('/');
-    await expect(page.locator('#work article')).toHaveCount(panels.length);
+    await expect(page.locator('#projects article')).toHaveCount(panels.length);
     // Trayt stays out until the owner confirms the client name.
     await expect(page.locator('#work-trayt')).toHaveCount(0);
     for (const w of panels) {
@@ -139,7 +139,7 @@ test.describe('work, open source, writing, cv @B-04', () => {
       prev = l;
     }
     const bad = await page
-      .locator('#work a, #open-source a, #writing a')
+      .locator('#projects a, #open-source a, #writing a')
       .evaluateAll((as) =>
         as
           .map((a) => a as HTMLAnchorElement)

@@ -10,7 +10,15 @@ import type { Copy } from './schema';
 export const copy = {
   nav: {
     label: 'sheet index',
-    rows: ['desk', 'about', 'work', 'open source', 'writing', 'cv', 'contact'],
+    rows: [
+      'desk',
+      'about',
+      'projects',
+      'open source',
+      'writing',
+      'cv',
+      'contact',
+    ],
   },
   prefs: {
     motion: 'reduce motion',
@@ -22,18 +30,18 @@ export const copy = {
   titleBlock: {
     name: 'nihal maskey',
     kicker: 'lead software engineer · kathmandu, nepal',
-    line: 'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my work, open-source contributions and writing.',
+    line: 'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my projects, open-source contributions and writing.',
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
     revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
-    seeWork: 'see the work →',
+    seeProjects: 'see the projects →',
     reset: 'put everything back',
     skip: 'skip the 3D desk',
     oledNote: 'the oled readings are demo values',
   },
   headings: {
     about: 'about',
-    work: 'work',
+    projects: 'projects',
     openSource: 'open source',
     writing: 'writing',
     cv: 'cv',

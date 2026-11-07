@@ -33,7 +33,7 @@ Voice: first person, plain, specific, a little dry. No "passionate", no "innovat
 Title block
 - kicker: `lead software engineer · kathmandu, nepal`
 - intro: `I lead an engineering team at Leapfrog Technology that builds a US behavioural-health platform on AWS. I co-founded Daboo Spaces, a coworking space in Sankhamul. The rest of this sheet is things I built because I wanted them.`
-- actions: email link (existing CopyEmail) and a second link `see the work →` to `#work` (arrow in mono).
+- actions: email link (existing CopyEmail) and a second link `see the projects →` to `#projects` (arrow in mono).
 - drag hint: `pick something up. throw it off the table if you like.`
 - reset: `put everything back`
 

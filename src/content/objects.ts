@@ -101,7 +101,7 @@ export const objects: BodyDef[] = [
       offset: [0, 0.0925, -0.0292],
     },
     mass: 1,
-    target: '#work',
+    target: '#projects',
     label: 'laptop',
     confirmed: true,
   },

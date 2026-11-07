@@ -39,7 +39,7 @@ docs/
 ```
 
 ## 3. Preferences and capability (`prefs.ts` + inline head script)
-Inline `<script is:inline>` (hashed in CSP) runs before CSS: `try { localStorage }` guarded; sets `html[data-motion=reduce|full]` (reduce if stored or media query), `html[data-sound=on|off]`; maps legacy fragments (`#projects→#work`, `#about→#desk`, `#blog→#writing`, `#experience→#cv`, `#education→#cv`) via `location.replace`.
+Inline `<script is:inline>` (hashed in CSP) runs before CSS: `try { localStorage }` guarded; sets `html[data-motion=reduce|full]` (reduce if stored or media query), `html[data-sound=on|off]`; maps legacy fragments (`#work→#projects`, `#about→#desk`, `#blog→#writing`, `#experience→#cv`, `#education→#cv`) via `location.replace`.
 ```ts
 let cached: boolean | undefined
 export function hasWebGL2(allowSoftware = !!import.meta.env.PUBLIC_TEST_HOOKS) {

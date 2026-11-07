@@ -241,7 +241,7 @@ test.describe('preferences @A-03', () => {
     await expect(soundBtn(page)).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('legacy fragment /#projects lands on #work without a history entry', async ({
+  test('legacy fragment /#work lands on #projects without a history entry', async ({
     page,
     context,
     javaScriptEnabled,
@@ -250,8 +250,8 @@ test.describe('preferences @A-03', () => {
     await page.goto('/');
     const base = await page.evaluate(() => history.length);
     const p2 = await context.newPage();
-    await p2.goto('/#projects');
-    expect(await p2.evaluate(() => location.hash)).toBe('#work');
+    await p2.goto('/#work');
+    expect(await p2.evaluate(() => location.hash)).toBe('#projects');
     expect(await p2.evaluate(() => history.length)).toBe(base);
     await p2.close();
   });

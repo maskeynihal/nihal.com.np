@@ -9,6 +9,36 @@ const level = async (page: Page) =>
   Number(await html(page).getAttribute('data-lamp'));
 const THEME_OF = ['blue', 'blue', 'paper', 'paper', 'paper'];
 
+/**
+ * Waits for the 300 ms colour fade to end, then reads the colours: body text must be the level's
+ * `--ink` and the page the level's `--page`. axe samples whatever is on screen, so running it
+ * mid-fade measures a blend of two levels. (On WebKit the text also used to start late; see the
+ * lamp fade block in global.css.)
+ */
+async function settled(page: Page) {
+  await expect(html(page)).not.toHaveAttribute('data-lamp-fade', /.*/);
+  const read = () =>
+    page.evaluate(() => {
+      const probe = (v: string, prop: 'color' | 'backgroundColor') => {
+        const el = document.createElement('i');
+        el.style[prop] = `var(${v})`;
+        document.body.append(el);
+        const out = getComputedStyle(el)[prop];
+        el.remove();
+        return out;
+      };
+      return {
+        text: getComputedStyle(document.querySelector('#about p')!).color,
+        ink: probe('--ink', 'color'),
+        page: getComputedStyle(document.body).backgroundColor,
+        want: probe('--page', 'backgroundColor'),
+      };
+    });
+  await expect.poll(async () => (await read()).text).toBe((await read()).ink);
+  const c = await read();
+  expect(c.page).toBe(c.want);
+}
+
 test.describe('hanging lamp @V3-theme', () => {
   test('is a slider named "lamp brightness" with five values and no visible words @V3-theme', async ({
     page,
@@ -289,15 +319,19 @@ test.describe('hanging lamp @V3-theme', () => {
     javaScriptEnabled,
   }) => {
     test.skip(!javaScriptEnabled, 'needs JS');
+    // Eight axe scans (each waits for the colour fade first): 10-18 s alone, over 30 s when four
+    // workers share the machine.
+    test.slow();
     await page.goto('/');
     for (const l of [4, 3, 2, 1, 0]) {
       await lamp(page).focus();
       await page.keyboard.press(l === 4 ? 'End' : 'ArrowDown');
       await expect(html(page)).toHaveAttribute('data-lamp', String(l));
+      await settled(page);
       await expectNoAxeViolations(page, { label: `/ lamp level ${l}` });
     }
-    await page.locator('#work').scrollIntoViewIfNeeded();
-    await expectNoAxeViolations(page, { label: '/ lamp level 0, work' });
+    await page.locator('#projects').scrollIntoViewIfNeeded();
+    await expectNoAxeViolations(page, { label: '/ lamp level 0, projects' });
     await page.locator('#contact').scrollIntoViewIfNeeded();
     await expectNoAxeViolations(page, { label: '/ lamp level 0, contact' });
     await page.locator('.sheet-footer').scrollIntoViewIfNeeded();

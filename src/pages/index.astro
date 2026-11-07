@@ -46,7 +46,7 @@ const clocks = getClocks();
 const year = String(new Date().getFullYear());
 ---
 
-<Base skipTo="work" jsonLd>
+<Base skipTo="projects" jsonLd>
   <SheetBorder />
   <SheetIndex />
   <Lamp />
@@ -85,7 +85,12 @@ const year = String(new Date().getFullYear());
       </dl>
     </Section>
 
-    <Section id="work" heading={headings.work} side="left" art="work">
+    <Section
+      id="projects"
+      heading={headings.projects}
+      side="left"
+      art="projects"
+    >
       <p>{workCopy.intro}</p>
       {work.map((item) => (
         <WorkPanel item={item} />

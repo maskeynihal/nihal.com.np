@@ -1,0 +1,81 @@
+/* Phone clutter (S3), under 768 px. Imported after desk.css so it can compact the title block
+   without touching the desk's own rules. */
+
+@media (max-width: 767px) {
+  /* --- Bottom strip: about, projects, cv, contact. The other three sections are reached by
+     scrolling; the index script marks the nearest earlier row current while one of them is on
+     screen (nothing for the desk, which has no earlier row). Four rows fit at 320 px, so the
+     strip no longer scrolls sideways. */
+  .sheet-index-list > li[data-phone-skip] {
+    display: none;
+  }
+
+  .sheet-index-link {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* --- Title block: name, role line, sentence, then one row of email and link, the clock line,
+     and the two preferences in a single quiet row. The REV / SHEET / SCALE line is dropped. */
+  .title-block {
+    padding: 1rem 1.25rem;
+  }
+
+  .title-block .name {
+    font-size: 3rem;
+  }
+
+  .title-block-line {
+    margin-block-start: 0.5rem;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .title-block-rows {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 1.25rem;
+    margin-block-start: 0.5rem;
+    padding-block-start: 0.25rem;
+  }
+
+  .title-block-rows > li.title-block-clock {
+    flex-basis: 100%;
+  }
+
+  .title-block-rows > li.title-block-rev {
+    display: none;
+  }
+
+  .title-block-prefs {
+    gap: 0 1rem;
+    margin-block-start: 0;
+    color: var(--panel-ink-soft);
+  }
+
+  /* Under an OS reduce setting the note sits below the toggle; let it wrap so both preferences
+     still share a row at 320 px. */
+  .title-block-prefs .pref-note {
+    white-space: normal;
+    max-width: 6.5rem;
+  }
+
+  .title-block-prefs .pref-toggle {
+    min-height: 40px;
+    padding-block: 0;
+  }
+
+  /* --- Footer: one tidy block, no paragraph gaps. */
+  .sheet-footer {
+    padding-block-start: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sheet-footer > p {
+    margin: 0;
+    line-height: 1.5;
+  }
+}
