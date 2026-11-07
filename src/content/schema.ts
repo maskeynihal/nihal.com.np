@@ -149,7 +149,6 @@ export const Copy = z.strictObject({
     on: text,
     off: text,
     system: text,
-    lightMode: text,
   }),
   titleBlock: z.strictObject({
     name: text,

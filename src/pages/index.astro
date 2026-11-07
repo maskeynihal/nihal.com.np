@@ -10,6 +10,7 @@ import Section from '../components/Section.astro';
 import PaperPanel from '../components/PaperPanel.astro';
 import SheetBorder from '../components/SheetBorder.astro';
 import SheetIndex from '../components/SheetIndex.astro';
+import Lamp from '../components/Lamp.astro';
 import WorkPanel from '../components/WorkPanel.astro';
 import RevisionTable from '../components/RevisionTable.astro';
 import WritingList from '../components/WritingList.astro';
@@ -51,6 +52,7 @@ const year = String(new Date().getFullYear());
 <Base skipTo="work" jsonLd>
   <SheetBorder />
   <SheetIndex />
+  <Lamp />
   <main class="sheet">
     <Section id="desk" side="full" labelledBy="name">
       <div class="desk-stage">
