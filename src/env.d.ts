@@ -127,7 +127,14 @@ interface GardenHooks {
     held: boolean;
     grabbed: boolean;
     speed: number;
+    /** Dogs go for it. */
+    fetch: boolean;
+    claimed: boolean;
+    /** Being removed (a fifth ball pushes out the oldest). */
+    fading: boolean;
   }[];
+  /** Garden clock, seconds of stepped frames (not wall time). */
+  time(): number;
   flowers(): { x: number; y: number }[];
   bucket(): { x: number; y: number; count: number };
   paper(): { x: number; y: number; t: number } | null;

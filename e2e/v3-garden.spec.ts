@@ -357,5 +357,144 @@ test.describe('garden @V3-garden', () => {
         .poll(async () => (await g.balls()).some((b) => !b.held && !b.grabbed))
         .toBe(true);
     });
+
+    // The owner's report: the dogs ignored the ball. A dog that had been idle for 12 s of garden time gave up on
+    // the very first frame of the next chase, so these all wait past that before touching the ball, and use real
+    // pointer input (the earlier spec threw within seconds of the mount and passed on broken code).
+    type Page = import('@playwright/test').Page;
+    const idlePast = (page: Page, s: number) =>
+      page.waitForFunction(
+        (t) => (window.__hooks as Hooks).garden!.time() > t,
+        s,
+        { timeout: 90_000 },
+      );
+    const restingBall = async (g: ReturnType<typeof garden>) => {
+      let ball = { x: 0, y: 0 };
+      await expect
+        .poll(async () => {
+          const b = (await g.balls()).find(
+            (o) => !o.held && !o.grabbed && !o.fading && o.speed < 5,
+          );
+          if (b) ball = b;
+          return !!b;
+        })
+        .toBe(true);
+      return ball;
+    };
+    const dogsHaveBall = (page: Page) =>
+      page.evaluate(() =>
+        (window.__hooks as Hooks).garden!.dogs().some((d) => d.ball),
+      );
+    const drag = async (
+      page: Page,
+      from: { x: number; y: number },
+      to: { x: number; y: number },
+      steps: number,
+      gap: number,
+    ) => {
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      for (let i = 1; i <= steps; i++) {
+        await page.mouse.move(
+          from.x + ((to.x - from.x) * i) / steps,
+          from.y + ((to.y - from.y) * i) / steps,
+        );
+        await page.waitForTimeout(gap);
+      }
+      await page.mouse.up();
+    };
+
+    test('a ball thrown hard, thrown softly or dropped is chased after a long quiet spell @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      test.setTimeout(150_000);
+      const g = await ready(page, javaScriptEnabled, info);
+      for (const [name, dx, steps, gap] of [
+        ['hard throw', 320, 6, 8],
+        ['soft throw', 70, 8, 30],
+        ['drop', 0, 0, 0],
+      ] as const) {
+        await idlePast(page, 14);
+        // Let the dogs finish whatever they were doing, then sit idle until gt is far past the give-up.
+        await expect
+          .poll(async () => !(await dogsHaveBall(page)), { timeout: 30_000 })
+          .toBe(true);
+        const t0 = await page.evaluate(() =>
+          (window.__hooks as Hooks).garden!.time(),
+        );
+        await idlePast(page, t0 + 13);
+        const ball = await restingBall(g);
+        if (name === 'drop') {
+          // Pick it up, hold it still for a moment, let go: no speed at all.
+          await page.mouse.move(ball.x, ball.y);
+          await page.mouse.down();
+          await page.mouse.move(ball.x + 30, ball.y + 10, { steps: 4 });
+          await page.waitForTimeout(250);
+          await page.mouse.up();
+        } else
+          await drag(
+            page,
+            ball,
+            { x: ball.x + dx, y: ball.y - 20 },
+            steps,
+            gap,
+          );
+        await expect
+          .poll(() => dogsHaveBall(page), {
+            message: `a dog chases the ball after a ${name}`,
+            timeout: 8000,
+            intervals: [100],
+          })
+          .toBe(true);
+      }
+    });
+
+    test('there are never more than four balls; the extra one fades away @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      const throwIt = g.root.getByRole('button', { name: 'throw a ball' });
+      let sawFading = false;
+      for (let i = 0; i < 6; i++) {
+        await throwIt.click();
+        const balls = await g.balls();
+        sawFading ||= balls.some((b) => b.fading);
+        expect(balls.filter((b) => !b.fading).length).toBeLessThanOrEqual(4);
+      }
+      expect(sawFading, 'the oldest one shrinks away, it does not pop').toBe(
+        true,
+      );
+      await expect.poll(async () => (await g.balls()).length).toBe(4);
+    });
+
+    test('clicking the ball where it rests sends the dog after it; a ball waits for a free dog @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      test.setTimeout(150_000);
+      const g = await ready(page, javaScriptEnabled, info);
+      await idlePast(page, 14);
+      const ball = await restingBall(g);
+      await page.mouse.click(ball.x, ball.y);
+      await expect
+        .poll(() => dogsHaveBall(page), { timeout: 8000, intervals: [100] })
+        .toBe(true);
+      // Two more by the icon: three balls to fetch and two dogs. Everyone is fetched in the end, none left waiting.
+      for (let i = 0; i < 2; i++)
+        await g.root.getByRole('button', { name: 'throw a ball' }).click();
+      await expect
+        .poll(async () => (await g.balls()).filter((b) => b.fetch).length, {
+          timeout: 20_000,
+        })
+        .toBeGreaterThan(0);
+      await expect
+        .poll(
+          async () => (await g.balls()).every((b) => !b.fetch && !b.claimed),
+          { timeout: 90_000, intervals: [500] },
+        )
+        .toBe(true);
+    });
   });
 });

@@ -66,6 +66,8 @@ import {
 } from './bucket';
 
 const G = 1500;
+/** Most balls in the garden. */
+const MAX_BALLS = 4;
 
 export function mountGarden(root: HTMLElement): void {
   const canvas = root.querySelector('canvas');
@@ -149,6 +151,8 @@ export function mountGarden(root: HTMLElement): void {
     held: false,
     grabbed: false,
     fetch,
+    wait: 0,
+    fade: 0,
     spin: 0,
     sq: 0,
     ox: 0,
@@ -265,6 +269,7 @@ export function mountGarden(root: HTMLElement): void {
   const stepBalls = (dt: number) => {
     for (const b of w.balls) {
       if (b.held) continue;
+      if (b.fade > 0) b.fade += dt / 0.35;
       b.sq = Math.max(0, b.sq - dt * 5);
       if (b.grabbed) {
         const v = velocity();
@@ -304,6 +309,8 @@ export function mountGarden(root: HTMLElement): void {
         b.vx *= -0.5;
       }
     }
+    if (w.balls.some((b) => b.fade >= 1))
+      w.balls = w.balls.filter((b) => b.fade < 1);
   };
 
   let lastCount = 0;
@@ -565,9 +572,15 @@ export function mountGarden(root: HTMLElement): void {
     ball.vx = (tx - sx) / T;
     ball.vz = (0.5 * G * T * T - z0) / T;
     w.balls.push(ball);
-    if (w.balls.length > 3) {
-      const i = w.balls.findIndex((b) => !b.held && !b.grabbed && !b.claimed);
-      if (i >= 0) w.balls.splice(i, 1);
+    // At most four: a fifth shrinks the oldest free one away. A held or carried ball stays; one a dog is still running for goes last.
+    const live = w.balls.filter((b) => b.fade === 0);
+    if (live.length > MAX_BALLS) {
+      const free = live.filter((b) => !b.held && !b.grabbed);
+      const old = free.find((b) => !b.claimed) ?? free[0];
+      if (old) {
+        old.fade = 0.001;
+        old.fetch = old.claimed = false;
+      }
     }
     sync();
   };
@@ -607,6 +620,7 @@ export function mountGarden(root: HTMLElement): void {
       let best: Ball | null = null;
       let bd = reach;
       for (const b of w.balls) {
+        if (b.fade > 0) continue;
         let bx = b.x;
         let by = b.y - b.z - 8;
         if (b.held) {
@@ -924,7 +938,11 @@ export function mountGarden(root: HTMLElement): void {
           held: b.held,
           grabbed: b.grabbed,
           speed: Math.hypot(b.vx, b.vy),
+          fetch: b.fetch,
+          claimed: b.claimed,
+          fading: b.fade > 0,
         })),
+      time: () => w.t,
       flowers: () =>
         w.flowers
           .filter((f) => f.grow >= 0.9)
