@@ -79,8 +79,9 @@ test.describe('falling desk @V3-desk', () => {
     const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
     // Rests on the bottom edge of the screen: the silhouette is within 30 px of it.
     const bottom = b.rect!.y + b.rect!.h;
-    expect(vh - bottom).toBeLessThanOrEqual(30);
-    expect(vh - bottom).toBeGreaterThanOrEqual(-2);
+    // The floor is the sheet border's inner edge (24 px on desktop), not the screen edge itself.
+    expect(vh - bottom).toBeLessThanOrEqual(34);
+    expect(vh - bottom).toBeGreaterThanOrEqual(16);
     expect(b.rect!.x).toBeGreaterThan(0);
     expect(b.rect!.x + b.rect!.w).toBeLessThan(vw);
     await expectNoAxeViolations(page, { label: '/ desk with a fallen object' });
@@ -132,6 +133,33 @@ test.describe('falling desk @V3-desk', () => {
     await page.waitForTimeout(500);
     await page.keyboard.press('r');
     await expect(reset(page)).toBeHidden({ timeout: 10_000 });
+  });
+
+  test('a viewport that gets shorter or taller (a phone URL bar) never cuts a resting body @V3-desk', async ({
+    page,
+  }) => {
+    await goLive(page);
+    const home = (await where(page, 'ball-m'))!;
+    await carry(page, 'ball-m', page.viewportSize()!.width - 50, home.y - 40);
+    await page.mouse.up();
+    const settled = () =>
+      expect
+        .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
+          timeout: 45_000,
+        })
+        .toBe(true);
+    await settled();
+    const { width } = page.viewportSize()!;
+    for (const height of [1000, 1180, 1100]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(1200);
+      await settled();
+      const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
+      const gap = height - (b.rect!.y + b.rect!.h);
+      // Always above the border's inner edge (never below it), and back on the floor.
+      expect(gap, `height ${height}`).toBeGreaterThanOrEqual(16);
+      expect(gap, `height ${height}`).toBeLessThanOrEqual(34);
+    }
   });
 
   test('the button hides again once everything rests on the table @V3-desk', async ({
