@@ -59,10 +59,11 @@ export function spawnDogs(w: World): Dog[] {
 const dist = (ax: number, ay: number, bx: number, by: number) =>
   Math.hypot(ax - bx, ay - by);
 
-/** Hands each thrown ball to the nearest idle dog. */
+/** Hands each ball that is up for fetching to the nearest free dog; one with no free dog waits its turn. */
 function assign(w: World, dogs: Dog[]) {
   for (const b of w.balls) {
-    if (b.claimed || b.grabbed || !b.fetch) continue;
+    if (b.claimed || b.grabbed || !b.fetch || b.fade > 0 || b.wait > 0)
+      continue;
     let best: Dog | null = null;
     for (const d of dogs) {
       if (d.ball || d.state === 'go' || d.state === 'grab') continue;
@@ -74,14 +75,20 @@ function assign(w: World, dogs: Dog[]) {
       b.claimed = true;
       best.ball = b;
       best.state = 'go';
+      // The give-up clock runs from here, not from whenever the dog last changed phase.
+      best.gt = 0;
     }
   }
 }
 
 export function stepDogs(w: World, dogs: Dog[], dt: number) {
+  for (const b of w.balls) b.wait = Math.max(0, b.wait - dt);
   assign(w, dogs);
   for (const d of dogs) {
-    if (d.ball && (!w.balls.includes(d.ball) || d.ball.grabbed)) {
+    if (
+      d.ball &&
+      (!w.balls.includes(d.ball) || d.ball.grabbed || d.ball.fade > 0)
+    ) {
       if (d.ball) d.ball.claimed = false;
       d.ball = null;
       d.state = 'idle';
@@ -120,9 +127,9 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
       speed = 300;
       dipTo = l < 110 ? 1 : 0;
       if (d.gt > 12) {
-        // Cannot get there: give up.
+        // Cannot get there: give up for now; the ball is offered again after a short wait.
         b.claimed = false;
-        b.fetch = false;
+        b.wait = 4;
         d.ball = null;
         d.state = 'idle';
         d.timer = 0.6;
@@ -692,7 +699,8 @@ export function drawBall(
   held = false,
   at?: [number, number],
 ) {
-  const r = 8;
+  const fa = 1 - b.fade;
+  const r = 8 * (1 - 0.7 * b.fade);
   const sq = held ? 0 : Math.max(0, b.sq);
   const rx = r * (1 + 0.32 * sq);
   const ry = r * (1 - 0.32 * sq);
@@ -702,17 +710,17 @@ export function drawBall(
     // Shadow follows height: smaller and fainter when the ball is up.
     const k = clamp(1 - b.z / 260, 0.25, 1);
     const w = r * (1.25 - Math.min(0.5, b.z / 220));
-    c.globalAlpha = 0.16 * k;
+    c.globalAlpha = 0.16 * k * fa;
     c.fillStyle = col.stroke;
     c.beginPath();
     c.ellipse(b.x, b.y, w, w * 0.34, 0, 0, TAU);
     c.fill();
-    c.globalAlpha = 0.35 * k;
+    c.globalAlpha = 0.35 * k * fa;
     c.strokeStyle = col.stroke;
     c.lineWidth = 1;
     c.stroke();
-    c.globalAlpha = 1;
   }
+  c.globalAlpha = fa;
   c.save();
   c.translate(sx, sy);
   c.lineWidth = 1.5;
@@ -740,4 +748,5 @@ export function drawBall(
   c.stroke();
   c.restore();
   c.restore();
+  c.globalAlpha = 1;
 }

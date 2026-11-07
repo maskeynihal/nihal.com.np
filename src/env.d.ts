@@ -127,19 +127,33 @@ interface GardenHooks {
     held: boolean;
     grabbed: boolean;
     speed: number;
+    /** Dogs go for it. */
+    fetch: boolean;
+    claimed: boolean;
+    /** Being removed (a fifth ball pushes out the oldest). */
+    fading: boolean;
   }[];
+  /** Garden clock, seconds of stepped frames (not wall time). */
+  time(): number;
   flowers(): { x: number; y: number }[];
   bucket(): { x: number; y: number; count: number };
   paper(): { x: number; y: number; t: number } | null;
   bouquets(): { mode: string; wrap: number; x: number; y: number }[];
-  vase(): { x: number; y: number; full: boolean };
-  pins(): {
-    edge: string;
+  vase(): { x: number; y: number; full: boolean; gone: boolean };
+  /** Bouquets and the vase dropped to the bottom of the screen. */
+  rested(): {
+    kind: 'bq' | 'vase';
+    falling: boolean;
+    full: boolean;
+    /** Bounding box on screen, and the untilted box's top left. */
     x: number;
     y: number;
     width: number;
     height: number;
+    left: number;
+    top: number;
   }[];
+  carrying(): 'bq' | 'vase' | null;
   dogs(): {
     x: number;
     y: number;

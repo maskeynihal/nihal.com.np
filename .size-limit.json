@@ -7,7 +7,7 @@
   {
     "name": "garden (br)",
     "path": "dist/_astro/garden.*.js",
-    "limit": "14 KB"
+    "limit": "15 KB"
   },
   {
     "name": "desk-vendor (br)",

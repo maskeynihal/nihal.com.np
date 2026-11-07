@@ -92,6 +92,8 @@ export interface Vase {
   y: number;
   s: number;
   bq: Bouquet | null;
+  /** Taken out of the garden: carried, or dropped to the bottom of the screen. */
+  gone: boolean;
 }
 export interface Ball {
   x: number;
@@ -108,6 +110,10 @@ export interface Ball {
   grabbed: boolean;
   /** Dogs go for it (set when it is thrown or let go, cleared when a dog drops it). */
   fetch: boolean;
+  /** Seconds before dogs try this ball again after one gave up on it. */
+  wait: number;
+  /** Removed by a newer ball: 0 normally, then rises 0..1 as it shrinks away. */
+  fade: number;
   spin: number;
   /** Squash on landing, 0..1. */
   sq: number;
