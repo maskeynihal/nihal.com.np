@@ -4,7 +4,6 @@ import { revLine } from '../lib/title-block';
 import CopyEmail from './CopyEmail.astro';
 import MotionToggle from './MotionToggle.astro';
 import SoundToggle from './SoundToggle.astro';
-import ThemeToggle from './ThemeToggle.astro';
 
 /**
  * The drawing's title block (design 3, #desk): name as the page's only h1, one sentence, the
@@ -40,7 +39,6 @@ const rev = revLine(titleBlock.revLine, new Date());
     <div class="title-block-prefs">
       <MotionToggle />
       <SoundToggle />
-      <ThemeToggle />
     </div>
   </div>
 </div>

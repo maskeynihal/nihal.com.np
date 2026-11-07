@@ -355,3 +355,81 @@ describe('initPrefs OS follow (OS reduce is a floor)', () => {
     expect(mqs.get(Q)!.listeners.size).toBe(0);
   });
 });
+
+describe('lamp levels', () => {
+  const ds = document.documentElement.dataset;
+  beforeEach(() => {
+    delete ds['lamp'];
+    delete ds['theme'];
+  });
+  it.each([
+    [4, 'paper'],
+    [3, 'paper'],
+    [2, 'paper'],
+    [1, 'blue'],
+    [0, 'blue'],
+  ] as const)('level %i is the %s theme', (level, theme) => {
+    prefs.setLamp(level);
+    expect(prefs.getLamp()).toBe(level);
+    expect(ds['lamp']).toBe(String(level));
+    expect(ds['theme']).toBe(theme);
+    expect(prefs.getTheme()).toBe(theme);
+    expect(localStorage.getItem('nihal:lamp')).toBe(String(level));
+    expect(localStorage.getItem('nihal:theme')).toBe(theme);
+  });
+  it('fires nihal:lamp and nihal:theme on every change, also inside one theme', () => {
+    const lamps: unknown[] = [];
+    const themes: unknown[] = [];
+    const a = prefs.subscribeLamp((l) => lamps.push(l));
+    const b = prefs.subscribeTheme((t) => themes.push(t));
+    prefs.setLamp(4);
+    prefs.setLamp(3);
+    prefs.setLamp(0);
+    a();
+    b();
+    expect(lamps).toEqual([4, 3, 0]);
+    expect(themes).toEqual(['paper', 'paper', 'blue']);
+  });
+  it('setTheme keeps the old contract: blue is 1, paper is 4', () => {
+    prefs.setTheme('paper');
+    expect(prefs.getLamp()).toBe(4);
+    prefs.setTheme('blue');
+    expect(prefs.getLamp()).toBe(1);
+  });
+  it('updates theme-color per level', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+    prefs.setLamp(0);
+    expect(meta.content).toBe('#0A1348');
+    prefs.setLamp(3);
+    expect(meta.content).toBe('#E6E4DC');
+    meta.remove();
+  });
+  it('ignores a level outside 0 to 4', () => {
+    prefs.setLamp(2);
+    prefs.setLamp(7 as never);
+    expect(prefs.getLamp()).toBe(2);
+  });
+  it('follows the OS until a level is chosen', () => {
+    stubMatchMedia({ '(prefers-color-scheme: light)': false });
+    prefs.followOsTheme();
+    fireMq('(prefers-color-scheme: light)', true);
+    expect(prefs.getLamp()).toBe(4);
+    fireMq('(prefers-color-scheme: light)', false);
+    expect(prefs.getLamp()).toBe(1);
+    prefs.setLamp(2);
+    fireMq('(prefers-color-scheme: light)', true);
+    expect(prefs.getLamp()).toBe(2);
+  });
+  it('blocked storage still changes the level', () => {
+    const spy = vi
+      .spyOn(window, 'localStorage', 'get')
+      .mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+      });
+    expect(() => prefs.setLamp(3)).not.toThrow();
+    expect(prefs.getLamp()).toBe(3);
+    spy.mockRestore();
+  });
+});

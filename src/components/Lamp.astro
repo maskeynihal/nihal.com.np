@@ -1,0 +1,434 @@
+---
+/**
+ * The hanging lamp (spec 06, L): a line-art shade and bulb on a cord from the top of the sheet,
+ * fixed at the top right inside the border, with a pull cord. It sets the page brightness in five
+ * levels (data-lamp 4 to 0, see tokens.css). Plain script and SVG, no React. It needs JS, so it
+ * stays hidden until the script reveals it; with no JS the OS colour scheme decides.
+ *
+ * The control is one slider (not a button with a toggle state) so that screen readers get the
+ * five values. The visible words are none: the lamp speaks for itself.
+ */
+---
+
+<div
+  class="lamp-pool"
+  aria-hidden="true"
+  data-print="hide"
+  data-lamp-pool
+  hidden
+></div>
+<div
+  class="lamp"
+  data-print="hide"
+  data-lamp-control
+  role="slider"
+  tabindex="0"
+  aria-label="lamp brightness"
+  aria-orientation="vertical"
+  aria-valuemin="0"
+  aria-valuemax="4"
+  aria-valuenow="1"
+  aria-valuetext="blue, level 1 of 4"
+  hidden
+>
+  <svg
+    class="lamp-art"
+    viewBox="0 0 56 104"
+    width="56"
+    height="104"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <defs>
+      <radialGradient id="lamp-glow">
+        <stop offset="0" style="stop-color: var(--warn)"></stop>
+        <stop
+          offset="1"
+          style="stop-color: var(--warn); stop-opacity: 0"
+        ></stop>
+      </radialGradient>
+    </defs>
+    <g class="lamp-body" data-lamp-body>
+      <!-- Drawn twice: a wide casing in the page colour first, then the ink line. The lamp hangs
+           over both the dark page and the light title-block panel, and one colour alone would
+           vanish on one of them. -->
+      {[true, false].map((casing) => (
+        <g class={casing ? 'lamp-case' : 'lamp-ink'}>
+          {!casing && (
+            <circle
+              class="lamp-halo"
+              cx="28"
+              cy="56"
+              r="22"
+              fill="url(#lamp-glow)"
+            />
+          )}
+          <line class="lamp-line" x1="28" y1="0" x2="28" y2="26" />
+          <circle class="lamp-bulb" cx="28" cy="55" r="5.5" />
+          <path class="lamp-line lamp-shade" d="M17 26h22l9 26H8z" />
+          <line class="lamp-line" x1="8" y1="52" x2="48" y2="52" />
+          <line class="lamp-line lamp-string" x1="45" y1="52" x2="45" y2="78" />
+          <circle
+            class="lamp-line lamp-bead"
+            data-lamp-bead
+            cx="45"
+            cy="82"
+            r="3.5"
+          />
+        </g>
+      ))}
+    </g>
+  </svg>
+</div>
+
+<style>
+  .lamp {
+    position: fixed;
+    z-index: 31;
+    inset-block-start: var(--inset);
+    inset-inline-end: calc(var(--inset) + 14px);
+    width: 56px;
+    height: 104px;
+    touch-action: none;
+    cursor: grab;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    border-radius: var(--radius);
+  }
+  .lamp[hidden],
+  .lamp-pool[hidden] {
+    display: none;
+  }
+  .lamp[data-drag] {
+    cursor: grabbing;
+  }
+  .lamp:focus-visible {
+    outline: 2px solid var(--stroke);
+    outline-offset: 2px;
+  }
+  .lamp-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .lamp-body {
+    transform-origin: 28px 0;
+    will-change: transform;
+  }
+  .lamp-line {
+    fill: none;
+    stroke: var(--stroke);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .lamp-ink .lamp-shade {
+    fill: var(--page);
+  }
+  .lamp-case .lamp-line,
+  .lamp-case .lamp-bulb {
+    fill: none;
+    stroke: var(--page);
+    stroke-width: 4.5;
+  }
+  .lamp-ink .lamp-bulb {
+    fill: var(--warn);
+    fill-opacity: var(--lamp-bulb);
+    stroke: var(--stroke);
+    stroke-width: 1.5;
+  }
+  .lamp-halo {
+    opacity: calc(var(--lamp-bulb) * 0.9);
+  }
+  .lamp-ink .lamp-bead {
+    fill: var(--page);
+  }
+  .lamp-bead {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  /* The string is scaled from its top, the bead rides its end (set by the script). */
+  .lamp-string {
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+    transform: scaleY(var(--lamp-stretch, 1));
+  }
+  .lamp-bead {
+    transform: translateY(var(--lamp-pull, 0px));
+  }
+  .lamp-halo,
+  .lamp-bulb {
+    transition:
+      opacity 300ms ease-out,
+      fill-opacity 300ms ease-out;
+  }
+
+  /* The pool of light: one soft radial gradient on the page, below all content. */
+  .lamp-pool {
+    position: fixed;
+    z-index: -1;
+    inset-block-start: calc(var(--inset) + 36px);
+    inset-inline-end: calc(var(--inset) + 14px + 28px - 130px);
+    width: 260px;
+    height: 220px;
+    pointer-events: none;
+    background: radial-gradient(closest-side, var(--warn), transparent);
+    opacity: calc(var(--lamp-pool) * 0.55);
+    transition: opacity 300ms ease-out;
+  }
+
+  [data-motion='reduce'] .lamp-halo,
+  [data-motion='reduce'] .lamp-bulb,
+  [data-motion='reduce'] .lamp-pool {
+    transition: none;
+  }
+  [data-motion='reduce'] .lamp-body {
+    will-change: auto;
+  }
+
+  @media (max-width: 767px) {
+    .lamp {
+      width: 44px;
+      height: 82px;
+      inset-inline-end: calc(var(--inset) + 8px);
+    }
+    .lamp-pool {
+      width: 180px;
+      height: 160px;
+      inset-block-start: calc(var(--inset) + 28px);
+      inset-inline-end: calc(var(--inset) + 8px + 22px - 90px);
+    }
+  }
+
+  @media print {
+    .lamp,
+    .lamp-pool {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  import {
+    getLamp,
+    setLamp,
+    subscribeLamp,
+    followOsTheme,
+    LAMP_MAX,
+    type Lamp,
+  } from '../lib/prefs';
+
+  const NAMES = ['off', 'blue', 'dusk', 'dimmed', 'bright'];
+  /** Pointer travel that moves one level, in px. */
+  const STEP = 28;
+  const MOVED = 6;
+  /** Longest the string stretches while pulled, in drawing units (the art is 104 tall). */
+  const STRETCH = 22;
+
+  const el = document.querySelector<HTMLElement>('[data-lamp-control]');
+  const pool = document.querySelector<HTMLElement>('[data-lamp-pool]');
+  const body = document.querySelector<SVGGElement>('[data-lamp-body]');
+
+  function still(): boolean {
+    return document.documentElement.dataset['motion'] === 'reduce';
+  }
+
+  if (el && body) {
+    followOsTheme();
+    const root = document.documentElement;
+    const beads = el.querySelectorAll<SVGCircleElement>('[data-lamp-bead]');
+
+    // ---- value -> accessibility --------------------------------------------
+    const sync = (l: Lamp) => {
+      el.setAttribute('aria-valuenow', String(l));
+      el.setAttribute('aria-valuetext', `${NAMES[l]}, level ${l} of 4`);
+    };
+    sync(getLamp());
+    subscribeLamp(sync);
+
+    // ---- colour fade: a short window where every colour change eases (300 ms) -------
+    let fade = 0;
+    subscribeLamp(() => {
+      if (still()) return;
+      root.setAttribute('data-lamp-fade', '');
+      clearTimeout(fade);
+      fade = window.setTimeout(
+        () => root.removeAttribute('data-lamp-fade'),
+        340,
+      );
+    });
+
+    // ---- swing and pull: one small damped spring each ---------------------------------
+    let angle = 0;
+    let angVel = 0;
+    let pull = 0; // drawing units the bead is pulled down
+    let pullVel = 0;
+    let held = false; // the pointer holds the cord: the pull follows it, no spring
+    let raf = 0;
+    let last = 0;
+
+    const paint = () => {
+      body.style.transform = `rotate(${angle.toFixed(2)}deg)`;
+      el.style.setProperty('--lamp-pull', `${pull.toFixed(2)}px`);
+      el.style.setProperty('--lamp-stretch', String(1 + pull / 26));
+    };
+
+    const frame = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000 || 0.016);
+      last = now;
+      // Swing: ~1.6 Hz, damped to rest in about a second.
+      angVel += (-120 * angle - 5.5 * angVel) * dt;
+      angle += angVel * dt;
+      if (!held) {
+        pullVel += (-260 * pull - 14 * pullVel) * dt;
+        pull += pullVel * dt;
+      }
+      const rest =
+        Math.abs(angle) < 0.04 &&
+        Math.abs(angVel) < 0.4 &&
+        (held || (Math.abs(pull) < 0.04 && Math.abs(pullVel) < 0.4));
+      if (rest && !held) {
+        angle = 0;
+        angVel = 0;
+        pull = 0;
+        pullVel = 0;
+      }
+      paint();
+      raf = rest ? 0 : requestAnimationFrame(frame);
+    };
+    const run = () => {
+      if (!raf) {
+        last = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+    };
+
+    const kick = (dir: number) => {
+      if (still()) return;
+      angVel += 70 * dir;
+      run();
+    };
+
+    const tick = () => {
+      try {
+        navigator.vibrate?.(5);
+      } catch {
+        // no haptics
+      }
+      if (still()) return;
+      beads.forEach((b) =>
+        b.animate([{ scale: '1.5' }, { scale: '1' }], {
+          duration: 140,
+          easing: 'ease-out',
+        }),
+      );
+    };
+
+    const to = (l: number, dir: number) => {
+      const next = Math.max(0, Math.min(LAMP_MAX, l)) as Lamp;
+      if (next === getLamp()) return false;
+      setLamp(next);
+      tick();
+      kick(dir);
+      return true;
+    };
+    /** Click or tap: next dimmer, 0 wraps to 4. */
+    const nextDimmer = () => {
+      const l = getLamp();
+      to(l === 0 ? LAMP_MAX : l - 1, l === 0 ? -1 : 1);
+    };
+
+    // ---- pointer: drag the cord or the lamp, a step per STEP px --------------------------
+    let startY = 0;
+    let startLevel: Lamp = 1;
+    let moved = false;
+    let id = -1;
+
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || id !== -1) return;
+      id = e.pointerId;
+      startY = e.clientY;
+      startLevel = getLamp();
+      moved = false;
+      held = true;
+      el.setAttribute('data-drag', '');
+      try {
+        el.setPointerCapture(id);
+      } catch {
+        // synthetic pointers cannot be captured
+      }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      const dy = e.clientY - startY;
+      if (Math.abs(dy) > MOVED) moved = true;
+      if (!moved) return;
+      // Down pulls the string out with a soft limit; up only nudges it.
+      pull =
+        dy >= 0
+          ? STRETCH * (1 - Math.exp(-dy / (STEP * 1.6)))
+          : -4 * (1 - Math.exp(dy / STEP));
+      pullVel = 0;
+      paint();
+      to(startLevel - Math.trunc(dy / STEP), dy > 0 ? 1 : -1);
+    });
+    const release = (e: PointerEvent, cancelled: boolean) => {
+      if (e.pointerId !== id) return;
+      id = -1;
+      held = false;
+      el.removeAttribute('data-drag');
+      if (!moved && !cancelled) {
+        pull = 12; // a tug, then the spring takes it back
+        nextDimmer();
+      }
+      if (still()) {
+        // Reduced motion: no swing, no spring; the art goes straight back to rest.
+        pull = 0;
+        pullVel = 0;
+        angle = 0;
+        angVel = 0;
+        body.style.transform = '';
+        el.style.removeProperty('--lamp-pull');
+        el.style.removeProperty('--lamp-stretch');
+      } else {
+        run();
+      }
+    };
+    el.addEventListener('pointerup', (e) => release(e, false));
+    el.addEventListener('pointercancel', (e) => release(e, true));
+    el.addEventListener('lostpointercapture', (e) => release(e, true));
+
+    // ---- keyboard: arrows, Home and End; Enter and Space act as a tap ---------------------
+    el.addEventListener('keydown', (e) => {
+      const l = getLamp();
+      let handled = true;
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'ArrowRight':
+          to(l + 1, -1);
+          break;
+        case 'ArrowDown':
+        case 'ArrowLeft':
+          to(l - 1, 1);
+          break;
+        case 'Home':
+          to(0, 1);
+          break;
+        case 'End':
+          to(LAMP_MAX, -1);
+          break;
+        case 'Enter':
+        case ' ':
+          nextDimmer();
+          break;
+        default:
+          handled = false;
+      }
+      if (handled) e.preventDefault();
+    });
+
+    el.hidden = false;
+    if (pool) pool.hidden = false;
+  }
+</script>

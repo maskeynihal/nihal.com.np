@@ -18,7 +18,6 @@ export const copy = {
     on: 'on',
     off: 'off',
     system: 'set by your system',
-    lightMode: 'light mode',
   },
   titleBlock: {
     name: 'nihal maskey',
