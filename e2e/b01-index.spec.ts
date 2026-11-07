@@ -257,7 +257,16 @@ test.describe('sheet border and index @B-01', () => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
-    expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+    // Keyframe animations and scroll timelines are gone. The short opacity transitions that
+    // reduced motion keeps (global.css, 200 ms) are allowed: WebKit starts one when the "--:--"
+    // time placeholder fills in.
+    expect(
+      await page.evaluate(
+        () =>
+          document.getAnimations().filter((a) => !(a instanceof CSSTransition))
+            .length,
+      ),
+    ).toBe(0);
     await checkProgress(page);
     const v = await page.evaluate(() =>
       document.documentElement.style.getPropertyValue('--progress'),

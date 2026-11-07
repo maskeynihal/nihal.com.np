@@ -92,7 +92,11 @@ test.describe('hanging lamp @V3-theme', () => {
     await expect(html(page)).toHaveAttribute('data-lamp', '0');
     expect(await color()).toMatch(/^#0a1348$/i);
     // The change eases colours for about 300 ms, in a window that closes again.
-    await expect(html(page)).toHaveAttribute('data-lamp-fade', '');
+    // Reduced motion (OS or toggle) never opens the window: it is covered by its own test below.
+    const reduced = (await html(page).getAttribute('data-motion')) === 'reduce';
+    if (!reduced) {
+      await expect(html(page)).toHaveAttribute('data-lamp-fade', '');
+    }
     await expect(html(page)).not.toHaveAttribute('data-lamp-fade', '');
     // Each level has its own page colour; no two are the same.
     const seen = new Set<string>();

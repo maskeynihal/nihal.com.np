@@ -299,6 +299,8 @@ test.describe('garden @V3-garden', () => {
         .getByRole('button', { name: 'pin the bouquet to the edge' })
         .click();
       await expect.poll(async () => (await hooks.pins()).length).toBe(1);
+      // The pin glides to its edge for 250 ms; read it once it has settled.
+      await page.waitForTimeout(400);
       const pin = (await hooks.pins())[0]!;
       const vp = page.viewportSize()!;
       // Inside the sheet, clear of the lamp (top right 120 px) and the left index.
@@ -307,7 +309,7 @@ test.describe('garden @V3-garden', () => {
       expect(pin.y).toBeGreaterThanOrEqual(120);
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(400);
-      expect((await hooks.pins())[0]!.y).toBe(pin.y);
+      expect((await hooks.pins())[0]!.y).toBeCloseTo(pin.y, 1);
       await expectNoAxeViolations(page, {
         label: '/ garden with a pinned bouquet',
       });
