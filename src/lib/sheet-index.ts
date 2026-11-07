@@ -3,6 +3,10 @@
  *  - `aria-current="location"` on the row whose section crosses the viewport midline
  *    (IntersectionObserver with rootMargin -50% 0 -50%, so the root is a zero-height line).
  *  - `--progress` (0..1) on <html> when the CSS scroll timeline cannot drive the rule.
+ *  - Row clicks scroll with an eased, JS-driven animation (`scrollDuration`, `easeInOutCubic`):
+ *    the row is highlighted at once and held for the whole scroll; wheel, touch or keys cancel it;
+ *    on arrival the hash is set, focus moves to the section and its heading gets a short settle.
+ *    Reduced motion, modified clicks or a missing target fall through to the plain anchor jump.
  *  - `nihal:drag` (CustomEvent<{ active: boolean }> on window, sent by the desk in E-05)
  *    dims the index to 40% while a body is dragged.
  */
@@ -26,6 +30,22 @@ export function progressOf(
   return max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
 }
 
+/** Eased scroll: 450 ms for short hops, growing with distance, never past 700 ms. */
+export function scrollDuration(distance: number): number {
+  const d = Math.abs(distance);
+  return Math.round(450 + 250 * Math.min(1, d / 4000));
+}
+
+export function easeInOutCubic(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
+}
+
+const reducedMotion = (): boolean =>
+  document.documentElement.dataset['motion'] === 'reduce' ||
+  (typeof matchMedia === 'function' &&
+    matchMedia('(prefers-reduced-motion: reduce)').matches);
+
 export function initSheetIndex(nav: HTMLElement): void {
   const doc = document.documentElement;
   const links = [...nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')];
@@ -48,14 +68,26 @@ export function initSheetIndex(nav: HTMLElement): void {
         link.offsetLeft - (list.clientWidth - link.offsetWidth) / 2;
   };
 
+  // While an index click is scrolling, the clicked row stays current (no flicker through rows).
+  let held = false;
+
   const resolve = () => {
+    if (held) return;
     const atBottom =
       window.scrollY + window.innerHeight >= doc.scrollHeight - 2;
     if (atBottom) return setCurrent(links.length - 1);
     // Adjacent sections can both touch the line; the later one wins.
     const hit = Math.max(-1, ...inView);
-    if (hit >= 0) setCurrent(hit);
-    else if (current < 0) setCurrent(0);
+    if (hit >= 0) return setCurrent(hit);
+    // Nothing on the line: the garden and footer below contact have no row, so the last
+    // section above the line stays current (contact), also after a reload inside the garden.
+    if (current >= 0) return;
+    let above = 0;
+    targets.forEach((t, n) => {
+      if (t && t.getBoundingClientRect().top <= window.innerHeight / 2)
+        above = n;
+    });
+    setCurrent(above);
   };
 
   if ('IntersectionObserver' in window) {
@@ -98,6 +130,100 @@ export function initSheetIndex(nav: HTMLElement): void {
     attributeFilter: ['data-motion'],
   });
   schedule();
+
+  // --- Eased scroll for row clicks -------------------------------------------------------
+  let cancel: (() => void) | null = null;
+
+  const targetTop = (el: HTMLElement): number => {
+    const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const max = Math.max(0, doc.scrollHeight - window.innerHeight);
+    return Math.min(
+      max,
+      Math.max(0, el.getBoundingClientRect().top + window.scrollY - margin),
+    );
+  };
+
+  const arrive = (el: HTMLElement, hash: string) => {
+    if (location.hash !== hash) history.pushState(null, '', hash);
+    el.focus({ preventScroll: true });
+    const heading = el.querySelector<HTMLElement>('.section-heading');
+    if (heading) {
+      heading.removeAttribute('data-arrive');
+      void heading.offsetWidth; // restart the animation on a repeat click
+      heading.setAttribute('data-arrive', '');
+      window.setTimeout(() => heading.removeAttribute('data-arrive'), 300);
+    }
+  };
+
+  const glide = (index: number, el: HTMLElement, hash: string) => {
+    cancel?.();
+    const from = window.scrollY;
+    const to = targetTop(el);
+    const distance = to - from;
+    held = true;
+    setCurrent(index);
+    if (Math.abs(distance) < 2) {
+      held = false;
+      arrive(el, hash);
+      resolve();
+      return;
+    }
+    const duration = scrollDuration(distance);
+    const start = performance.now();
+    let raf = 0;
+    const stop = () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('wheel', stop);
+      window.removeEventListener('touchstart', stop);
+      window.removeEventListener('keydown', stop);
+      cancel = null;
+      held = false;
+      schedule();
+    };
+    const step = (now: number) => {
+      const t = (now - start) / duration;
+      window.scrollTo({
+        top: from + distance * easeInOutCubic(t),
+        behavior: 'instant',
+      });
+      if (t < 1) {
+        raf = requestAnimationFrame(step);
+        return;
+      }
+      stop();
+      arrive(el, hash);
+      resolve();
+    };
+    // Any user input takes the wheel back; the observers then pick the row as usual.
+    window.addEventListener('wheel', stop, { passive: true });
+    window.addEventListener('touchstart', stop, { passive: true });
+    window.addEventListener('keydown', stop);
+    cancel = () => {
+      stop();
+    };
+    raf = requestAnimationFrame(step);
+  };
+
+  nav.addEventListener('click', (e) => {
+    if (
+      e.defaultPrevented ||
+      e.button !== 0 ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      e.altKey ||
+      reducedMotion()
+    )
+      return;
+    const link = (e.target as Element).closest<HTMLAnchorElement>(
+      'a[href^="#"]',
+    );
+    const index = link ? links.indexOf(link) : -1;
+    const el = index >= 0 ? targets[index] : null;
+    if (!link || !el) return;
+    e.preventDefault();
+    glide(index, el, link.hash);
+  });
 
   window.addEventListener('nihal:drag', (e) => {
     const detail = (e as CustomEvent<{ active?: boolean } | undefined>).detail;
