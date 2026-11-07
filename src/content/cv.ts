@@ -4,7 +4,7 @@ import type { CvRow } from './schema';
 export const cv: CvRow[] = [
   {
     when: '2025 →',
-    role: 'lead engineer',
+    role: 'Lead Engineer',
     org: 'Leapfrog Technology',
     details: [
       'Lead the engineering team for a US behavioural-health platform.',
@@ -16,7 +16,7 @@ export const cv: CvRow[] = [
   },
   {
     when: '2023 → 2025',
-    role: 'senior software engineer',
+    role: 'Senior Software Engineer',
     org: 'Leapfrog Technology',
     details: [
       'Coordinated work across teams in the US, Australia and Nepal.',
@@ -29,7 +29,7 @@ export const cv: CvRow[] = [
   },
   {
     when: '2021 → 2023',
-    role: 'software engineer',
+    role: 'Software Engineer',
     org: 'Leapfrog Technology',
     details: [
       'Led a team of more than 15 across development, design, DevOps and QA.',
@@ -40,7 +40,7 @@ export const cv: CvRow[] = [
   },
   {
     when: '2020 → 2021',
-    role: 'associate software engineer',
+    role: 'Associate Software Engineer',
     org: 'Leapfrog Technology',
     details: [
       'Built features with senior engineers and product owners.',
@@ -51,7 +51,7 @@ export const cv: CvRow[] = [
   },
   {
     when: '2020',
-    role: 'software engineer intern',
+    role: 'Software Engineer Intern',
     org: 'Leapfrog Technology',
     details: [
       'Learned JavaScript and the canvas API by rebuilding Pac-Man with path-finding ghosts.',
@@ -61,7 +61,7 @@ export const cv: CvRow[] = [
   },
   {
     when: '2019 → 2020',
-    role: 'web application developer',
+    role: 'Web Application Developer',
     org: 'Technorio, Kathmandu',
     details: [
       'Shipped web apps for insurance management, video streaming and ticketing.',

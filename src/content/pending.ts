@@ -36,8 +36,8 @@ export const pending = {
   },
   /** Keyed by `${when} | ${role}`. */
   cv: {
-    '2025 → | lead engineer': ['[CONFIRM] append ", for Trayt Health" to org.'],
-    '2023 → 2025 | senior software engineer': [
+    '2025 → | Lead Engineer': ['[CONFIRM] append ", for Trayt Health" to org.'],
+    '2023 → 2025 | Senior Software Engineer': [
       '[CONFIRM] append ", for Trayt Health" to org.',
     ],
   },
