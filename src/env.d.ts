@@ -130,6 +130,25 @@ interface GardenHooks {
   }[];
   flowers(): { x: number; y: number }[];
   bucket(): { x: number; y: number; count: number };
+  paper(): { x: number; y: number; t: number } | null;
+  bouquets(): { mode: string; wrap: number; x: number; y: number }[];
+  vase(): { x: number; y: number; full: boolean };
+  pins(): {
+    edge: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
+  dogs(): {
+    x: number;
+    y: number;
+    f: number;
+    size: number;
+    state: string;
+    mouth: [number, number];
+    ball: { x: number; y: number; held: boolean } | null;
+  }[];
 }
 
 interface Window {

@@ -6,8 +6,20 @@ export interface Dog {
   f: number;
   type: number;
   size: number;
-  state: 'idle' | 'wander' | 'go' | 'back';
+  /** go: running to the ball. grab: head down, taking it. back: carrying it. set: putting it down. */
+  state: 'idle' | 'wander' | 'go' | 'grab' | 'back' | 'set';
   ball: Ball | null;
+  /** Facing as drawn, -1..1: eases through 0 when the dog turns, so a carried ball swings round with the head. */
+  fv: number;
+  /** Head lowered to the ground, 0..1. */
+  dip: number;
+  /** Head held high for carrying, 0..1. */
+  up: number;
+  /** Seconds in the current fetch phase. */
+  gt: number;
+  /** Where the ball was, on screen, when the dog took hold of it. */
+  rx: number;
+  ry: number;
   tx: number;
   ty: number;
   timer: number;
@@ -26,6 +38,12 @@ export function spawnDogs(w: World): Dog[] {
     ...d,
     y: (w.g0 + w.g1) / 2 + d.seed * 8,
     f: d.type ? -1 : 1,
+    fv: d.type ? -1 : 1,
+    dip: 0,
+    up: 0,
+    gt: 0,
+    rx: 0,
+    ry: 0,
     state: 'idle' as const,
     ball: null,
     tx: 0,
@@ -47,7 +65,8 @@ function assign(w: World, dogs: Dog[]) {
     if (b.claimed || b.grabbed || !b.fetch) continue;
     let best: Dog | null = null;
     for (const d of dogs) {
-      if (d.state === 'go' || d.state === 'back') continue;
+      if (d.ball || d.state === 'go' || d.state === 'grab') continue;
+      if (d.state === 'back' || d.state === 'set') continue;
       if (!best || dist(d.x, d.y, b.x, b.y) < dist(best.x, best.y, b.x, b.y))
         best = d;
     }
@@ -70,13 +89,16 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
     }
     d.timer -= dt;
     d.joy = Math.max(0, d.joy - dt);
+    d.gt += dt;
     d.sniff = clamp(
       d.sniff +
         (d.state === 'idle' && d.timer < 0 && d.timer > -1.6 ? dt : -dt) * 4,
       0,
       1,
     );
+    const sc = scaleOf(d);
     let speed = 0;
+    let dipTo = 0;
     if (d.state === 'idle') {
       if (d.timer < -1.6) {
         d.timer = 2 + Math.random() * 3;
@@ -89,41 +111,75 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
     } else if (d.state === 'wander') {
       speed = 85;
     } else if (d.state === 'go' && d.ball) {
-      d.tx = d.ball.x;
-      d.ty = d.ball.y;
+      const b = d.ball;
+      // Face the ball from the side the dog is on, and stop where the mouth, not the body, meets it.
+      if (Math.abs(b.x - d.x) > 12) d.f = b.x > d.x ? 1 : -1;
+      d.tx = clamp(b.x - d.f * reach(d) * sc, 20, w.W - 20);
+      d.ty = clamp(b.y, w.g0, w.g1 + 6);
+      const l = Math.hypot(d.tx - d.x, (d.ty - d.y) * 1.6);
       speed = 300;
-      if (dist(d.x, d.y, d.tx, d.ty) < 18 * d.size && d.ball.z < 22) {
-        d.ball.held = true;
-        d.ball.vx = d.ball.vy = d.ball.vz = 0;
+      dipTo = l < 110 ? 1 : 0;
+      if (d.gt > 12) {
+        // Cannot get there: give up.
+        b.claimed = false;
+        b.fetch = false;
+        d.ball = null;
+        d.state = 'idle';
+        d.timer = 0.6;
+      } else if (l < 5 && d.dip > 0.85 && b.z < 22) {
+        b.held = true;
+        b.vx = b.vy = b.vz = 0;
+        d.rx = b.x;
+        d.ry = b.y - b.z - 8;
+        d.state = 'grab';
+        d.gt = 0;
+      }
+    } else if (d.state === 'grab') {
+      dipTo = 1;
+      if (d.gt > 0.34) {
         d.state = 'back';
+        d.gt = 0;
       }
     } else if (d.state === 'back') {
       speed = 230;
-      const b = d.ball!;
+      dipTo = d.gt < 0.25 ? 1 - d.gt * 4 : 0;
       // Bring it to the pointer, stopping a little short on the dog's own side.
       const side = (d.x < w.px ? -1 : 1) * 60 * d.size;
       d.tx = clamp(w.px + side, 30, w.W - 30);
       d.ty = clamp(w.py, w.g0 + 14, w.g1);
       if (dist(d.x, d.y, d.tx, d.ty) < 26) {
+        d.state = 'set';
+        d.gt = 0;
+        speed = 0;
+      }
+    } else if (d.state === 'set' && d.ball) {
+      // Head down, then the ball is let go where the mouth is and rests on the grass.
+      dipTo = 1;
+      if (d.gt > 0.3 && d.dip > 0.9) {
+        const b = d.ball;
+        const m = mouth(d, w.t);
         b.held = false;
         b.claimed = false;
         b.fetch = false;
-        b.x = d.x + d.f * 46 * d.size;
+        b.x = clamp(m[0], 8, w.W - 8);
         b.y = d.y;
-        b.z = 14;
-        b.vz = 220;
-        b.vx = d.f * 40;
+        b.z = Math.max(0, d.y - 8 - m[1]);
+        b.vx = b.vy = b.vz = 0;
         d.ball = null;
         d.state = 'idle';
         d.timer = 1.4;
         d.joy = 2.2;
-        speed = 0;
       }
     }
+    d.dip += (dipTo - d.dip) * (1 - Math.exp(-dt * 9));
+    const carry = d.ball?.held && d.state === 'back' && d.gt > 0.15;
+    d.up += ((carry ? 1 : 0) - d.up) * (1 - Math.exp(-dt * 7));
+    // Turns on the spot: a carried ball swings round with the head instead of jumping.
+    d.fv += clamp(d.f - d.fv, -dt * 9, dt * 9);
     if (speed) {
       const dx = d.tx - d.x;
       const dy = (d.ty - d.y) * 1.6;
-      const l = Math.hypot(dx, dy);
+      const l = Math.hypot(dx, dy) || 1;
       if (d.state === 'wander' && l < 12) {
         d.state = 'idle';
         d.timer = 0.5 + Math.random() * 2;
@@ -131,7 +187,7 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
         const s = Math.min(speed, l * 6 + 40);
         d.x += (dx / l) * s * dt;
         d.y += (dy / l) * s * dt * 0.62;
-        if (Math.abs(dx) > 6) d.f = dx > 0 ? 1 : -1;
+        if (Math.abs(dx) > 6 && d.state !== 'go') d.f = dx > 0 ? 1 : -1;
         speed = s;
       }
     }
@@ -175,39 +231,77 @@ const buildOf = (d: Dog): Build => (d.type ? TERRIER : RETRIEVER);
 
 type P = [number, number];
 
-/** Head frame (origin: middle of the skull, +x toward the nose) to dog space. */
-function headPose(d: Dog, b: Build, bob: number) {
+/** How low the head is: sniffing the ground or reaching down for the ball. */
+const lowOf = (d: Dog) => Math.max(d.sniff, d.dip);
+
+/** Head frame (origin: middle of the skull, +x toward the nose) to dog space. Lowered for a sniff or a ball, raised to carry. */
+function headPose(
+  d: Dog,
+  b: Build,
+  bob: number,
+  t: number,
+  low = lowOf(d),
+  up = d.up,
+) {
   const top = -(b.legs + 14);
   const run = clamp((d.speed - 100) / 150, 0, 1);
   const hb =
     d.speed > 20 ? Math.sin(d.phase * (run ? 1 : 2)) * (1 + run * 1.6) : 0;
-  const x = 36 + d.sniff * 7;
-  const y = top - 10 + bob * 0.6 + hb + d.sniff * 30;
+  const x = 36 + low * 7 - up * 1;
+  // The extra reach on the ball (d.dip) puts the mouth on the ground, not a hand above it.
+  const y = top - 10 + bob * 0.6 + hb + low * 30 + d.dip * 4 - up * 6;
   const r =
-    d.sniff * 0.95 +
-    (run ? 0.05 : 0) +
-    (d.sniff ? 0 : Math.sin(d.phase * 0.0 + 0) * 0);
+    low * 0.95 +
+    (run ? 0.05 : 0) -
+    up * 0.2 +
+    (1 - low) * Math.sin(t * 0.9 + d.seed) * 0.03;
   return { x, y, r, top };
 }
 
-/** Where a carried ball sits: between the jaws, in screen space. */
-export function mouth(d: Dog, t: number): [number, number] {
-  void t;
-  const b = buildOf(d);
-  const sc = scaleOf(d);
+const bobOf = (d: Dog) => {
   const run = clamp((d.speed - 100) / 150, 0, 1);
-  const bob =
-    d.speed > 20
-      ? run
-        ? Math.sin(d.phase) * 2.6
-        : Math.abs(Math.sin(d.phase)) * 1.2
-      : 0;
-  const h = headPose(d, b, bob);
+  return d.speed > 20
+    ? run
+      ? Math.sin(d.phase) * 2.6
+      : Math.abs(Math.sin(d.phase)) * 1.2
+    : 0;
+};
+
+/** Between the jaws, in the dog's own space (not flipped, not scaled). */
+function jaws(
+  d: Dog,
+  t: number,
+  bob: number,
+  low?: number,
+  up?: number,
+): [number, number] {
+  const b = buildOf(d);
+  const h = headPose(d, b, bob, t, low, up);
   const u = 8.3 * b.sk + b.mz - 3;
   const v = 4.6 * b.sk;
-  const lx = h.x + u * Math.cos(h.r) - v * Math.sin(h.r);
-  const ly = h.y + u * Math.sin(h.r) + v * Math.cos(h.r);
-  return [d.x + d.f * lx * sc, d.y + ly * sc];
+  return [
+    h.x + u * Math.cos(h.r) - v * Math.sin(h.r),
+    h.y + u * Math.sin(h.r) + v * Math.cos(h.r),
+  ];
+}
+
+/** Where the mouth is on screen right now, from the head pose the dog is drawn in. */
+export function mouth(d: Dog, t: number): [number, number] {
+  const [lx, ly] = jaws(d, t, bobOf(d));
+  const sc = scaleOf(d);
+  return [d.x + d.fv * lx * sc, d.y + ly * sc];
+}
+
+/** How far ahead of its feet the mouth reaches with the head down and the dog standing still, in dog units. */
+const reach = (d: Dog) => jaws(d, 0, 0, 1, 0)[0];
+
+/** Where a ball in a dog's mouth is drawn: on the ground at first, rising into the jaws as they close. */
+export function ballAt(d: Dog, t: number): [number, number] {
+  const m = mouth(d, t);
+  if (d.state !== 'grab') return m;
+  const k = clamp(d.gt / 0.2, 0, 1);
+  const e = k * k * (3 - 2 * k);
+  return [d.rx + (m[0] - d.rx) * e, d.ry + (m[1] - d.ry) * e];
 }
 
 /** Two-bone solve: the middle joint for a limb from a to b, bending toward +x or -x. */
@@ -393,7 +487,13 @@ export function drawDog(
   c.strokeStyle = col.stroke;
   c.stroke();
   c.globalAlpha = 1;
-  c.scale(sc * d.f, sc);
+  // A little hop of joy after setting the ball down.
+  if (d.joy > 0 && !d.ball)
+    c.translate(
+      0,
+      -Math.abs(Math.sin(d.joy * 8)) * 5 * sc * clamp(d.joy, 0, 1),
+    );
+  c.scale(sc * d.fv, sc);
   const lw = 1.5 / sc;
   c.strokeStyle = col.stroke;
   c.fillStyle = col.page;
@@ -497,7 +597,7 @@ export function drawDog(
   );
 
   // Head pose first: the neck is drawn to meet it.
-  const hp = headPose(d, b, bob);
+  const hp = headPose(d, b, bob, t);
   const cr = Math.cos(hp.r);
   const sr = Math.sin(hp.r);
   const H = (u: number, v: number): P => [
@@ -555,15 +655,15 @@ export function drawDog(
       run * 0.45 +
       Math.sin(d.phase * (run ? 1 : 2) + 1) * 0.22 * moving +
       Math.sin(t * 1.8 + d.seed) * 0.035 +
-      d.sniff * 0.25,
+      lowOf(d) * 0.25,
   );
   c.save();
   c.translate(hp.x, hp.y);
-  c.rotate(hp.r + (d.sniff ? 0 : Math.sin(t * 0.9 + d.seed) * 0.03));
+  c.rotate(hp.r);
   drawHead(c, col, b, open, tongue, earA - hp.r * 0.85, d.type, lw);
   c.restore();
   // Collar: a band across the neck, a third of the way down.
-  if (!d.type && d.sniff < 0.25) {
+  if (!d.type && lowOf(d) < 0.25) {
     const lp = (p: P, q: P, k: number): P => [
       p[0] + (q[0] - p[0]) * k,
       p[1] + (q[1] - p[1]) * k,

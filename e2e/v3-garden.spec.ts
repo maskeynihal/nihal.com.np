@@ -19,9 +19,11 @@ test.describe('garden @V3-garden', () => {
       'aria-hidden',
       'true',
     );
-    await expect(garden).toContainText(
-      'the garden. pick flowers for the bucket. throw the ball for the dogs.',
-    );
+    // No words in view: the controls are icons with names for assistive tech, the count is for screen readers.
+    await expect(garden.locator('.garden-caption')).toHaveCount(0);
+    for (const name of ['pick a flower', 'throw a ball'])
+      await expect(garden.getByRole('button', { name })).toHaveText('');
+    await expect(garden.locator('[data-garden-count]')).toHaveClass(/sr-only/);
     test.skip(!javaScriptEnabled, 'needs JS');
     await page.waitForTimeout(800);
     expect(chunks, 'no garden chunk at first paint').toEqual([]);
@@ -240,6 +242,118 @@ test.describe('garden @V3-garden', () => {
       // A ball at rest or carried reads under 5; a flick leaves with real speed. The exact figure
       // depends on how fast the machine delivers the pointer events, so the bar is low.
       expect(fastest).toBeGreaterThan(30);
+    });
+
+    test('three flowers bring wrapping paper; wrap, vase, pin to the edge and take back @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      const hooks = {
+        paper: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.paper()),
+        bouquets: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.bouquets()),
+        vase: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.vase()),
+        pins: () =>
+          page.evaluate(() => (window.__hooks as Hooks).garden!.pins()),
+      };
+      const pick = g.root.getByRole('button', { name: 'pick a flower' });
+      for (let i = 1; i <= 3; i++) {
+        await pick.click();
+        await expect
+          .poll(async () => (await g.bucket()).count, { timeout: 15_000 })
+          .toBe(i);
+      }
+      // Paper lies by the bucket; no words, a control for the keyboard.
+      await expect.poll(hooks.paper).not.toBeNull();
+      const wrap = g.root.getByRole('button', { name: 'wrap the bouquet' });
+      await expect(wrap).toBeVisible();
+      await expect(g.count).toContainText('wrapping paper is ready');
+      // Drag the paper onto the bucket.
+      await expect.poll(async () => (await hooks.paper())?.t).toBe(1);
+      const paper = (await hooks.paper())!;
+      const bucket = await g.bucket();
+      await page.mouse.move(paper.x, paper.y);
+      await page.mouse.down();
+      await page.mouse.move(bucket.x, bucket.y - 30, { steps: 10 });
+      await page.mouse.up();
+      await expect.poll(async () => (await g.bucket()).count).toBe(0);
+      await expect
+        .poll(async () => (await hooks.bouquets()).map((b) => b.mode), {
+          timeout: 10_000,
+        })
+        .toEqual(['lie']);
+      await expect(g.count).toHaveText('wrapped the flowers into a bouquet');
+      // The vase takes it.
+      await g.root
+        .getByRole('button', { name: 'put the bouquet in the vase' })
+        .click();
+      await expect.poll(async () => (await hooks.vase()).full).toBe(true);
+      // Take it out by drag, and pin it to the right edge of the screen.
+      await g.root
+        .getByRole('button', { name: 'take the bouquet out of the vase' })
+        .click();
+      await g.root
+        .getByRole('button', { name: 'pin the bouquet to the edge' })
+        .click();
+      await expect.poll(async () => (await hooks.pins()).length).toBe(1);
+      const pin = (await hooks.pins())[0]!;
+      const vp = page.viewportSize()!;
+      // Inside the sheet, clear of the lamp (top right 120 px) and the left index.
+      expect(pin.x).toBeGreaterThan(120 + 24);
+      expect(pin.x + pin.width).toBeLessThanOrEqual(vp.width);
+      expect(pin.y).toBeGreaterThanOrEqual(120);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
+      expect((await hooks.pins())[0]!.y).toBe(pin.y);
+      await expectNoAxeViolations(page, {
+        label: '/ garden with a pinned bouquet',
+      });
+      await page
+        .getByRole('button', { name: 'take the bouquet back into the garden' })
+        .click();
+      await expect.poll(async () => (await hooks.pins()).length).toBe(0);
+      await expect.poll(async () => (await hooks.bouquets()).length).toBe(1);
+    });
+
+    test('the dog meets the ball with its mouth, carries it and sets it down @V3-garden', async ({
+      page,
+      javaScriptEnabled,
+    }, info) => {
+      const g = await ready(page, javaScriptEnabled, info);
+      await g.root.getByRole('button', { name: 'throw a ball' }).click();
+      const dogs = () =>
+        page.evaluate(() => (window.__hooks as Hooks).garden!.dogs());
+      // Sample until a dog has taken hold: the mouth is at the ball, not the body.
+      let gap = 1e9;
+      await expect
+        .poll(
+          async () => {
+            const d = (await dogs()).find((o) => o.state === 'grab' && o.ball);
+            if (d)
+              gap = Math.hypot(d.mouth[0] - d.ball!.x, d.mouth[1] - d.ball!.y);
+            return !!d;
+          },
+          { timeout: 20_000, intervals: [30] },
+        )
+        .toBe(true);
+      expect(gap).toBeLessThan(16);
+      // It carries it, then sets it down and the ball rests on the grass, free to take again.
+      await expect
+        .poll(async () => (await dogs()).some((o) => o.ball?.held), {
+          timeout: 10_000,
+        })
+        .toBe(true);
+      await expect
+        .poll(async () => (await dogs()).every((o) => !o.ball), {
+          timeout: 25_000,
+        })
+        .toBe(true);
+      await expect
+        .poll(async () => (await g.balls()).some((b) => !b.held && !b.grabbed))
+        .toBe(true);
     });
   });
 });

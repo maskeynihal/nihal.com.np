@@ -46,6 +46,7 @@ export function plant(
     hx: x,
     hy: y,
     lean: 0,
+    pl: 0,
   };
 }
 
@@ -70,8 +71,24 @@ export function seedFlowers(w: World) {
 
 /** Grows what is planted, and plants new ones where one was picked or at random, up to the cap. */
 export function stepFlora(w: World, dt: number) {
-  for (const f of w.flowers)
+  const e = 1 - Math.exp(-dt * 5);
+  for (const f of w.flowers) {
     if (f.grow < 1) f.grow = Math.min(1, f.grow + dt / (7 + f.ph));
+    // Flowers near the pointer lean toward it, more the closer it is.
+    let to = 0;
+    if (w.hover && !w.held) {
+      const dx = w.px - f.x;
+      const dy = w.py - (f.y - f.h * 0.5);
+      to =
+        Math.sign(dx) *
+        Math.exp(-(dx * dx) / 9000 - (dy * dy) / 40000) *
+        f.h *
+        Math.min(1, f.grow) *
+        0.22 *
+        Math.min(1, Math.abs(dx) / 24);
+    }
+    f.pl += (to - f.pl) * e;
+  }
   for (const s of w.spots) s.t -= dt;
   w.sprout -= dt;
   if (w.flowers.length >= w.cap) {
@@ -293,7 +310,7 @@ export function drawFlowers(
   for (const f of w.flowers) {
     const g = ease(unit(f.grow / 0.6));
     const h = f.h * g;
-    f.lean = windAt(w, f.x, f.y - h * 0.6) * h * 0.3;
+    f.lean = windAt(w, f.x, f.y - h * 0.6) * h * 0.3 + f.pl;
     f.hx = f.x + f.lean;
     f.hy =
       f.y - h + Math.sin(w.t * 1.5 + f.ph) * 2 * g + Math.abs(f.lean) * 0.1;
