@@ -428,12 +428,24 @@ test.describe('garden @V3-garden', () => {
           async () => {
             const d = (await dogs()).find((o) => o.state === 'grab' && o.ball);
             if (d)
-              gap = Math.hypot(d.mouth[0] - d.ball!.x, d.mouth[1] - d.ball!.y);
+              gap = Math.min(
+                gap,
+                Math.hypot(d.mouth[0] - d.ball!.x, d.mouth[1] - d.ball!.y),
+              );
             return !!d;
           },
           { timeout: 20_000, intervals: [30] },
         )
         .toBe(true);
+      // The first sample can land while the head is still dropping (it flaked at 24 to 26 px in 4 of
+      // 32 runs under load), so keep sampling through the 0.34 s grab and take the closest.
+      await page.waitForTimeout(300);
+      const d2 = (await dogs()).find((o) => o.state === 'grab' && o.ball);
+      if (d2)
+        gap = Math.min(
+          gap,
+          Math.hypot(d2.mouth[0] - d2.ball!.x, d2.mouth[1] - d2.ball!.y),
+        );
       expect(gap).toBeLessThan(16);
       // It carries it, then sets it down and the ball rests on the grass, free to take again.
       await expect
