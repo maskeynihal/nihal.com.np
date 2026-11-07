@@ -267,12 +267,22 @@ function World({
     else bodies.current.delete(id);
   }, []);
 
+  /** The body for `id`, or undefined when there is none or the world no longer holds it (reading a removed body traps in wasm). */
+  const live = (id: string): RapierRigidBody | undefined => {
+    const rb = bodies.current.get(id);
+    if (rb && !world.getRigidBody(rb.handle)) {
+      bodies.current.delete(id);
+      return undefined;
+    }
+    return rb;
+  };
+
   /** Back to the home pose, still, asleep. A body that went to the fall layer gets a fresh one. */
   const respawn = (entry: RegistryEntry) => {
     if (grab.current?.id === entry.id) grab.current = null;
     outSince.current.delete(entry.id);
     spawns.current.delete(entry.id);
-    const rb = bodies.current.get(entry.id);
+    const rb = live(entry.id);
     if (handed.current.delete(entry.id) || !rb) {
       generation.current.set(
         entry.id,
@@ -303,7 +313,7 @@ function World({
   // Everything starts asleep. This effect belongs to the parent of every body, so it runs after
   // theirs (the body's own options effect wakes it once while it applies the type).
   useEffect(() => {
-    for (const rb of bodies.current.values()) rb.sleep();
+    for (const id of [...bodies.current.keys()]) live(id)?.sleep();
   }, []);
 
   useBeforePhysicsStep(() => {
@@ -388,7 +398,7 @@ function World({
     let away = handed.current.size > 0;
     for (const entry of entries) {
       if (handed.current.has(entry.id)) continue;
-      const rb = bodies.current.get(entry.id);
+      const rb = live(entry.id);
       if (!rb) continue;
       const p = rb.translation();
       const held = grab.current?.id === entry.id;
@@ -454,7 +464,7 @@ function World({
     };
     const api: PhysicsApi = {
       grab(id, x, z) {
-        const rb = bodies.current.get(id);
+        const rb = live(id);
         if (!rb || !registry.get(id) || handed.current.has(id)) return false;
         dropHeld(0, 0);
         rb.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
@@ -517,7 +527,7 @@ function World({
       },
       grabbed: () => grab.current?.id ?? null,
       awake: (id) => {
-        const rb = bodies.current.get(id);
+        const rb = live(id);
         return (
           !!rb &&
           !handed.current.has(id) &&
@@ -526,7 +536,7 @@ function World({
       },
       bodies: () =>
         entries.flatMap((e) => {
-          const rb = bodies.current.get(e.id);
+          const rb = live(e.id);
           if (!rb || handed.current.has(e.id)) return [];
           const p = rb.translation();
           return [
@@ -541,7 +551,7 @@ function World({
           ];
         }),
       teleport(id, x, y, z) {
-        const rb = bodies.current.get(id);
+        const rb = live(id);
         if (!rb || handed.current.has(id)) return false;
         grab.current = grab.current?.id === id ? null : grab.current;
         rb.setBodyType(rapier.RigidBodyType.Dynamic, true);
