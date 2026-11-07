@@ -313,7 +313,7 @@ function World({
   // Everything starts asleep. This effect belongs to the parent of every body, so it runs after
   // theirs (the body's own options effect wakes it once while it applies the type).
   useEffect(() => {
-    for (const id of [...bodies.current.keys()]) live(id)?.sleep();
+    for (const rb of bodies.current.values()) rb.sleep();
   }, []);
 
   useBeforePhysicsStep(() => {
