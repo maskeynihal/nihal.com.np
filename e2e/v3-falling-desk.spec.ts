@@ -36,6 +36,25 @@ async function carry(page: Page, id: string, x: number, y: number) {
   return o;
 }
 
+/** The fall layer is up, holds bodies, and all of them are asleep (an empty list is not "settled"). */
+async function fallSettled(page: Page, timeout = 45_000) {
+  await expect
+    .poll(
+      async () => {
+        const f = await page.evaluate(() =>
+          window.__hooks!.desk!.scene!.fall(),
+        );
+        return (
+          f.state === 'ready' &&
+          f.bodies.length > 0 &&
+          f.bodies.every((b) => b.asleep)
+        );
+      },
+      { timeout },
+    )
+    .toBe(true);
+}
+
 test.describe('falling desk @V3-desk', () => {
   // eslint-disable-next-line no-empty-pattern
   test.beforeEach(({}, info) => {
@@ -53,16 +72,14 @@ test.describe('falling desk @V3-desk', () => {
     const home = (await where(page, 'ball-m'))!;
     await expect(reset(page)).toBeHidden();
 
-    // Carry it past the table's right edge and let go.
+    // Carry it past the table's right edge, well inside the screen, and let go.
     const vw = page.viewportSize()!.width;
-    await carry(page, 'ball-m', vw - 50, home.y - 40);
+    await carry(page, 'ball-m', vw - 200, home.y - 40);
     await page.mouse.up();
     await expect(reset(page)).toBeVisible({ timeout: 10_000 });
 
     // It was handed to the fall layer in one swap: same picture either side.
-    await expect
-      .poll(async () => (await fall(page)).state, { timeout: 30_000 })
-      .toBe('ready');
+    await fallSettled(page);
     const log = (await page.evaluate(() =>
       window.__hooks!.desk!.scene!.handoffs(),
     )) as { id: string; dir: string; errPx: number }[];
@@ -70,18 +87,14 @@ test.describe('falling desk @V3-desk', () => {
     expect(down, 'a handoff to the fall layer').toBeTruthy();
     expect(down!.errPx).toBeLessThan(6);
 
-    await expect
-      .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
-        timeout: 45_000,
-      })
-      .toBe(true);
     const vh = page.viewportSize()!.height;
     const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
     // Rests on the bottom edge of the screen: the silhouette is within 30 px of it.
     const bottom = b.rect!.y + b.rect!.h;
-    // The floor is the sheet border's inner edge (24 px on desktop), not the screen edge itself.
-    expect(vh - bottom).toBeLessThanOrEqual(34);
-    expect(vh - bottom).toBeGreaterThanOrEqual(16);
+    // Rests on the bottom edge of the screen (`rect` is the projected bounding box, a little taller
+    // than the silhouette, so it can touch or pass the edge by a few px).
+    expect(vh - bottom).toBeLessThanOrEqual(30);
+    expect(vh - bottom).toBeGreaterThanOrEqual(-2);
     expect(b.rect!.x).toBeGreaterThan(0);
     expect(b.rect!.x + b.rect!.w).toBeLessThan(vw);
     await expectNoAxeViolations(page, { label: '/ desk with a fallen object' });
@@ -119,11 +132,7 @@ test.describe('falling desk @V3-desk', () => {
     await carry(page, 'ball-l', page.viewportSize()!.width - 50, o.y - 40);
     await page.mouse.up();
     const vh = page.viewportSize()!.height;
-    await expect
-      .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
-        timeout: 45_000,
-      })
-      .toBe(true);
+    await fallSettled(page);
     // Scroll one screen: the table leaves, the fallen ball stays on the bottom of the screen.
     await page.mouse.wheel(0, vh);
     await page.waitForTimeout(1500);
@@ -142,23 +151,22 @@ test.describe('falling desk @V3-desk', () => {
     const home = (await where(page, 'ball-m'))!;
     await carry(page, 'ball-m', page.viewportSize()!.width - 50, home.y - 40);
     await page.mouse.up();
-    const settled = () =>
-      expect
-        .poll(async () => (await fall(page)).bodies.every((b) => b.asleep), {
-          timeout: 45_000,
-        })
-        .toBe(true);
+    const settled = () => fallSettled(page);
     await settled();
-    const { width } = page.viewportSize()!;
+    const { width, height: h0 } = page.viewportSize()!;
+    const gapOf = async (height: number) => {
+      const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
+      return height - (b.rect!.y + b.rect!.h);
+    };
+    const gap0 = await gapOf(h0);
     for (const height of [1000, 1180, 1100]) {
       await page.setViewportSize({ width, height });
       await page.waitForTimeout(1200);
       await settled();
-      const b = (await fall(page)).bodies.find((x) => x.id === 'ball-m')!;
-      const gap = height - (b.rect!.y + b.rect!.h);
-      // Always above the border's inner edge (never below it), and back on the floor.
-      expect(gap, `height ${height}`).toBeGreaterThanOrEqual(16);
-      expect(gap, `height ${height}`).toBeLessThanOrEqual(34);
+      // Back on the floor: the same distance from the bottom edge as before, never below the screen.
+      const gap = await gapOf(height);
+      expect(gap, `height ${height}`).toBeGreaterThanOrEqual(-2);
+      expect(Math.abs(gap - gap0), `height ${height}`).toBeLessThan(12);
     }
   });
 

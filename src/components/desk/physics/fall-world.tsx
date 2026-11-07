@@ -202,7 +202,10 @@ function FallWorld({
       make(WALL, 50, 50, n.clone().multiplyScalar(-WALL), q);
     }
     return () => {
-      world.removeRigidBody(body);
+      // On unmount @react-three/rapier frees the world and resets its proxy, and this cleanup can run
+      // after that: the proxy then makes a new, empty world and removing a body it never had traps
+      // in wasm ("unreachable"). Only remove a body the current world still holds.
+      if (world.getRigidBody(body.handle)) world.removeRigidBody(body);
       room.current = null;
     };
   }, [rapier, world, anchor, size.width, size.height]);
@@ -226,7 +229,8 @@ function FallWorld({
     const b = bodies.current.get(id);
     if (!b) return;
     if (held.current?.body === b) held.current = null;
-    world.removeRigidBody(b.rb);
+    // Not when the world is already gone (an unmount resets it first; see the room's cleanup).
+    if (world.getRigidBody(b.rb.handle)) world.removeRigidBody(b.rb);
     bodies.current.delete(id);
     scene.remove(b.entry.obj);
     return b;

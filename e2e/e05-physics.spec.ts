@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import sharp from 'sharp';
 import { test, expect, expectNoAxeViolations } from './fixtures';
+import { objects } from '../src/content/objects';
 
 const figure = (page: Page) => page.locator('[data-desk]');
 const canvas = (page: Page) => page.locator('[data-desk] canvas');
@@ -97,7 +98,7 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     await page.mouse.down();
     await page.mouse.move(o.x + 40, o.y + 20, { steps: 5 });
     await expect.poll(() => grabbed(page), { timeout: 30_000 }).toBe('arduino');
-    expect(urls.filter((u) => /physics-world/i.test(u)).length).toBe(1);
+    expect(urls.filter((u) => /\/physics\.[\w-]+\.js/i.test(u)).length).toBe(1);
     await page.mouse.up();
     await expect.poll(() => grabbed(page)).toBeNull();
     const drag = (await events(page)).filter((e) => e.type === 'nihal:drag');
@@ -203,7 +204,7 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     await expectNoAxeViolations(page, { label: '/ desk after reset' });
   });
 
-  test('a body teleported out of bounds is respawned within 2 s @E-05', async ({
+  test('a body teleported far off the table is taken by a layer: the fall layer, or home by the watchdog @E-05', async ({
     page,
   }) => {
     await goLive(page);
@@ -211,22 +212,26 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     await dragTo(page, 'calendar', 10, 10);
     await page.mouse.up();
     await settled(page);
-    const t0 = Date.now();
     expect(
       await page.evaluate(() =>
         window.__hooks!.desk!.scene!.teleport('calendar', 9, 0.5, 0),
       ),
     ).toBe(true);
+    // The table has no side walls: it falls off and the fall layer takes it (a second canvas has to
+    // come up first), or the watchdog sends it home. It is never left flying.
     await expect
       .poll(
         async () => {
+          const f = await page.evaluate(() =>
+            window.__hooks!.desk!.scene!.fall(),
+          );
+          if (f.bodies.some((b) => b.id === 'calendar')) return 'fall';
           const p = await where(page, 'calendar');
-          return Math.hypot(p.x - home.x, p.y - home.y) < 3;
+          return Math.hypot(p.x - home.x, p.y - home.y) < 3 ? 'home' : 'none';
         },
-        { timeout: 4000, intervals: [50] },
+        { timeout: 20_000, intervals: [100] },
       )
-      .toBe(true);
-    expect(Date.now() - t0).toBeLessThan(2000);
+      .not.toBe('none');
   });
 
   test('asleep bodies cost no frames @E-05', async ({ page }) => {
@@ -272,7 +277,8 @@ test.describe('physics, drag, throw, touch @E-05', () => {
     expect(ratio).toBeLessThan(0.005);
     // Bodies are in, asleep and nothing moved.
     const list = await bodies(page);
-    expect(list.length).toBeLessThanOrEqual(7);
+    // One body per drawn object (the confirmed ones, letters and balls included).
+    expect(list.length).toBe(objects.filter((o) => o.confirmed).length);
     expect(list.every((x) => x.asleep)).toBe(true);
   });
 });
@@ -354,7 +360,7 @@ test.describe('touch @E-05', () => {
       .toBeGreaterThan(y0 + 40);
     expect(await grabbed(page)).toBeNull();
     expect(await physicsState(page)).toBe('idle');
-    expect(urls.filter((u) => /physics-world/i.test(u))).toEqual([]);
+    expect(urls.filter((u) => /\/physics\.[\w-]+\.js/i.test(u))).toEqual([]);
     expect((await events(page)).filter((e) => e.type === 'nihal:drag')).toEqual(
       [],
     );

@@ -261,6 +261,8 @@
   color: inherit;
   cursor: pointer;
   visibility: hidden;
+  /* Its container (.desk-controls) takes no events; the button must. */
+  pointer-events: auto;
 }
 
 .desk[data-desk-state='live'][data-desk-free='true'] .desk-reset {
