@@ -81,6 +81,8 @@ interface DeskSceneHooks {
   hovered(): string | null;
   /** Hover lift of the model root, metres. */
   hoverLift(id: string): number;
+  /** The scroll springs: shift (m) and speed per object that has one. */
+  motion(): { id: string; x: number; v: number }[];
   /** One entry per leader line and label (DOM `role=tooltip`), with the line's opacity. */
   callouts(): {
     id: string;

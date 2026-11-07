@@ -67,6 +67,7 @@ import { Callouts } from './Callouts';
 import { disposedProbe } from './disposed-probe';
 import { createContextPolicy, type ContextEvent } from './context-loss';
 import { Interaction } from './Interaction';
+import { ScrollMotion } from './ScrollMotion';
 import { IslandBoundary } from './IslandBoundary';
 import { fallBridge, physicsBridge } from './physics-bridge';
 import { registry } from './registry';
@@ -286,6 +287,7 @@ function Model({
   const art = useLineArt();
   const gltf = useGltf(url);
   const group = useRef<Group>(null);
+  const pivot = useRef<Group>(null);
   const root = useMemo(() => {
     const clone = gltf.scene.clone(true);
     prepareLineArt(clone, art, { textured, sheet: sheet ?? false });
@@ -295,8 +297,9 @@ function Model({
   // Every object (not the sheet) goes in the registry: picking, physics and explode read it.
   useLayoutEffect(() => {
     const obj = group.current;
-    if (sheet || !obj) return;
-    return registry.register({ id: def.id, def, obj, lift: root });
+    const pv = pivot.current;
+    if (sheet || !obj || !pv) return;
+    return registry.register({ id: def.id, def, obj, pivot: pv, lift: root });
   }, [def, root, sheet]);
   return (
     <group
@@ -306,7 +309,9 @@ function Model({
       position={def.p}
       quaternion={def.q}
     >
-      <primitive object={root} />
+      <group ref={pivot} name={`${def.id}-pivot`}>
+        <primitive object={root} />
+      </group>
       {children?.(root)}
     </group>
   );
@@ -801,6 +806,7 @@ export default function Scene({
             <TableWatch />
             <ThemeWatch art={art} />
             <Interaction />
+            <ScrollMotion />
             <Callouts />
             {physicsOn ? (
               <IslandBoundary

@@ -75,9 +75,8 @@ test.describe('falling desk @V3-desk', () => {
     // Carry it past the table's right edge, well inside the screen, and let go.
     const vw = page.viewportSize()!.width;
     await carry(page, 'ball-m', vw - 200, home.y - 40);
-    // Let it come to rest in the hand before letting go: a hard throw leaves the screen's side
-    // before the handoff and is pulled back inside it, which is a jump by design, not what this
-    // checks (errPx is the handoff error of an object that is on screen).
+    // Let it come to rest in the hand before letting go (a hard throw has its own spec,
+    // v3-2-desk: it is handed over at the canvas edge).
     await page.waitForTimeout(400);
     await page.mouse.up();
     await expect(reset(page)).toBeVisible({ timeout: 10_000 });

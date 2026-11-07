@@ -31,6 +31,8 @@ export interface SceneProbe {
     active: boolean;
     lineOpacity: number;
   }[];
+  /** The scroll springs (D3): shift in metres and speed per object that has one. */
+  motion: () => { id: string; x: number; v: number }[];
   /** The live renderer, for context and memory hooks. */
   gl: WebGLRenderer | null;
   /** While true the 1 s / 500 ms timers keep running but stop requesting frames (tests only). */
@@ -49,6 +51,7 @@ export const probe: SceneProbe = {
   probeSphere: () => null,
   interaction: { pick: () => null, hovered: () => null, lift: () => 0 },
   callouts: () => [],
+  motion: () => [],
   gl: null,
   quiet: false,
 };
@@ -112,6 +115,7 @@ export function installSceneHooks(): () => void {
     hovered: () => probe.interaction.hovered(),
     hoverLift: (id) => probe.interaction.lift(id),
     callouts: () => probe.callouts(),
+    motion: () => probe.motion(),
     audio: () => audioProbe(),
     memory: () => {
       const m = probe.gl?.info.memory;
@@ -187,4 +191,7 @@ export function setInteractionProbe(i: SceneProbe['interaction'] | null): void {
 }
 export function setCalloutProbe(fn: SceneProbe['callouts'] | null): void {
   probe.callouts = fn ?? (() => []);
+}
+export function setMotionProbe(fn: SceneProbe['motion'] | null): void {
+  probe.motion = fn ?? (() => []);
 }
