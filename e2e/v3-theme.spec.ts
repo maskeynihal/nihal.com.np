@@ -142,7 +142,7 @@ test.describe('theme toggle @V3-theme', () => {
     await expectNoAxeViolations(page, { label: '/ paper theme' });
     await page.locator('#work').scrollIntoViewIfNeeded();
     await expectNoAxeViolations(page, { label: '/ paper theme, work' });
-    await page.locator('#colophon').scrollIntoViewIfNeeded();
-    await expectNoAxeViolations(page, { label: '/ paper theme, colophon' });
+    await page.locator('.sheet-footer').scrollIntoViewIfNeeded();
+    await expectNoAxeViolations(page, { label: '/ paper theme, footer' });
   });
 });

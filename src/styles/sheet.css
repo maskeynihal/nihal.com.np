@@ -71,6 +71,23 @@
   margin-block-end: 1.5rem;
 }
 
+/* Arrival from the index (sheet-index.ts): the heading settles in over 200 ms. Opacity and
+   transform only. */
+.section-heading[data-arrive] {
+  animation: heading-arrive 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes heading-arrive {
+  from {
+    opacity: 0.45;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .section-body > * + * {
   margin-block-start: 1rem;
 }
@@ -81,6 +98,44 @@
   }
   .section[data-side='right'] .section-grid > * {
     grid-column: 6 / 13;
+  }
+}
+
+/* --- Section art (P6): a quiet drawing in the empty column. Absolute, so no layout shift;
+   hidden below 1024 px; hairline colour at reduced opacity so it never competes with the text.
+   The text columns never overlap it: left text ends at column 8, right text starts at column 6. */
+.section-art {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .section-art {
+    display: block;
+    position: absolute;
+    inset-block-start: 0;
+    width: calc((100% - 11 * var(--gutter)) / 12 * 4 + 3 * var(--gutter));
+    max-width: 17rem;
+    aspect-ratio: 1;
+    height: auto;
+    color: var(--hair-strong);
+    opacity: 0.7;
+    pointer-events: none;
+    grid-column: auto;
+  }
+  .section-grid {
+    position: relative;
+  }
+  .section[data-side='left'] .section-art {
+    inset-inline-end: calc((100% - 11 * var(--gutter)) / 12 + var(--gutter));
+  }
+  .section[data-side='right'] .section-art {
+    inset-inline-start: calc((100% - 11 * var(--gutter)) / 12 + var(--gutter));
+  }
+}
+
+@media print {
+  .section-art {
+    display: none;
   }
 }
 

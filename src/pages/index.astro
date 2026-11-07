@@ -24,10 +24,8 @@ import {
   getWriting,
   getCv,
   getClocks,
-  getEndMark,
 } from '../content';
 import { site } from '../content/site';
-import { rowLabel } from '../lib/sections';
 
 const {
   titleBlock,
@@ -37,14 +35,13 @@ const {
   writing,
   cv,
   contact,
-  colophon,
+  footer,
 } = getCopy();
 const work = getWork();
 const oss = getOss();
 const posts = getWriting();
 const cvRows = getCv();
 const clocks = getClocks();
-const endMark = getEndMark();
 const year = String(new Date().getFullYear());
 ---
 
@@ -65,7 +62,7 @@ const year = String(new Date().getFullYear());
       </div>
     </Section>
 
-    <Section id="about" heading={headings.about} side="right">
+    <Section id="about" heading={headings.about} side="right" art="about">
       <p>{about.paragraphs[0]}</p>
       <p>{about.paragraphs[1]}</p>
       <p>{about.paragraphs[2]}</p>
@@ -86,29 +83,32 @@ const year = String(new Date().getFullYear());
       </dl>
     </Section>
 
-    <Section id="work" heading={headings.work} side="left">
+    <Section id="work" heading={headings.work} side="left" art="work">
       <p>{workCopy.intro}</p>
       {work.map((item) => (
         <WorkPanel item={item} />
       ))}
     </Section>
 
-    <Section id="open-source" heading={headings.openSource} side="right">
+    <Section
+      id="open-source"
+      heading={headings.openSource}
+      side="right"
+      art="opensource"
+    >
       <PaperPanel>
         <RevisionTable rows={oss} />
       </PaperPanel>
     </Section>
 
-    <Section id="writing" heading={headings.writing} side="left">
+    <Section id="writing" heading={headings.writing} side="left" art="writing">
       <p>{writing.intro}</p>
       <PaperPanel>
         <WritingList posts={posts} />
       </PaperPanel>
     </Section>
 
-    <Section id="cv" heading={headings.cv} side="right">
-      <p>{cv.intro}</p>
-      <p>{cv.note}</p>
+    <Section id="cv" heading={headings.cv} side="right" art="cv">
       <PaperPanel>
         <CvTable rows={cvRows} />
       </PaperPanel>
@@ -125,7 +125,7 @@ const year = String(new Date().getFullYear());
       </ul>
     </Section>
 
-    <Section id="contact" heading={headings.contact} side="left">
+    <Section id="contact" heading={headings.contact} side="left" art="contact">
       <PaperPanel class="contact-panel">
         <p>{contact.lead}</p>
         <p>
@@ -162,21 +162,14 @@ const year = String(new Date().getFullYear());
 
     <Garden />
 
-    <!-- B-07 closes the sheet under the colophon. -->
-    <Section id="colophon" heading={rowLabel('colophon')} side="right">
-      <p class="small">{colophon.copyright.replace('{year}', year)}</p>
-      <p class="small">{colophon.built}</p>
+    <footer class="sheet-footer">
+      <p class="small">{footer.copyright.replace('{year}', year)}</p>
       <p class="small">
-        <a class="sheet-link" href={colophon.sourceHref} rel="noopener">
-          {colophon.source}
+        <a class="sheet-link" href={footer.sourceHref} rel="noopener">
+          {footer.source}
         </a>
       </p>
-      {endMark && (
-        <p class="small end-mark" lang={endMark.lang}>
-          {endMark.text}
-        </p>
-      )}
-    </Section>
+    </footer>
 
     {testHooks && (
       <div

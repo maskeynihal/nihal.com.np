@@ -20,9 +20,7 @@ test.describe('title block and poster @B-03', () => {
     expect(await page.locator('h1').innerText()).toBe('nihal maskey');
     await expect(page.locator('#desk h1')).toHaveCSS('opacity', '1');
     const block = page.locator('.title-block');
-    await expect(block).toContainText(
-      copy.titleBlock.options[copy.titleBlock.selected],
-    );
+    await expect(block).toContainText(copy.titleBlock.line);
     await expect(
       block.getByRole('link', { name: copy.titleBlock.email }),
     ).toHaveAttribute('href', `mailto:${copy.titleBlock.email}`);

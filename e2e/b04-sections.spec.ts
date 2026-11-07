@@ -55,12 +55,12 @@ test.describe('work, open source, writing, cv @B-04', () => {
     }
   });
 
-  test('revision table: caption, column headers, one row per PR, dates as time @B-04', async ({
+  test('revision table: name, column headers, one row per PR, dates as time @B-04', async ({
     page,
   }) => {
     await page.goto('/');
     const table = page.locator('#open-source table');
-    await expect(table.locator('caption')).toHaveText(copy.openSource.intro);
+    await expect(table).toHaveAccessibleName(copy.headings.openSource);
     await expect(table.locator('thead th')).toHaveText([
       ...copy.openSource.columns,
     ]);
@@ -75,13 +75,7 @@ test.describe('work, open source, writing, cv @B-04', () => {
       'datetime',
       '2023-06',
     );
-    await expect(table.locator('tfoot')).toContainText(
-      /^\d+ merged, \d+ closed without merging, as of \d{4}-\d\d-\d\d\.$/,
-    );
-    await expect(table.locator('tfoot time')).toHaveAttribute(
-      'datetime',
-      /^\d{4}-\d\d-\d\d$/,
-    );
+    await expect(table.locator('tfoot')).toHaveCount(0);
     await expectNoAxeViolations(page, { label: '/ revision table' });
   });
 
@@ -118,7 +112,6 @@ test.describe('work, open source, writing, cv @B-04', () => {
       await expect(tr.locator('td').nth(0)).toContainText(r.role);
       await expect(tr.locator('td').nth(1)).toHaveText(r.org);
     }
-    await expect(page.locator('#cv')).toContainText(copy.cv.note);
     // Co-founder, education and skills are a paper card each, after the table.
     const cards = page.locator('#cv .cv-card');
     await expect(cards).toHaveCount(copy.cv.cards.length);

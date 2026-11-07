@@ -9,7 +9,6 @@ const IDS = [
   'writing',
   'cv',
   'contact',
-  'colophon',
 ];
 
 /** Text nodes holding -> or <- whose nearest element is not set in JetBrains Mono. */
@@ -36,7 +35,7 @@ async function arrowsOutsideMono(page: Page): Promise<string[]> {
 }
 
 test.describe('sections and panels @B-02', () => {
-  test('eight headed sections in order, each a labelled region @B-02', async ({
+  test('seven headed sections in order, each a labelled region @B-02', async ({
     page,
   }) => {
     await page.goto('/');

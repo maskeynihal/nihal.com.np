@@ -5,21 +5,12 @@ import type { Copy } from './schema';
  * Fragments still marked [CONFIRM]/[ASK] in the spec are not here: they live in
  * `pending.ts` (build-time only) and the displayed sentence keeps only its confirmed part.
  * Client scripts must not import this file; use `client-copy.ts`.
- * Templates use {braces}: {merged} {closed} {date} {year}.
+ * Templates use {braces}: {year}.
  */
 export const copy = {
   nav: {
     label: 'sheet index',
-    rows: [
-      'desk',
-      'about',
-      'work',
-      'open source',
-      'writing',
-      'cv',
-      'contact',
-      'colophon',
-    ],
+    rows: ['desk', 'about', 'work', 'open source', 'writing', 'cv', 'contact'],
   },
   prefs: {
     motion: 'reduce motion',
@@ -32,12 +23,7 @@ export const copy = {
   titleBlock: {
     name: 'nihal maskey',
     kicker: 'lead software engineer · kathmandu, nepal',
-    selected: 'A',
-    options: {
-      A: 'I lead an engineering team at Leapfrog Technology that builds a US behavioural-health platform on AWS. I co-founded Daboo Spaces, a coworking space in Sankhamul. The rest of this sheet is things I built because I wanted them.',
-      B: "Lead engineer at Leapfrog Technology, a software services company in Kathmandu. Since 2023 I've worked on one US behavioral-health platform, mostly on the AWS side. Everything else on this sheet is a side project.",
-      C: 'Software engineer, Kathmandu. Days: a healthcare platform on AWS for Leapfrog Technology. Evenings: the things on this sheet.',
-    },
+    line: 'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my work, open-source contributions and writing.',
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
     revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
@@ -85,10 +71,7 @@ export const copy = {
     openNewTab: 'open the game in a new tab',
   },
   openSource: {
-    intro:
-      "Pull requests merged into other people's repositories. Counts come from the GitHub API at build time.",
     columns: ['repo', 'what', 'merged'],
-    footer: '{merged} merged, {closed} closed without merging, as of {date}.',
   },
   writing: {
     intro:
@@ -97,9 +80,6 @@ export const copy = {
     allHref: 'https://nihalmaskey.hashnode.dev',
   },
   cv: {
-    intro:
-      'Since 2019: two companies, and a long climb at Leapfrog from intern to lead.',
-    note: 'Leapfrog Technology is a software services company in Kathmandu.',
     cards: [
       {
         label: 'co-founder',
@@ -143,13 +123,10 @@ export const copy = {
       network: "Didn't send. Email me directly: contact@nihal.com.np",
     },
   },
-  colophon: {
-    owner: 'Nihal Maskey',
+  footer: {
     copyright: '© {year} Nihal Maskey.',
     source: 'Source on GitHub.',
     sourceHref: 'https://github.com/maskeynihal/nihal.com.np',
-    built:
-      'Built with Astro and three.js. The desk is code, not a model file from a store.',
   },
   meta: {
     title: 'Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal',

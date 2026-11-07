@@ -82,12 +82,6 @@ export const ClockDef = z.strictObject({
   confirmed: z.boolean(),
 });
 
-export const EndMark = z.strictObject({
-  text: text,
-  lang: z.string().regex(/^[a-z]{2,3}$/),
-  confirmed: z.boolean(),
-});
-
 export const BodyDef = z.strictObject({
   id: z.enum([
     'arduino',
@@ -141,7 +135,7 @@ export const Holiday = z.strictObject({
 export const Copy = z.strictObject({
   nav: z.strictObject({
     label: text,
-    rows: z.array(text).length(8),
+    rows: z.array(text).length(7),
   }),
   prefs: z.strictObject({
     motion: text,
@@ -153,10 +147,9 @@ export const Copy = z.strictObject({
   }),
   titleBlock: z.strictObject({
     name: text,
-    /** Visible line under the name, above the intro. */
+    /** Visible line under the name, above the sentence. */
     kicker: text,
-    selected: z.enum(['A', 'B', 'C']),
-    options: z.strictObject({ A: text, B: text, C: text }),
+    line: text,
     email: z.email(),
     timeLabel: text,
     /** Template; {rev} is the build month as YYYY.MM. */
@@ -189,14 +182,10 @@ export const Copy = z.strictObject({
     openNewTab: text,
   }),
   openSource: z.strictObject({
-    intro: text,
     columns: z.tuple([text, text, text]),
-    footer: text,
   }),
   writing: z.strictObject({ intro: text, all: text, allHref: url }),
   cv: z.strictObject({
-    note: text,
-    intro: text,
     cards: z
       .array(z.strictObject({ label: text, title: text, text }))
       .length(3),
@@ -220,12 +209,10 @@ export const Copy = z.strictObject({
       network: text,
     }),
   }),
-  colophon: z.strictObject({
-    owner: text,
+  footer: z.strictObject({
     copyright: text,
     source: text,
     sourceHref: url,
-    built: text,
   }),
   meta: z.strictObject({
     title: text,
@@ -276,7 +263,6 @@ export type PR = z.infer<typeof PR>;
 export type Post = z.infer<typeof Post>;
 export type CvRow = z.infer<typeof CvRow>;
 export type ClockDef = z.infer<typeof ClockDef>;
-export type EndMark = z.infer<typeof EndMark>;
 export type BodyDef = z.infer<typeof BodyDef>;
 export type Holiday = z.infer<typeof Holiday>;
 export type Copy = z.infer<typeof Copy>;

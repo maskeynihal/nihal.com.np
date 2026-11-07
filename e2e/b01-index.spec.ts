@@ -9,7 +9,6 @@ const IDS = [
   'writing',
   'cv',
   'contact',
-  'colophon',
 ];
 const nav = (page: Page) =>
   page.getByRole('navigation', { name: 'sheet index' });
@@ -33,7 +32,7 @@ test.describe('sheet border and index @B-01', () => {
   }) => {
     await page.goto('/');
     const links = nav(page).getByRole('link');
-    await expect(links).toHaveCount(8);
+    await expect(links).toHaveCount(7);
     expect(
       await links.evaluateAll((l) => l.map((a) => a.getAttribute('href'))),
     ).toEqual(IDS.map((i) => `#${i}`));
@@ -45,7 +44,6 @@ test.describe('sheet border and index @B-01', () => {
       'writing',
       'cv',
       'contact',
-      'colophon',
     ]);
     await links.nth(4).click();
     await expect(page).toHaveURL(/#writing$/);
@@ -133,20 +131,29 @@ test.describe('sheet border and index @B-01', () => {
       const expected = await page.evaluate(() => {
         const bottom =
           scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+        // Indexed sections only: the garden and footer have no row, so contact stays current.
         const secs = [
-          ...document.querySelectorAll<HTMLElement>('main > section'),
+          ...document.querySelectorAll<HTMLElement>('main > section[id]'),
         ];
         if (bottom) return secs[secs.length - 1]!.id;
-        const hit = secs.filter((s) => {
-          const r = s.getBoundingClientRect();
-          return r.top <= innerHeight / 2 && r.bottom >= innerHeight / 2;
-        });
-        return hit[hit.length - 1]!.id;
+        const above = secs.filter(
+          (s) => s.getBoundingClientRect().top <= innerHeight / 2,
+        );
+        return above[above.length - 1]!.id;
       });
       await expect(current(page)).toHaveAttribute('href', `#${expected}`);
       await expect(current(page)).toHaveAttribute('aria-current', 'location');
       await expect(current(page)).toHaveCount(1);
     }
+    // Through the garden and the footer, contact stays the current row.
+    await page.evaluate(() =>
+      document
+        .querySelector('[data-garden]')!
+        .scrollIntoView({ block: 'center' }),
+    );
+    await expect(current(page)).toHaveAttribute('href', '#contact');
+    await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+    await expect(current(page)).toHaveAttribute('href', '#contact');
     // Back at the top the first row is current again.
     await page.evaluate(() => scrollTo(0, 0));
     await expect(current(page)).toHaveAttribute('href', '#desk');
@@ -166,7 +173,7 @@ test.describe('sheet border and index @B-01', () => {
     await page.goto('/');
     await page.keyboard.press('Tab'); // skip link
     const seen: string[] = [];
-    for (let i = 0; i < 14 && seen.length < 8; i++) {
+    for (let i = 0; i < 14 && seen.length < 7; i++) {
       await page.keyboard.press('Tab');
       const href = await page.evaluate(() => {
         const a = document.activeElement;
@@ -180,9 +187,7 @@ test.describe('sheet border and index @B-01', () => {
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Enter'); // work row
-    await expect(page).toHaveURL(
-      /#(work|open-source|writing|cv|contact|colophon)$/,
-    );
+    await expect(page).toHaveURL(/#(work|open-source|writing|cv|contact)$/);
     await expectNoAxeViolations(page, {
       label: '/ index row activated by keyboard',
     });

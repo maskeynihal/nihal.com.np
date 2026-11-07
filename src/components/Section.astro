@@ -1,5 +1,6 @@
 ---
 import type { SectionId } from '../lib/sections';
+import SectionArt, { type ArtName } from './SectionArt.astro';
 
 /**
  * One section of the sheet: a 12-column grid, text on columns 2-7 (`left`) or 6-12 (`right`),
@@ -13,8 +14,10 @@ interface Props {
   heading?: string;
   labelledBy?: string;
   side?: 'left' | 'right' | 'full';
+  /** Quiet line drawing for the empty column (from 1024 px). */
+  art?: ArtName;
 }
-const { id, heading, labelledBy, side = 'left' } = Astro.props;
+const { id, heading, labelledBy, side = 'left', art } = Astro.props;
 const headingId = `${id}-heading`;
 ---
 
@@ -26,6 +29,7 @@ const headingId = `${id}-heading`;
   aria-labelledby={heading ? headingId : labelledBy}
 >
   <div class="section-grid">
+    {art && <SectionArt name={art} />}
     {heading && (
       <h2 id={headingId} class="section-heading">
         {heading}

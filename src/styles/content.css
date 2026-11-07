@@ -67,12 +67,6 @@
   line-height: 1.4;
 }
 
-.revision-table caption {
-  caption-side: top;
-  text-align: start;
-  padding-block-end: 1rem;
-}
-
 .revision-table th,
 .revision-table td,
 .cv-table th,
@@ -98,16 +92,11 @@
 /* Repo, dates and counts are data: mono, tabular. */
 .revision-table tbody th,
 .revision-table td:last-child,
-.revision-table tfoot td,
 .cv-table th {
   font-family: var(--font-mono);
   font-size: var(--text-label);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-}
-
-.revision-table tfoot td {
-  padding-block-start: 1rem;
 }
 
 .revision-table a {
@@ -314,9 +303,17 @@
   font-size: var(--text-lead);
 }
 
-/* --- Colophon and sheet close (B-07) ------------------------------------------------------- */
-#colophon {
-  padding-block-end: var(--gutter);
+/* --- Footer and sheet close (B-07) ---------------------------------------------------------- */
+.sheet-footer {
+  padding-block: calc(var(--rhythm) / 2) var(--gutter);
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .sheet-footer {
+    padding-inline-start: calc((100% + var(--gutter)) / 12);
+  }
 }
 
 /* The drawing's bottom rule: it spans the sheet and lands on the border's inner edge. */
@@ -332,10 +329,6 @@
   .sheet-close {
     margin-inline-start: 0;
   }
-}
-
-.end-mark {
-  font-family: var(--font-body);
 }
 
 /* --- Arcade (B-08) ------------------------------------------------------------------------ */
@@ -449,12 +442,28 @@
 .about-facts dd {
   margin: 0;
 }
+/* Duties: a drawn tick in the panel accent hangs in the gutter; wrapped lines align with the
+   first line's text. Still a real <ul>/<li>; the tick is decoration on ::before. */
 .cv-details {
+  list-style: none;
   margin: 0.5rem 0 0;
-  padding-left: 1.1rem;
+  padding: 0;
 }
 .cv-details li {
+  position: relative;
   margin: 0.15rem 0;
+  padding-inline-start: 1.25rem;
+}
+.cv-details li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0.2rem;
+  inset-block-start: 0.35em;
+  width: 0.28em;
+  height: 0.55em;
+  border-inline-end: 1.5px solid var(--panel-accent);
+  border-block-end: 1.5px solid var(--panel-accent);
+  transform: rotate(40deg);
 }
 .title-block-kicker {
   margin: 0.25rem 0 0.75rem;
