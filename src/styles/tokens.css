@@ -43,7 +43,10 @@
   --field: var(--white);
   /* Kept for desk.css: the panel hairline. */
   --hairline: var(--panel-hair);
+  --lamp-bulb: 0.45;
+  --lamp-pool: 0.2;
 }
+/* Paper, lamp level 4 (the lit lamp). Also the no-JS result when the OS prefers a light scheme. */
 :root[data-theme='paper'] {
   --page: var(--paper);
   --page-deep: #ecebe5;
@@ -59,6 +62,74 @@
   --panel-accent: var(--blue);
   --panel-accent-ink: var(--white);
   --field: var(--paper);
+  --lamp-bulb: 1;
+  --lamp-pool: 0.55;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --page: var(--paper);
+    --page-deep: #ecebe5;
+    --ink: var(--blue-ink);
+    --ink-soft: rgb(10 28 107 / 0.7);
+    --stroke: var(--blue);
+    --hair: rgb(31 63 224 / 0.1);
+    --hair-strong: rgb(31 63 224 / 0.3);
+    --panel: var(--white);
+    --field: var(--paper);
+  }
+}
+
+/* The hanging lamp (docs/specs/06 L): five brightness levels, each an explicit token set.
+   data-theme stays blue (levels 1, 0) or paper (levels 4, 3, 2); data-lamp picks the set. Mid
+   values are never blended between cream and blue, they fail contrast. Every text
+   pair was checked for WCAG AA at every level. Level 4 is the paper block above and level 1
+   is the :root default (the blue sheet). */
+:root[data-lamp='3'] {
+  --page: #e6e4dc;
+  --page-deep: #dcdad1;
+  --ink-soft: rgb(10 28 107 / 0.74);
+  --hair: rgb(31 63 224 / 0.12);
+  --hair-strong: rgb(31 63 224 / 0.32);
+  --panel: var(--paper);
+  --panel-ink-soft: rgb(10 28 107 / 0.68);
+  --field: #ecebe5;
+  --lamp-bulb: 0.85;
+  --lamp-pool: 0.42;
+}
+:root[data-lamp='2'] {
+  --page: #b3b4c6;
+  --page-deep: #a6a7bb;
+  --ink-soft: rgb(10 28 107 / 0.82);
+  --stroke: var(--blue-deep);
+  --hair: rgb(10 28 107 / 0.16);
+  --hair-strong: rgb(10 28 107 / 0.38);
+  --panel: #d6d6e0;
+  --panel-ink-soft: rgb(10 28 107 / 0.74);
+  --panel-hair: rgb(10 28 107 / 0.2);
+  --panel-accent: var(--blue-deep);
+  --field: #e3e3ea;
+  --lamp-bulb: 0.65;
+  --lamp-pool: 0.3;
+}
+:root[data-lamp='1'] {
+  --lamp-bulb: 0.45;
+  --lamp-pool: 0.2;
+}
+:root[data-lamp='0'] {
+  --page: #0a1348;
+  --page-deep: #060d33;
+  --ink: #e8ecff;
+  --ink-soft: rgb(232 236 255 / 0.82);
+  --stroke: rgb(232 236 255 / 0.8);
+  --hair: rgb(232 236 255 / 0.1);
+  --hair-strong: rgb(232 236 255 / 0.26);
+  --panel: #c3c7dc;
+  --panel-ink-soft: rgb(10 28 107 / 0.74);
+  --panel-hair: rgb(10 28 107 / 0.2);
+  --panel-accent: var(--blue-deep);
+  --field: #d4d7e8;
+  --lamp-bulb: 0;
+  --lamp-pool: 0;
 }
 
 /* Sheet layout (design 2.4). Phones first; widths widen at 768 and 1024. */

@@ -10,9 +10,18 @@ export const SOUND_EVENT = 'nihal:sound';
 export const THEME_KEY = 'nihal:theme';
 export const THEME_EVENT = 'nihal:theme';
 export type Theme = 'blue' | 'paper';
-const THEME_COLOR: Record<Theme, string> = {
-  blue: '#1F3FE0',
-  paper: '#F6F5F1',
+export const LAMP_KEY = 'nihal:lamp';
+export const LAMP_EVENT = 'nihal:lamp';
+/** Lamp brightness, 4 (lit, paper) down to 0 (off, night). 4, 3, 2 are paper; 1, 0 are blue. */
+export type Lamp = 0 | 1 | 2 | 3 | 4;
+export const LAMP_MAX: Lamp = 4;
+/** `theme-color` per level; keep in step with prefs-inline.js and the page tokens. */
+const LAMP_COLOR: Record<Lamp, string> = {
+  0: '#0A1348',
+  1: '#1F3FE0',
+  2: '#B3B4C6',
+  3: '#E6E4DC',
+  4: '#F6F5F1',
 };
 
 interface NavigatorExtras {
@@ -174,6 +183,11 @@ export function setSound(s: Sound): void {
   );
 }
 
+const isLamp = (n: unknown): n is Lamp =>
+  typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= LAMP_MAX;
+
+export const themeOfLamp = (l: Lamp): Theme => (l > 1 ? 'paper' : 'blue');
+
 export function getTheme(): Theme {
   if (!hasWindow()) return 'blue';
   return document.documentElement.dataset['theme'] === 'paper'
@@ -181,22 +195,53 @@ export function getTheme(): Theme {
     : 'blue';
 }
 
-function applyTheme(t: Theme): void {
-  document.documentElement.dataset['theme'] = t;
+export function getLamp(): Lamp {
+  if (!hasWindow()) return 1;
+  const n = Number(document.documentElement.dataset['lamp']);
+  return isLamp(n) ? n : getTheme() === 'paper' ? 4 : 1;
+}
+
+/**
+ * Sets data-lamp and data-theme together, then fires `nihal:theme` (every change, so the desk and
+ * garden repaint their colours even when only the level moved inside one theme) and `nihal:lamp`.
+ */
+function applyLamp(l: Lamp): void {
+  const t = themeOfLamp(l);
+  const ds = document.documentElement.dataset;
+  ds['lamp'] = String(l);
+  ds['theme'] = t;
   const meta = document.querySelector<HTMLMetaElement>(
     'meta[name="theme-color"]',
   );
-  if (meta) meta.content = THEME_COLOR[t];
+  if (meta) meta.content = LAMP_COLOR[l];
   window.dispatchEvent(
     new CustomEvent<{ theme: Theme }>(THEME_EVENT, { detail: { theme: t } }),
   );
+  window.dispatchEvent(
+    new CustomEvent<{ lamp: Lamp; theme: Theme }>(LAMP_EVENT, {
+      detail: { lamp: l, theme: t },
+    }),
+  );
 }
 
-/** A visitor's choice is stored and wins over the OS from then on. */
+/** A visitor's choice is stored (the level, and the theme it implies) and wins over the OS. */
+export function setLamp(l: Lamp): void {
+  if (!hasWindow() || !isLamp(l)) return;
+  writeStored(LAMP_KEY, String(l));
+  writeStored(THEME_KEY, themeOfLamp(l));
+  applyLamp(l);
+}
+
+/** Kept for the old contract: blue is level 1, paper is level 4. */
 export function setTheme(t: Theme): void {
-  if (!hasWindow()) return;
-  writeStored(THEME_KEY, t);
-  applyTheme(t);
+  setLamp(t === 'paper' ? 4 : 1);
+}
+
+export function subscribeLamp(cb: (l: Lamp) => void): () => void {
+  if (!hasWindow()) return () => {};
+  const h = (e: Event) => cb((e as CustomEvent<{ lamp: Lamp }>).detail.lamp);
+  window.addEventListener(LAMP_EVENT, h);
+  return () => window.removeEventListener(LAMP_EVENT, h);
 }
 
 export function subscribeTheme(cb: (t: Theme) => void): () => void {
@@ -206,13 +251,13 @@ export function subscribeTheme(cb: (t: Theme) => void): () => void {
   return () => window.removeEventListener(THEME_EVENT, h);
 }
 
-/** Until the visitor chooses, follow live OS colour-scheme changes. */
+/** Until the visitor chooses, follow live OS colour-scheme changes (light gives 4, dark gives 1). */
 export function followOsTheme(): void {
   if (!hasWindow() || typeof window.matchMedia !== 'function') return;
   const mq = window.matchMedia('(prefers-color-scheme: light)');
   mq.addEventListener('change', () => {
-    if (readStored(THEME_KEY)) return;
-    applyTheme(mq.matches ? 'paper' : 'blue');
+    if (readStored(THEME_KEY) || readStored(LAMP_KEY)) return;
+    applyLamp(mq.matches ? 4 : 1);
   });
 }
 

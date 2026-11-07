@@ -6,12 +6,14 @@ const code = minifyInline(src);
 const run = () => (0, eval)(code);
 const html = document.documentElement;
 
-function media(reduce: boolean) {
+function media(reduce: boolean, light = false) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     writable: true,
     value: (q: string) => ({
-      matches: reduce && q === '(prefers-reduced-motion: reduce)',
+      matches:
+        (reduce && q === '(prefers-reduced-motion: reduce)') ||
+        (light && q === '(prefers-color-scheme: light)'),
     }),
   });
 }
@@ -21,6 +23,8 @@ beforeEach(() => {
   delete html.dataset['motion'];
   delete html.dataset['motionOs'];
   delete html.dataset['sound'];
+  delete html.dataset['lamp'];
+  delete html.dataset['theme'];
   media(false);
   history.replaceState(null, '', '/');
 });
@@ -28,7 +32,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('inline prefs script', () => {
   it('stays under 1.5 KB', () => {
-    expect(new TextEncoder().encode(code).length).toBeLessThan(1200);
+    expect(new TextEncoder().encode(code).length).toBeLessThan(1536);
   });
   type Stored = null | 'reduce' | 'full' | 'bogus' | 'throw';
   const cases: [Stored, boolean, string][] = [];
@@ -70,6 +74,37 @@ describe('inline prefs script', () => {
     if (stored) localStorage.setItem('nihal:sound', stored);
     run();
     expect(html.dataset['sound']).toBe(want);
+  });
+  it.each([
+    [null, null, false, '1', 'blue'],
+    [null, null, true, '4', 'paper'],
+    [null, 'paper', false, '4', 'paper'],
+    [null, 'blue', true, '1', 'blue'],
+    ['3', null, false, '3', 'paper'],
+    ['2', 'blue', false, '2', 'paper'],
+    ['1', null, true, '1', 'blue'],
+    ['0', null, true, '0', 'blue'],
+    ['9', null, false, '1', 'blue'],
+    ['junk', 'paper', false, '4', 'paper'],
+  ])(
+    'lamp stored=%s theme stored=%s os-light=%s -> level %s, %s',
+    (lamp, theme, light, level, want) => {
+      if (lamp) localStorage.setItem('nihal:lamp', lamp);
+      if (theme) localStorage.setItem('nihal:theme', theme);
+      media(false, light);
+      run();
+      expect(html.dataset['lamp']).toBe(level);
+      expect(html.dataset['theme']).toBe(want);
+    },
+  );
+  it('sets theme-color for the level', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+    localStorage.setItem('nihal:lamp', '0');
+    run();
+    expect(meta.content).toBe('#0A1348');
+    meta.remove();
   });
   it('still sets attributes when localStorage getter throws', () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
