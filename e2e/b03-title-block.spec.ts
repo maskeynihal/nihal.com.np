@@ -73,7 +73,7 @@ test.describe('title block and poster @B-03', () => {
     expect(box!.height).toBeGreaterThan(100);
     // It is in the served HTML (not drawn by script).
     const html = await (await page.request.get('/')).text();
-    expect(html).toMatch(/<svg class="poster" role="img"/);
+    expect(html).toMatch(/<svg class="poster poster-wide" role="img"/);
   });
 
   test('phone order: title block, then the drawing, then the object list @B-03', async ({
