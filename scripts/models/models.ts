@@ -9,6 +9,7 @@
  */
 import {
   ball,
+  bar,
   box,
   cylinder,
   extrude,
@@ -20,6 +21,8 @@ import {
   ringLines,
   rotateX,
   rotateY,
+  roundedFloor,
+  roundedRect,
   torus,
   translate,
   emptyPart,
@@ -115,14 +118,171 @@ const rectX = (z0: number, z1: number, y0: number, y1: number, x: number) =>
     [x, y1, z0],
   ]);
 
+/** Corner radius of the table top, m. */
+const TOP_RADIUS = 0.04;
+const CORNER_SEGS = 5;
+
+/**
+ * The drawing surface, y = 0: the top of the drafting table, a rounded-corner plane with a
+ * drawing border, a blueprint grid (small crosses every 0.2 m) and a registration mark in each
+ * corner. All authored lines; it is drawn in the sheet's thin secondary style and never hides
+ * anything (`sheetOccluder`), so an object resting on it keeps its whole outline.
+ */
 function sheet(): ModelParts {
-  const p = floor([0, 0, 0], SHEET_SIZE.w, SHEET_SIZE.d);
+  const p = roundedFloor(
+    [0, 0, 0],
+    SHEET_SIZE.w,
+    SHEET_SIZE.d,
+    TOP_RADIUS,
+    CORNER_SEGS,
+  );
   const hw = SHEET_SIZE.w / 2 - 0.04;
   const hd = SHEET_SIZE.d / 2 - 0.04;
   const y = 0.0005;
   // drawing border, inset from the sheet edge
   p.lines.push(...rectY(-hw, hw, y, -hd, hd));
+  // grid: a small cross at each 0.2 m crossing, clear of the border (the pitch is a cost: every
+  // cross is inline in both posters)
+  const tick = 0.012;
+  for (let i = -3; i <= 3; i++)
+    for (let j = -2; j <= 2; j++) {
+      const x = i * 0.2;
+      const z = j * 0.2;
+      p.lines.push(
+        ...lineSeg([x - tick, y, z], [x + tick, y, z]),
+        ...lineSeg([x, y, z - tick], [x, y, z + tick]),
+      );
+    }
+  // registration marks: a ring with a crosshair, in the gap between the border and the edge
+  const mx = hw + 0.015;
+  const mz = hd + 0.015;
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) {
+      const cx = sx * mx;
+      const cz = sz * mz;
+      p.lines.push(
+        ...ringLines([cx, y, cz], 0.007, 12, 'y'),
+        ...lineSeg([cx - 0.014, y, cz], [cx + 0.014, y, cz]),
+        ...lineSeg([cx, y, cz - 0.014], [cx, y, cz + 0.014]),
+      );
+    }
   return { body: p, nodes: [] };
+}
+
+/**
+ * The drafting table under the sheet: a thick board (rounded corners, same footprint as the
+ * sheet), a pencil ledge along the front edge, a shallow drawer with a pull under the front, and
+ * an A-frame trestle base (two side frames, a rung each, a foot bar, a rear stretcher and X
+ * bracing between the front legs). Not an object: no collider, never picked. Everything is
+ * below y = 0 except the ledge's lip, which stands 5 mm above it outside the board.
+ *
+ * The board's own top face sits 2 mm below the sheet and hides what is under it (the rear legs);
+ * its top edge is drawn by the sheet's outline, so no crease is authored there. The whole base
+ * is within 0.5 m of the top and 0.57 m of its front, so the hero and phone cameras both see it
+ * inside their frames.
+ */
+const BOARD_TOP = -0.002;
+const BOARD_THICK = 0.068;
+
+function table(): ModelParts {
+  const parts: Part[] = [];
+  // Board: a rounded slab, laid flat. Creases at its top face are dropped (the sheet draws them).
+  const slab = rotateX(
+    extrude(
+      roundedRect(SHEET_SIZE.w, SHEET_SIZE.d, TOP_RADIUS, CORNER_SEGS),
+      BOARD_THICK,
+      { corners: [] },
+    ),
+    -Math.PI / 2,
+  );
+  const board = translate(slab, [0, BOARD_TOP - BOARD_THICK / 2, 0]);
+  const lines: number[] = [];
+  for (let i = 0; i < board.lines.length; i += 6) {
+    if (
+      Math.abs(board.lines[i + 1]! - BOARD_TOP) < 1e-5 &&
+      Math.abs(board.lines[i + 4]! - BOARD_TOP) < 1e-5
+    )
+      continue;
+    lines.push(...board.lines.slice(i, i + 6));
+  }
+  board.lines = lines;
+  parts.push(board);
+
+  // Pencil ledge: a flat rail along the whole front edge with a lip, an L section run along x.
+  // u = -z, so the section is drawn with the front at the left.
+  const hz = SHEET_SIZE.d / 2;
+  const ledge = rotateY(
+    extrude(
+      [
+        [-hz, -0.014],
+        [-hz - 0.014, -0.014],
+        [-hz - 0.014, 0.005],
+        [-hz - 0.006, 0.005],
+        [-hz - 0.006, -0.006],
+        [-hz, -0.006],
+      ],
+      1.48,
+    ),
+    Math.PI / 2,
+  );
+  parts.push(ledge);
+
+  // Drawer: a front panel just under the board's front edge, with a bar pull on two posts.
+  const dTop = BOARD_TOP - BOARD_THICK - 0.004;
+  const dBot = dTop - 0.07;
+  parts.push(
+    box({
+      c: [0, (dTop + dBot) / 2, hz + 0.009],
+      s: [0.72, dTop - dBot, 0.018],
+    }),
+    cylinder({
+      c: [0, (dTop + dBot) / 2, hz + 0.04],
+      radius: 0.007,
+      height: 0.12,
+      segments: 8,
+      axis: 'x',
+    }),
+  );
+  for (const x of [-0.05, 0.05])
+    parts.push(
+      box({ c: [x, (dTop + dBot) / 2, hz + 0.0265], s: [0.01, 0.012, 0.017] }),
+    );
+
+  // Trestle: two A-shaped side frames (front and rear leg meeting under a rail), joined by a foot
+  // bar, a rear stretcher and an X of braces between the front legs.
+  const XS = 0.64;
+  const topY = BOARD_TOP - BOARD_THICK; // underside of the board
+  const railY = topY - 0.05;
+  const footY = -0.48;
+  const legTopZ = 0.3;
+  const legFootZ = 0.52;
+  const legT = 0.045;
+  /** z of a leg at height y (the front leg; the rear one is its mirror). */
+  const legZ = (y: number) =>
+    legTopZ + ((legFootZ - legTopZ) * (railY - y)) / (railY - footY);
+  for (const sx of [-XS, XS]) {
+    parts.push(
+      box({ c: [sx, (topY + railY) / 2, 0], s: [legT, topY - railY, 0.8] }),
+    );
+    for (const sz of [-1, 1]) {
+      parts.push(
+        bar([sx, railY, sz * legTopZ], [sx, footY, sz * legFootZ], legT),
+        box({ c: [sx, footY - 0.01, sz * legFootZ], s: [0.06, 0.02, 0.09] }),
+      );
+    }
+    // the A's rung
+    const ry = -0.28;
+    parts.push(bar([sx, ry, -legZ(ry)], [sx, ry, legZ(ry)], 0.03));
+  }
+  const fy = -0.4;
+  const sy = -0.27;
+  parts.push(
+    bar([-XS, fy, legZ(fy)], [XS, fy, legZ(fy)], 0.035),
+    bar([-XS, sy, -legZ(sy)], [XS, sy, -legZ(sy)], 0.03),
+    bar([-XS, railY - 0.03, legZ(railY - 0.03)], [XS, fy, legZ(fy)], 0.022),
+    bar([XS, railY - 0.03, legZ(railY - 0.03)], [-XS, fy, legZ(fy)], 0.022),
+  );
+  return { body: mergeAll(parts), nodes: [] };
 }
 
 /** Header row: a box with pin-slot ticks across its top face. */
@@ -660,6 +820,7 @@ const LETTERS: Record<string, () => ModelParts> = {
 
 export const models: ModelDef[] = [
   def('sheet', sheet),
+  def('table', table),
   def('arduino', arduino),
   def('clock', clock),
   def('calendar', calendar),

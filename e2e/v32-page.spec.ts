@@ -32,7 +32,7 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
   test('the hero sentence is the owner text @P8', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.title-block-line')).toHaveText(
-      'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my projects, open-source contributions and writing.',
+      'Lead engineer at Leapfrog Technology. I lead the team building a US behavioural-health platform on AWS, under HIPAA and SOC 2. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
     );
   });
 
@@ -55,44 +55,27 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
     [1280, true],
     [1023, false],
   ] as const) {
-    test(`section drawings at ${width}px: ${shown ? 'quiet, beside the text' : 'hidden'} @P6`, async ({
+    test(`section art canvas at ${width}px: ${shown ? 'fixed, no pointer events' : 'hidden'} @P6`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');
-      const arts = page.locator('.section-art');
-      await expect(arts).toHaveCount(6);
-      for (const a of await arts.all()) {
-        // The box sits inside the aria-hidden column; the art is mask layers, no text.
-        await expect(
-          a.locator('xpath=ancestor::*[@aria-hidden="true"]'),
-        ).toHaveCount(1);
-        expect(await a.locator('.art-mid').count()).toBe(1);
-        expect(await a.locator('text').count()).toBe(0);
-      }
+      const art = page.locator('canvas.side-art');
+      await expect(art).toHaveCount(1);
+      await expect(art).toHaveAttribute('aria-hidden', 'true');
+      expect(await art.locator('*').count()).toBe(0);
+      expect(await page.locator('section[data-art]').count()).toBe(6);
       if (!shown) {
-        for (const a of await arts.all()) await expect(a).toBeHidden();
+        await expect(art).toBeHidden();
         return;
       }
-      for (const a of await arts.all()) {
-        const r = await a.evaluate((el) => {
-          const art = el.getBoundingClientRect();
-          const body = el
-            .closest('.section-grid')!
-            .querySelector('.section-body')!
-            .getBoundingClientRect();
-          const sec = el.closest('section')!.getBoundingClientRect();
-          return {
-            overlapX:
-              Math.min(art.right, body.right) - Math.max(art.left, body.left),
-            insideSection: art.bottom <= sec.bottom + 1,
-            w: art.width,
-          };
-        });
-        expect(r.overlapX).toBeLessThanOrEqual(0);
-        expect(r.insideSection).toBe(true);
-        expect(r.w).toBeGreaterThan(100);
-      }
+      await expect(art).toBeVisible();
+      const css = await art.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { pe: s.pointerEvents, pos: s.position };
+      });
+      expect(css.pe).toBe('none');
+      expect(css.pos).toBe('fixed');
     });
   }
 

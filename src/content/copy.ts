@@ -30,7 +30,7 @@ export const copy = {
   titleBlock: {
     name: 'nihal maskey',
     kicker: 'lead software engineer · kathmandu, nepal',
-    line: 'Lead engineer at Leapfrog Technology, where my team builds a US behavioural-health platform on AWS. Co-founder of Daboo Spaces, a coworking space in Sankhamul, Kathmandu. This site collects my projects, open-source contributions and writing.',
+    line: 'Lead engineer at Leapfrog Technology. I lead the team building a US behavioural-health platform on AWS, under HIPAA and SOC 2. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
     revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
@@ -49,9 +49,9 @@ export const copy = {
   },
   about: {
     paragraphs: [
-      "I'm a software engineer in Kathmandu, Nepal. I've been building for the web since 2019, the last six at Leapfrog Technology, where I went from intern to lead engineer.",
-      'Today I lead the team behind a US behavioural-health platform. The work is mostly TypeScript, React, Node.js and AWS: queues, Lambdas and Step Functions, with patient data that has to meet HIPAA and SOC 2. I care about fast pages, boring deploys and code the next person can read.',
-      'I work with people in the US, Australia and Nepal, so a lot of my job is writing things down clearly and running reviews that teach something.',
+      "I'm a lead software engineer in Kathmandu, Nepal. I joined Leapfrog Technology as an intern in 2020 and have led engineering teams there since 2021.",
+      'Today I lead the team behind a US behavioural-health platform. The work is mostly TypeScript, React, Node.js and AWS: queues, Lambdas and Step Functions, with patient data that has to meet HIPAA and SOC 2. On this platform I cut the frontend bundle by 20% and made key APIs more than twice as fast. I care about fast pages, boring deploys and code the next person can read.',
+      "I lead across the US, Australia and Nepal, so I write clear specs and run code reviews that raise the team's standard.",
     ],
     daboo: {
       before: 'Outside work I co-founded ',
@@ -66,12 +66,12 @@ export const copy = {
       { label: 'stack', value: 'TypeScript, React, Node.js, Laravel, AWS' },
       {
         label: 'open to',
-        value: 'mentorship, consulting, talks',
+        value: 'consulting, mentorship, speaking',
       },
     ],
   },
   work: {
-    intro: 'Side projects, each built to fix something that annoyed me.',
+    intro: 'Side projects. Each one solves a problem I hit at work or at home, and each one shipped.',
     play: 'play',
     leave: 'esc to leave',
     openNewTab: 'open the game in a new tab',
@@ -81,7 +81,7 @@ export const copy = {
   },
   writing: {
     intro:
-      'Posts on Hashnode since 2022. Four are server and Laravel notes; the latest is the Arduino monitor.',
+      'Practical notes on servers, Laravel and hardware, written after solving the problem.',
     all: 'all posts on hashnode',
     allHref: 'https://nihalmaskey.hashnode.dev',
   },
@@ -100,12 +100,12 @@ export const copy = {
       {
         label: 'skills',
         title: 'What I work with',
-        text: 'TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS (Lambda, SQS, EventBridge, Step Functions), PostgreSQL, MySQL, HIPAA and SOC 2 work, team leadership.',
+        text: 'TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS (Lambda, SQS, EventBridge, Step Functions), PostgreSQL, MySQL, HIPAA and SOC 2 compliance, engineering leadership.',
       },
     ],
   },
   contact: {
-    lead: 'Email is fastest. I read everything and reply to most within a couple of days.',
+    lead: 'Email is fastest. I reply within two working days.',
     copied: 'copied',
     overlap: 'Kathmandu is UTC+5:45 with no daylight saving.',
     socials: [
@@ -120,9 +120,10 @@ export const copy = {
       email: 'your email',
       subject: "what's this about",
       message: 'message',
-      send: 'send',
+      send: 'send message',
     },
-    success: "Sent. I'll reply from contact@nihal.com.np.",
+    success:
+      "Message sent. I'll reply from contact@nihal.com.np within two working days.",
     errors: {
       email: "That email doesn't look right.",
       message: 'Add a sentence or two.',
@@ -139,7 +140,7 @@ export const copy = {
     description:
       'Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He builds healthcare software on AWS at Leapfrog Technology and co-founded Daboo Spaces.',
     keywords:
-      'Nihal Maskey, software engineer in Nepal, software engineer Kathmandu, best software engineers in Nepal, lead engineer Nepal, team lead Nepal, team lead Kathmandu, lead engineer at Leapfrog Technology, software engineer at Trayt, healthcare software engineer, health tech engineer Nepal, full stack developer Nepal, React developer Nepal, Node.js developer Kathmandu, TypeScript engineer, AWS engineer Nepal, Laravel developer Nepal, engineering manager Nepal, Daboo Spaces co-founder',
+      'Nihal Maskey, software engineer in Nepal, software engineer Kathmandu, lead engineer Nepal, team lead Nepal, team lead Kathmandu, lead engineer at Leapfrog Technology, healthcare software engineer, health tech engineer Nepal, full stack developer Nepal, React developer Nepal, Node.js developer Kathmandu, TypeScript engineer, AWS engineer Nepal, Laravel developer Nepal, engineering manager Nepal, Daboo Spaces co-founder',
     ogAlt: 'Nihal Maskey, lead software engineer, Kathmandu, Nepal',
   },
   notFound: {
@@ -152,9 +153,10 @@ export const copy = {
   },
   sent: {
     title: 'sent · nihal maskey',
-    description: "Sent. I'll reply from contact@nihal.com.np.",
+    description:
+      "Message sent. I'll reply from contact@nihal.com.np within two working days.",
     heading: 'sent',
-    body: "I'll reply from contact@nihal.com.np.",
+    body: "I'll reply from contact@nihal.com.np within two working days.",
     back: 'back to the desk',
   },
   status: {

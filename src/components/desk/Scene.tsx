@@ -114,6 +114,9 @@ const SHEET_DEF: ObjectDef = {
   mass: 1,
 };
 
+/** The drafting table under the sheet: drawn like an object (outline, creases) but never registered or picked. */
+const TABLE_DEF: ObjectDef = { ...SHEET_DEF, id: 'table', model: 'table' };
+
 // The physics layer is its own chunk: requested on the first grab, never with the Scene.
 const PhysicsWorld = lazy(() =>
   import('./physics').then((m) => ({ default: m.TablePhysics })),
@@ -232,6 +235,7 @@ function Model({
   def,
   textured,
   sheet,
+  fixed,
   onRoot,
   children,
 }: {
@@ -239,6 +243,8 @@ function Model({
   def: ObjectDef;
   textured?: Record<string, Material>;
   sheet?: boolean;
+  /** Furniture: drawn with the object line art, but not registered or picked (the sheet is fixed too). */
+  fixed?: boolean;
   onRoot?: (root: Object3D) => void;
   children?: (root: Object3D) => ReactNode;
 }) {
@@ -256,14 +262,14 @@ function Model({
   useLayoutEffect(() => {
     const obj = group.current;
     const pv = pivot.current;
-    if (sheet || !obj || !pv) return;
+    if (sheet || fixed || !obj || !pv) return;
     return registry.register({ id: def.id, def, obj, pivot: pv, lift: root });
-  }, [def, root, sheet]);
+  }, [def, root, sheet, fixed]);
   return (
     <group
       ref={group}
       name={def.id}
-      userData={sheet ? {} : { deskId: def.id }}
+      userData={sheet || fixed ? {} : { deskId: def.id }}
       position={def.p}
       quaternion={def.q}
     >
@@ -469,6 +475,7 @@ function Desk({
 }) {
   const tableRef = useRef<Group>(null);
   const sheetUrl = urls['sheet'];
+  const tableUrl = urls['table'];
   // The table group is where the sheet and every object that is on the table live; the Rig moves it.
   useLayoutEffect(() => {
     table.group = tableRef.current;
@@ -479,6 +486,7 @@ function Desk({
   return (
     <>
       <group ref={tableRef} name="table" visible={!probeOn}>
+        {tableUrl ? <Model url={tableUrl} def={TABLE_DEF} fixed /> : null}
         {sheetUrl ? <Model url={sheetUrl} def={SHEET_DEF} sheet /> : null}
         {objects.map((def) => {
           const url = urls[def.model];
@@ -675,7 +683,7 @@ export default function Scene({
 
   useEffect(() => {
     let live = true;
-    void resolveModelUrls(['sheet', ...objects.map((o) => o.model)]).then(
+    void resolveModelUrls(['sheet', 'table', ...objects.map((o) => o.model)]).then(
       (u) => live && setUrls(u),
     );
     return () => {

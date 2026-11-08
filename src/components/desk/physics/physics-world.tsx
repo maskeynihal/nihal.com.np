@@ -46,6 +46,7 @@ import {
 } from '../physics-bridge';
 import { handToFall } from './handoff';
 import { leavingView } from '../../../lib/desk/fall';
+import { roomPadsAt } from './room';
 
 /**
  * The table world: this file and its siblings are the only place that imports
@@ -410,14 +411,17 @@ function World({
     const vc = vecToCamera(cam, _w.set(v.x, v.y, v.z));
     const [svx] = screenVelocity(pc, vc, frame.f);
     const sx = frame.cx + (frame.f * pc.x) / -pc.z;
+    // The fall room's walls are the sheet border's side edges (and the reset button's column), so a
+    // body leaves the table canvas before its picture reaches them, not the viewport's edge.
+    const pads = roomPadsAt(window.innerWidth);
     return leavingView(
       sx,
       svx,
       -pc.z,
       frame.f,
       {
-        left: Math.max(0, frame.left),
-        right: Math.min(window.innerWidth, frame.left + frame.w),
+        left: Math.max(pads.left, frame.left),
+        right: Math.min(window.innerWidth - pads.right, frame.left + frame.w),
       },
       EDGE_LEAD_S,
     );

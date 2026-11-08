@@ -163,6 +163,9 @@ export const offset = (i: number) =>
   i === 0 ? 0 : (i % 2 ? -1 : 1) * Math.ceil(i / 2);
 export const mouthY = 46;
 
+/** Nearest a ball's centre may be to the left or right edge: a dog's nose reaches about 20 px past a ball it holds. */
+export const BALL_EDGE = 24;
+
 export const clamp = (v: number, a: number, b: number) =>
   v < a ? a : v > b ? b : v;
 export const TAU = Math.PI * 2;

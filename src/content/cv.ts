@@ -34,7 +34,7 @@ export const cv: CvRow[] = [
     details: [
       'Led a team of more than 15 across development, design, DevOps and QA.',
       'Planned releases with product owners and shipped major versions.',
-      'Main contact for stakeholders and management.',
+      'Was the main point of contact for stakeholders and management.',
     ],
     confirmed: true,
   },
@@ -55,7 +55,7 @@ export const cv: CvRow[] = [
     org: 'Leapfrog Technology',
     details: [
       'Learned JavaScript and the canvas API by rebuilding Pac-Man with path-finding ghosts.',
-      'First steps in Node.js and React.',
+      'Built first projects in Node.js and React.',
     ],
     confirmed: true,
   },
@@ -66,7 +66,7 @@ export const cv: CvRow[] = [
     details: [
       'Shipped web apps for insurance management, video streaming and ticketing.',
       'Set up GitHub Actions deploys.',
-      'Worked with business development on estimates.',
+      'Wrote project estimates with business development.',
     ],
     confirmed: true,
   },

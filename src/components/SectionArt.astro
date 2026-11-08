@@ -1,96 +1,33 @@
 ---
 /**
- * One quiet tall drawing per section (S5), shown from 1024 px in the column the text leaves
- * empty. Decoration only: aria-hidden, no text, nothing focusable, no pointer events.
- *
- * The column fills the section from top to bottom and scrolls with the page. The drawing is made of
- * CSS masks (src/styles/art.css, shapes in src/assets/art): a top piece and a bottom piece at the
- * ends and a tile that repeats down between them, so any section height is filled without
- * stretching. This markup is only the empty layers; the moving parts are extra layers (blinking
- * LEDs, lit rungs) and small dots that travel the full height. Motion is compositor-only. The
- * pointer behaviour (a soft light that follows the pointer, a ripple on click) is in
- * src/lib/section-art.ts, loaded on the first pointer move.
+ * The art behind the sheet: one fixed canvas, decoration only (aria-hidden, no text, no layout
+ * space, no pointer events). The drawings fill the empty column of each section that has an `art`
+ * prop; the engine (src/lib/side-art) measures them from the markup and draws from 1024 px.
+ * Hidden below 1024 px, in print, and without JS.
  */
-export type ArtName =
-  'about' | 'projects' | 'opensource' | 'writing' | 'cv' | 'contact';
-interface Props {
-  name: ArtName;
-}
-const { name } = Astro.props;
-// Extra tile layers per drawing (see art.css) and the number of travelling dots.
-const layers: Partial<Record<ArtName, string[]>> = {
-  projects: ['led-a', 'led-b', 'led-c'],
-  cv: ['lit-a', 'lit-b', 'lit-c'],
-  writing: ['pen'],
-  about: ['flags'],
-};
-const dots: Record<ArtName, [string, number]> = {
-  about: ['50%', 0],
-  projects: ['50%', 0],
-  opensource: ['33.3%', 3],
-  writing: ['62.5%', 3],
-  cv: ['29.2%', 3],
-  contact: ['50%', 2],
-};
-const [x, n] = dots[name];
 ---
 
-<div class="section-art-col" aria-hidden="true" data-print="hide">
-  <div class="section-art" data-art={name} style={`--x: ${x}`}>
-    <div class="art-top"></div>
-    <div class="art-body">
-      <div class="art-mid"></div>
-      {(layers[name] ?? []).map((l, i) => (
-        <div
-          class={`art-layer ${l} ${l === 'pen' || l === 'flags' ? '' : `art-blink ${'abc'[i]}`}`}
-        />
-      ))}
-    </div>
-    <div class="art-bot"></div>
-    {Array.from({ length: n }, (_, i) => (
-      <div class="art-dot" style={`--d: calc(var(--art-dur) * ${-i / n})`}>
-        <i />
-      </div>
-    ))}
-  </div>
-</div>
+<canvas class="side-art" aria-hidden="true" data-print="hide"></canvas>
 
 <script>
-  // Tiny and eager: run the art's loops only while it is on screen, and size the dot tracks to the
-  // art's height in px. The pointer behaviour is a separate chunk, fetched on the first pointer move.
-  const arts = document.querySelectorAll<HTMLElement>('.section-art');
-  if (arts.length) {
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries)
-        e.target.toggleAttribute('data-run', e.isIntersecting);
-    });
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        const a = e.target as HTMLElement;
-        const h = a.offsetHeight;
-        const w = a.offsetWidth;
-        if (!h) continue;
-        // About 28 px a second down the art; the plane's glyph sways across its trail with the
-        // trail's own period (200 of 240 units wide per swing pair).
-        a.style.setProperty('--art-h', `${h}px`);
-        a.style.setProperty('--art-dur', `${(h / 28).toFixed(1)}s`);
-        a.style.setProperty('--art-amp', `${(w * 0.28).toFixed(1)}px`);
-        a.style.setProperty(
-          '--art-sway',
-          `${((100 * w) / 240 / 28).toFixed(2)}s`,
-        );
-      }
-    });
-    arts.forEach((a) => {
-      io.observe(a);
-      ro.observe(a);
-    });
-    addEventListener(
-      'pointermove',
-      () => {
-        void import('../lib/section-art').then((m) => m.initSectionArt(arts));
-      },
-      { once: true, passive: true },
-    );
+  // Tiny and eager. The engine is a separate chunk, fetched once the page is idle and only on a wide
+  // screen; narrowing and widening later still loads it.
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.side-art');
+  const mq = matchMedia('(min-width: 1024px)');
+  if (canvas) {
+    let started = false;
+    const start = () => {
+      if (started || !mq.matches) return;
+      started = true;
+      void import('../lib/section-art').then((m) => m.mountSideArt(canvas));
+    };
+    const idle = () => {
+      if ('requestIdleCallback' in window)
+        requestIdleCallback(start, { timeout: 4000 });
+      else setTimeout(start, 1500);
+    };
+    if (document.readyState === 'complete') idle();
+    else addEventListener('load', idle, { once: true });
+    mq.addEventListener('change', idle);
   }
 </script>

@@ -8,18 +8,21 @@ import {
 } from '@react-three/rapier';
 import {
   MathUtils,
+  Matrix4,
   Plane,
   Quaternion,
   Raycaster,
   Vector2,
   Vector3,
+  type Mesh,
   type Object3D,
 } from 'three';
 import { FOLLOW, MAX_TILT, TABLE_HALF, clamp } from '../../../lib/desk/drag';
 import {
+  ROOM_CLEARANCE,
   boundsFor,
-  floorPad,
   liftForFloor,
+  planeOffset,
   foldDepthVelocity,
   project,
   reanchor,
@@ -56,6 +59,7 @@ import {
   type HandoffState,
 } from '../physics-bridge';
 import { screenRect } from './handoff';
+import { readRoomPads } from './room';
 
 /**
  * The fall world, inside the second canvas (`FallLayer.tsx`), a fixed full-viewport layer that
@@ -111,6 +115,55 @@ interface Held {
   base: Quaternion;
 }
 
+/**
+ * How far (m) an object's drawn mesh reaches beyond its collider (the ghost's skirt corners stick
+ * out of its ball; a pac-man's rim of its). The room keeps the picture inside the sheet, so it
+ * is moved in by the largest of these. Mesh vertices only (not the hull or the line quads),
+ * measured in the object's own frame, whatever the object's pose is now.
+ */
+function overhangOf(entry: RegistryEntry): number {
+  const root = entry.lift;
+  root.updateWorldMatrix(true, true);
+  const inv = new Matrix4().copy(entry.obj.matrixWorld).invert();
+  const m = new Matrix4();
+  const v = new Vector3();
+  const { kind, args, offset } = entry.def.collider;
+  const half =
+    kind === 'cuboid'
+      ? [args[0] ?? 0, args[1] ?? 0, args[2] ?? 0]
+      : [0, 0, 0];
+  const radius =
+    kind === 'ball' ? (args[0] ?? 0) : (args[0] ?? 0) + (args[1] ?? 0);
+  let worst = 0;
+  root.traverse((node) => {
+    const mesh = node as Mesh;
+    if (
+      !mesh.isMesh ||
+      (node as { isLineSegments2?: boolean }).isLineSegments2 ||
+      node.name.endsWith('-hull')
+    )
+      return;
+    const pos = mesh.geometry.getAttribute('position');
+    m.multiplyMatrices(inv, mesh.matrixWorld);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m);
+      const dx = v.x - offset[0];
+      const dy = v.y - offset[1];
+      const dz = v.z - offset[2];
+      const out =
+        kind === 'cuboid'
+          ? Math.hypot(
+              Math.max(0, Math.abs(dx) - half[0]!),
+              Math.max(0, Math.abs(dy) - half[1]!),
+              Math.max(0, Math.abs(dz) - half[2]!),
+            )
+          : Math.max(0, Math.hypot(dx, dy, dz) - radius);
+      if (out > worst) worst = out;
+    }
+  });
+  return worst;
+}
+
 const _v = new Vector3();
 const _q = new Quaternion();
 const _tilt = new Quaternion();
@@ -141,19 +194,24 @@ function FallWorld({
   useEffect(() => {
     const vw = size.width;
     const vh = size.height;
-    // The floor is the sheet's bottom edge: the border's inner edge, plus the index strip below 1024 px.
-    const css = getComputedStyle(document.documentElement);
-    const px = (name: string, fallback: number) => {
-      const n = parseFloat(css.getPropertyValue(name));
-      return Number.isFinite(n) ? n : fallback;
-    };
+    // The room is inside the sheet: its floor is the border's inner edge (plus the index strip below
+    // 1024 px) and its walls the border's side edges (the right one also clear of the reset button),
+    // each moved in by a clearance plus the most any object's mesh reaches beyond its collider, so a
+    // body at rest is wholly inside the border, not touching it.
+    const pads = readRoomPads(vw);
+    let overhang = 0;
+    for (const e of registry.all())
+      overhang = Math.max(overhang, overhangOf(e));
     const b = boundsFor(
       anchor,
       vw,
       vh,
       Z_NEAR,
       Z_FAR,
-      floorPad(vw, px('--inset', 12), px('--strip-h', 44)),
+      pads.bottom,
+      pads.left,
+      pads.right,
+      ROOM_CLEARANCE + overhang,
     );
     const prev = bounds.current;
     bounds.current = b;
@@ -195,7 +253,10 @@ function FallWorld({
       50,
       WALL,
       50,
-      new Vector3(0, b.floorSlope * -mid, mid).addScaledVector(fn, -WALL),
+      new Vector3(0, b.floorSlope * -mid, mid).addScaledVector(
+        fn,
+        b.reach - WALL,
+      ),
       fq,
     );
     make(50, 50, WALL, new Vector3(0, 0, -Z_NEAR + WALL));
@@ -205,7 +266,7 @@ function FallWorld({
     const right = new Vector3(-1, 0, -b.right).normalize();
     for (const n of [left, right]) {
       const q = new Quaternion().setFromUnitVectors(new Vector3(1, 0, 0), n);
-      make(WALL, 50, 50, n.clone().multiplyScalar(-WALL), q);
+      make(WALL, 50, 50, n.clone().multiplyScalar(b.reach - WALL), q);
     }
     return () => {
       // On unmount @react-three/rapier frees the world and resets its proxy, and this cleanup can run
@@ -247,13 +308,17 @@ function FallWorld({
     const bd = bounds.current;
     if (!bd) return;
     const depth = clamp(-p.z, bd.zNear + 0.15, bd.zFar - 0.15);
-    const xMin = bd.left * depth + WALL_MARGIN;
-    const xMax = bd.right * depth - WALL_MARGIN;
+    const xMin = bd.left * depth + planeOffset(bd.left, bd.reach) + WALL_MARGIN;
+    const xMax =
+      bd.right * depth - planeOffset(bd.right, bd.reach) - WALL_MARGIN;
     if (p.x < xMin) v.x = Math.max(v.x, 0);
     if (p.x > xMax) v.x = Math.min(v.x, 0);
     if (-p.z < bd.zNear + 0.15) v.z = Math.min(v.z, 0);
     if (-p.z > bd.zFar - 0.15) v.z = Math.max(v.z, 0);
-    const y = Math.max(p.y, bd.floorSlope * depth + 0.12);
+    const y = Math.max(
+      p.y,
+      bd.floorSlope * depth + planeOffset(bd.floorSlope, bd.reach) + 0.12,
+    );
     const moved = p.x < xMin || p.x > xMax || p.y < y || depth !== -p.z;
     p.set(clamp(p.x, xMin, xMax), y, -depth);
     if (moved) shown.copy(p);
@@ -579,10 +644,15 @@ function FallWorld({
         if (!h || !bd) return;
         const at = unproject(cx, cy, h.depth, anchor);
         // Stay inside the viewport and above the floor.
-        const xMin = bd.left * h.depth + 0.06;
-        const xMax = bd.right * h.depth - 0.06;
+        const xMin =
+          bd.left * h.depth + planeOffset(bd.left, bd.reach) + 0.06;
+        const xMax =
+          bd.right * h.depth - planeOffset(bd.right, bd.reach) - 0.06;
         h.tx = clamp(at.x + h.ox, xMin, xMax);
-        h.ty = Math.max(at.y + h.oy, bd.floorSlope * h.depth + 0.06);
+        h.ty = Math.max(
+          at.y + h.oy,
+          bd.floorSlope * h.depth + planeOffset(bd.floorSlope, bd.reach) + 0.06,
+        );
         wake();
       },
       release(vx, vy, cx, cy) {

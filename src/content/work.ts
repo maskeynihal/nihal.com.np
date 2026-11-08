@@ -8,10 +8,10 @@ export const work: WorkItem[] = [
     dateLine: 'jan 2025 → · lead engineer',
     meta: 'Leapfrog Technology, for Trayt Health',
     body: [
-      'A behavioral-health platform for psychiatry access programs and managed care organizations. I joined the project as a senior engineer in 2023 and have led the engineering team since January 2025. My own code is mostly on AWS: SQS, EventBridge, Lambda and Step Functions for backups, metrics and notifications, plus the HIPAA and SOC 2 work that comes with health data.',
+      'A behavioural-health platform for psychiatry access programs and managed care organizations. I joined the project as a senior engineer in 2023 and have led the engineering team since January 2025. My own code is mostly on AWS: SQS, EventBridge, Lambda and Step Functions for backups, metrics and notifications, plus the HIPAA and SOC 2 work that comes with health data.',
       'The team sits in Nepal, Australia and the US.',
     ],
-    frameNote: 'Client work, so there is no code to link. Ask me about it.',
+    frameNote: 'Client work under NDA. Happy to talk through the architecture.',
     links: [],
     confirmed: false,
   },
@@ -56,7 +56,7 @@ export const work: WorkItem[] = [
     dateLine: 'oct 2026 · arduino uno r4 wifi',
     meta: 'Arduino UNO R4 WiFi',
     body: [
-      'Firmware for car sensors. A UNO R4 reads water temperature from a DS18B20 and air temperature and humidity from a DHT22, shows them on a small OLED, and sounds a buzzer on alarm. The repo is set up so a coding agent can build and run the firmware in a Wokwi emulator on a Mac before anything is flashed to the car. The buzzer jammed because tone() and digitalWrite() were driving the same pin, which took a while to find.',
+      'Firmware for car sensors. A UNO R4 reads water temperature from a DS18B20 and air temperature and humidity from a DHT22, shows them on a small OLED, and sounds a buzzer on alarm. The repo is set up so a coding agent can build and run the firmware in a Wokwi emulator on a Mac before anything is flashed to the car. I traced a jammed buzzer to tone() and digitalWrite() driving the same pin.',
     ],
     links: [
       {

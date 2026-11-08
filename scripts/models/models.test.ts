@@ -33,16 +33,19 @@ describe('asset pipeline', () => {
     }
   });
 
-  it('emits a GLB for every model referenced by objects.ts, plus the sheet', () => {
+  it('emits a GLB for every model referenced by objects.ts, plus the sheet and the table', () => {
     expect(built.glbs.has('sheet.glb')).toBe(true);
+    expect(built.glbs.has('table.glb')).toBe(true);
     for (const o of objects) expect(built.glbs.has(o.model), o.id).toBe(true);
   });
 
   it('keeps every model within its triangle, total and byte budgets', () => {
     for (const s of built.stats)
       expect(s.tris, s.file).toBeLessThanOrEqual(1200);
-    // the sheet is the drawing surface, not an object: budgets count the objects
-    const objs = built.stats.filter((s) => s.file !== 'sheet.glb');
+    // the sheet and the table are the furniture, not objects: the triangle budget counts the objects
+    const objs = built.stats.filter(
+      (s) => s.file !== 'sheet.glb' && s.file !== 'table.glb',
+    );
     expect(objs.reduce((n, s) => n + s.tris, 0)).toBeLessThanOrEqual(8000);
     expect(built.stats.reduce((n, s) => n + s.bytes, 0)).toBeLessThanOrEqual(
       150 * 1024,
@@ -86,6 +89,7 @@ describe('asset pipeline', () => {
       arduino: ['screen'],
       cruiser: [],
       sheet: [],
+      table: [],
     };
     for (const [file, names] of Object.entries(want)) {
       const doc = await io().readBinary(built.glbs.get(`${file}.glb`)!);

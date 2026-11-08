@@ -135,10 +135,12 @@ test('/sent/ is noindex @A-06', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('sent');
   await expect(page).toHaveTitle('sent · nihal maskey');
   expect(await meta(page, 'name', 'description')).toBe(
-    "Sent. I'll reply from contact@nihal.com.np.",
+    "Message sent. I'll reply from contact@nihal.com.np within two working days.",
   );
   await expect(
-    page.getByText("I'll reply from contact@nihal.com.np."),
+    page.getByText(
+      "I'll reply from contact@nihal.com.np within two working days.",
+    ),
   ).toBeVisible();
   expect(await meta(page, 'name', 'robots')).toContain('noindex');
   await expect(page.locator('head link[rel="canonical"]')).toHaveCount(0);

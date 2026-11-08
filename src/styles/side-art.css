@@ -1,0 +1,23 @@
+/* The section art canvas (src/components/SectionArt.astro, src/lib/side-art): one fixed canvas under
+   the sheet. Takes no layout space and no pointer events; only from 1024 px; never in print. */
+.side-art {
+  display: none;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .side-art {
+    display: block;
+  }
+}
+
+@media print {
+  .side-art {
+    display: none;
+  }
+}

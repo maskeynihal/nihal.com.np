@@ -6,10 +6,12 @@ import {
   leavingView,
   liftForFloor,
   foldDepthVelocity,
+  planeOffset,
   project,
   reanchor,
   screenAccelDown,
   screenVelocity,
+  sidePads,
   startGravityScale,
   unproject,
 } from './fall';
@@ -214,6 +216,41 @@ describe('floorPad', () => {
     expect(floorPad(768, 12, 44)).toBe(56);
     expect(floorPad(1023, 12, 44)).toBe(56);
     expect(floorPad(1024, 24, 44)).toBe(24);
+  });
+});
+
+describe('the room inside the sheet border', () => {
+  const f = frame(120, 60);
+
+  it('puts the side walls at the border, not at the viewport edge', () => {
+    const edge = boundsFor(f, 1440, 900, 2, 3.3, 24);
+    const inside = boundsFor(f, 1440, 900, 2, 3.3, 24, 24, 24);
+    // 24 px in from each side, at any depth (the walls pass through the camera)
+    expect(project(new Vector3(inside.left * 2, 0, -2), f).x).toBeCloseTo(
+      24,
+      6,
+    );
+    expect(project(new Vector3(inside.right * 2, 0, -2), f).x).toBeCloseTo(
+      1440 - 24,
+      6,
+    );
+    expect(inside.left).toBeGreaterThan(edge.left);
+    expect(inside.right).toBeLessThan(edge.right);
+  });
+
+  it('moves a plane through the camera by reach over the cosine of its tilt', () => {
+    expect(planeOffset(0, 0.05)).toBeCloseTo(0.05, 9);
+    expect(planeOffset(-0.5, 0.05)).toBeCloseTo(0.05 * Math.hypot(1, 0.5), 9);
+    expect(boundsFor(f, 1440, 900, 2, 3.3, 24, 24, 24, 0.07).reach).toBe(0.07);
+  });
+
+  it('keeps the right wall clear of the reset button from 1024 px up, and at the border below it', () => {
+    expect(sidePads(1440, 24, 1304)).toEqual({
+      left: 24,
+      right: 1440 - 1304 + 8,
+    });
+    expect(sidePads(1023, 12, 900)).toEqual({ left: 12, right: 12 });
+    expect(sidePads(1440, 24, null)).toEqual({ left: 24, right: 24 });
   });
 });
 

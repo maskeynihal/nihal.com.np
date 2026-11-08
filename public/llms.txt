@@ -1,0 +1,56 @@
+# Nihal Maskey
+
+> Lead software engineer in Kathmandu, Nepal. Builds healthcare software on AWS at Leapfrog Technology and co-founded Daboo Spaces.
+
+Nihal is lead engineer at Leapfrog Technology, where his team builds a US behavioural-health platform. He joined Leapfrog as an intern in 2020 and has led engineering teams there since 2021. The work is mostly TypeScript, React, Node.js and AWS (SQS, EventBridge, Lambda, Step Functions), with patient data under HIPAA and SOC 2. On this platform he cut the frontend bundle by 20% and made key APIs more than twice as fast. He leads across the US, Australia and Nepal.
+
+He co-founded Daboo Spaces, a coworking space in Sankhamul, Kathmandu. He studied computer engineering at Kantipur Engineering College, Tribhuvan University (2021).
+
+- Location: Kathmandu, Nepal (UTC+5:45)
+- Stack: TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS, PostgreSQL, MySQL
+- Open to: consulting, mentorship, speaking
+- Contact: contact@nihal.com.np
+
+## Site sections
+
+The site is a single page. Each section has an anchor.
+
+- [About](https://nihal.com.np/#about): role, work and Daboo Spaces
+- [Projects](https://nihal.com.np/#projects): side projects
+- [Open source](https://nihal.com.np/#open-source): merged pull requests and contributions
+- [Writing](https://nihal.com.np/#writing): posts on Hashnode
+- [CV](https://nihal.com.np/#cv): roles, education and skills
+- [Contact](https://nihal.com.np/#contact): email and social links
+
+## Profiles
+
+- [GitHub](https://github.com/maskeynihal)
+- [LinkedIn](https://www.linkedin.com/in/maskeynihal)
+- [Hashnode](https://nihalmaskey.hashnode.dev)
+- [X](https://x.com/nihalmaskey)
+- [Instagram](https://www.instagram.com/maskeynihal)
+- [Site source](https://github.com/maskeynihal/nihal.com.np)
+
+## Projects
+
+- [tz converter](https://tz.nihal.com.np/): browser extension that converts times on a page between time zones (Chrome, Edge, Brave, Firefox)
+- [space hog](https://github.com/maskeynihal/space-hog): desktop app, in Rust, that shows what is using disk space
+- [car sensors](https://github.com/maskeynihal/sensor-for-cars): Arduino UNO R4 WiFi firmware for water and air temperature sensors
+- [pac-man](https://maskeynihal.github.io/pacman/): browser game in JavaScript and canvas, built during his Leapfrog internship
+
+## Open source
+
+- [digitalocean/nginxconfig.io](https://github.com/digitalocean/nginxconfig.io/pull/433): independent scrolling in split-column mode
+- [spatie/holidays](https://github.com/spatie/holidays/pull/247): Nepal holiday calendar, with tests
+- [kritish-dhaubanjar/dynamodb-dashboard](https://github.com/kritish-dhaubanjar/dynamodb-dashboard/commits?author=maskeynihal): 18 commits
+
+## Writing
+
+- [All posts on Hashnode](https://nihalmaskey.hashnode.dev)
+- [I built a water + air monitor on an Arduino, and the buzzer tried to kill me](https://nihalmaskey.hashnode.dev/i-built-a-water-air-monitor-on-an-arduino-and-the-buzzer-tried-to-kill-me)
+- [Running laravel on a server](https://nihalmaskey.hashnode.dev/running-laravel-on-a-server)
+
+## Optional
+
+- [Leapfrog Technology](https://lftechnology.com)
+- [Daboo Spaces](https://daboospaces.com)

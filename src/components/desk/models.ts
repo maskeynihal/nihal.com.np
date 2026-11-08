@@ -1,6 +1,7 @@
 // `?no-inline`: Vite would otherwise inline the smallest GLB as a data: URL, which the CSP
 // (connect-src 'self') forbids fetching.
 import sheet from '../../assets/models/sheet.glb?url&no-inline';
+import table from '../../assets/models/table.glb?url&no-inline';
 import arduino from '../../assets/models/arduino.glb?url&no-inline';
 import clock from '../../assets/models/clock.glb?url&no-inline';
 import calendar from '../../assets/models/calendar.glb?url&no-inline';
@@ -22,6 +23,7 @@ import letterL from '../../assets/models/letter-l.glb?url&no-inline';
  */
 const urls: Record<string, () => Promise<string>> = {
   sheet: () => Promise.resolve(sheet),
+  table: () => Promise.resolve(table),
   arduino: () => Promise.resolve(arduino),
   clock: () => Promise.resolve(clock),
   calendar: () => Promise.resolve(calendar),

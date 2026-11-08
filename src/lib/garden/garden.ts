@@ -5,6 +5,7 @@ import {
   type Bouquet,
   type Colors,
   type World,
+  BALL_EDGE,
   clamp,
   rng,
 } from './core';
@@ -42,11 +43,20 @@ import {
 import {
   type Butterfly,
   drawButterfly,
+  keepButterflyIn,
   perch,
   spawn,
   stepButterflies,
 } from './butterflies';
-import { ballAt, drawBall, drawDog, mouth, spawnDogs, stepDogs } from './dogs';
+import {
+  ballAt,
+  drawBall,
+  drawDog,
+  keepDogIn,
+  mouth,
+  spawnDogs,
+  stepDogs,
+} from './dogs';
 import {
   type Flora,
   drawFlowers,
@@ -192,13 +202,16 @@ export function mountGarden(root: HTMLElement): void {
       const kx = w.W / old;
       const ky = (y: number) =>
         w.g0 + ((y - og0) / (og1 - og0 || 1)) * (w.g1 - w.g0);
-      for (const d of dogs) d.x = clamp(d.x * kx, 20, w.W - 20);
+      for (const d of dogs) {
+        d.x *= kx;
+        keepDogIn(w, d);
+      }
       for (const f of w.flowers) {
         f.x *= kx;
         f.y = ky(f.y);
       }
       for (const b of w.balls) {
-        b.x = clamp(b.x * kx, 8, w.W - 8);
+        b.x = clamp(b.x * kx, BALL_EDGE, w.W - BALL_EDGE);
         b.y = clamp(ky(b.y), w.g0 + 6, w.g1 + 6);
       }
       for (const q of w.bqs) {
@@ -210,6 +223,7 @@ export function mountGarden(root: HTMLElement): void {
       dogs.forEach((d, i) => {
         d.x = w.W * (i ? 0.62 : 0.3);
         d.y = (w.g0 + w.g1) / 2 + i * 14;
+        keepDogIn(w, d);
       });
       seedFlowers(w);
       w.balls = [newBall(w.W * 0.5, (w.g0 + w.g1) / 2 + 24)];
@@ -219,7 +233,7 @@ export function mountGarden(root: HTMLElement): void {
       restore();
       announce();
     }
-    for (const b of bugs) b.x = clamp(b.x, 6, w.W - 6);
+    for (const b of bugs) keepButterflyIn(w, b);
     w.flowers.forEach((f) => {
       f.hx = f.x;
       f.hy = f.y - f.h * Math.min(1, f.grow / 0.6);
@@ -286,7 +300,7 @@ export function mountGarden(root: HTMLElement): void {
         const e = Math.exp(-dt * 12);
         b.ox *= e;
         b.oy *= e;
-        b.x = clamp(w.px + b.ox, 8, w.W - 8);
+        b.x = clamp(w.px + b.ox, BALL_EDGE, w.W - BALL_EDGE);
         b.y = clamp(w.py + 24 + b.oy, w.g0 + 6, w.g1 + 6);
         b.z = Math.max(0, b.y - w.py - b.oy - 8);
         b.spin += (v.x / 8) * dt * 0.5;
@@ -314,8 +328,8 @@ export function mountGarden(root: HTMLElement): void {
         if (Math.abs(b.vy) < 3) b.vy = 0;
       }
       b.spin += (b.vx / 8) * dt;
-      if (b.x < 8 || b.x > w.W - 8) {
-        b.x = clamp(b.x, 8, w.W - 8);
+      if (b.x < BALL_EDGE || b.x > w.W - BALL_EDGE) {
+        b.x = clamp(b.x, BALL_EDGE, w.W - BALL_EDGE);
         b.vx *= -0.5;
       }
     }
@@ -979,7 +993,7 @@ export function mountGarden(root: HTMLElement): void {
         d.timer = 1.2;
       }
       b.held = false;
-      b.x = clamp(vx, 8, w.W - 8);
+      b.x = clamp(vx, BALL_EDGE, w.W - BALL_EDGE);
       b.y = clamp(vy + 8, w.g0 + 6, w.g1 + 6);
       b.z = 0;
     }

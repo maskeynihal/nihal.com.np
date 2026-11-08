@@ -8,6 +8,7 @@ import Garden from '../components/garden/Garden.astro';
 import Desk from '../components/desk/Desk';
 import Section from '../components/Section.astro';
 import PaperPanel from '../components/PaperPanel.astro';
+import SectionArt from '../components/SectionArt.astro';
 import SheetBorder from '../components/SheetBorder.astro';
 import SheetIndex from '../components/SheetIndex.astro';
 import Lamp from '../components/Lamp.astro';
@@ -47,6 +48,7 @@ const year = String(new Date().getFullYear());
 ---
 
 <Base skipTo="projects" jsonLd>
+  <SectionArt />
   <SheetBorder />
   <SheetIndex />
   <Lamp />
@@ -64,7 +66,7 @@ const year = String(new Date().getFullYear());
       </div>
     </Section>
 
-    <Section id="about" heading={headings.about} side="right" art="about">
+    <Section id="about" heading={headings.about} side="right" art="kite">
       <p>{about.paragraphs[0]}</p>
       <p>{about.paragraphs[1]}</p>
       <p>{about.paragraphs[2]}</p>
@@ -89,7 +91,7 @@ const year = String(new Date().getFullYear());
       id="projects"
       heading={headings.projects}
       side="left"
-      art="projects"
+      art="circuit"
     >
       <p>{workCopy.intro}</p>
       {work.map((item) => (
@@ -101,21 +103,21 @@ const year = String(new Date().getFullYear());
       id="open-source"
       heading={headings.openSource}
       side="right"
-      art="opensource"
+      art="dog"
     >
       <PaperPanel>
         <RevisionTable rows={oss} />
       </PaperPanel>
     </Section>
 
-    <Section id="writing" heading={headings.writing} side="left" art="writing">
+    <Section id="writing" heading={headings.writing} side="left" art="lamp">
       <p>{writing.intro}</p>
       <PaperPanel>
         <WritingList posts={posts} />
       </PaperPanel>
     </Section>
 
-    <Section id="cv" heading={headings.cv} side="right" art="cv">
+    <Section id="cv" heading={headings.cv} side="right" art="climb">
       <PaperPanel>
         <CvTable rows={cvRows} />
       </PaperPanel>
@@ -132,7 +134,7 @@ const year = String(new Date().getFullYear());
       </ul>
     </Section>
 
-    <Section id="contact" heading={headings.contact} side="left" art="contact">
+    <Section id="contact" heading={headings.contact} side="left" art="bloom">
       <PaperPanel class="contact-panel">
         <p>{contact.lead}</p>
         <p>

@@ -97,9 +97,9 @@ test.describe('falling desk @V3-desk', () => {
     // Rests on the bottom edge of the screen (`rect` is the projected bounding box, a little taller
     // than the silhouette, so it can touch or pass the edge by a few px).
     expect(vh - bottom).toBeLessThanOrEqual(30);
-    // Measured over repeat runs at 4 workers: the box passes the edge by 0 to 5 px depending on where
-    // the ball lands (perspective widens the box of a sphere near the edge), so the bound is 8 px.
-    expect(vh - bottom).toBeGreaterThanOrEqual(-8);
+    // The floor is inside the sheet border (the room is moved in by a clearance), so the box ends
+    // above the viewport's bottom edge; 2 px of slack for the projected box.
+    expect(vh - bottom).toBeGreaterThanOrEqual(-2);
     // Inside the side walls (the viewport edges): the ball's centre is on screen. (`rect` is the
     // projected bounding box of a tumbled object and can reach past the edge; the screenshots in
     // docs/reviews/v3.1-final show the silhouettes.)

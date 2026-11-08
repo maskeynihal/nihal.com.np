@@ -16,6 +16,23 @@ export interface Butterfly {
   noLand: number;
 }
 
+/**
+ * How far a drawn butterfly reaches from its centre, in units of its own size `k`: a wing is up to
+ * 17 wide at full flap and 15 high, the antennae 11 up, the lower wing 11 down; a tilt of up to
+ * 0.5 rad adds a little. A pixel or two keeps the outline off the edge.
+ */
+const REACH_X = 17;
+const REACH_UP = 16;
+const REACH_DOWN = 12;
+const PAD = 3;
+
+/** Moves a butterfly inside the canvas, whole wings included (a landed one too, on a flower near the edge). */
+export function keepButterflyIn(w: World, b: Butterfly) {
+  const mx = REACH_X * b.k + PAD;
+  b.x = clamp(b.x, mx, w.W - mx);
+  b.y = clamp(b.y, REACH_UP * b.k + PAD, w.H - REACH_DOWN * b.k - PAD);
+}
+
 export function spawn(w: World, n: number, r: () => number): Butterfly[] {
   return Array.from({ length: n }, (_, i) => ({
     x: ((i + 0.5) / n) * w.W,
@@ -43,6 +60,7 @@ export function perch(w: World, list: Butterfly[]) {
     b.fl = b.land ? fi : -1;
     b.x = b.land ? f.hx : f.hx + 40 + i * 20;
     b.y = b.land ? f.hy - 3 : f.hy - 50 - i * 10;
+    keepButterflyIn(w, b);
   });
 }
 
@@ -61,8 +79,8 @@ export function stepButterflies(w: World, list: Butterfly[], dt: number) {
       const f = (1 - d / 110) * 900 * dt;
       b.vx += (dx / (d || 1)) * f;
       b.vy += (dy / (d || 1)) * f;
-      b.tx = clamp(b.x + dx * 2, 20, w.W - 20);
-      b.ty = clamp(b.y + dy * 2, 30, w.g1 - 30);
+      b.tx = clamp(b.x + dx * 2, REACH_X * b.k, w.W - REACH_X * b.k);
+      b.ty = clamp(b.y + dy * 2, REACH_UP * b.k + 10, w.g1 - 30);
     }
     if (b.land) {
       const f = w.flowers[b.fl];
@@ -72,6 +90,7 @@ export function stepButterflies(w: World, list: Butterfly[], dt: number) {
       }
       b.x = f.hx;
       b.y = f.hy - 3;
+      keepButterflyIn(w, b);
       b.timer -= dt;
       if (b.timer <= 0) {
         b.land = 0;
@@ -95,16 +114,26 @@ export function stepButterflies(w: World, list: Butterfly[], dt: number) {
       }
     } else if (b.timer <= 0 || Math.hypot(b.x - b.tx, b.y - b.ty) < 20) {
       b.timer = 1.5 + Math.random() * 2.5;
+      const mx = REACH_X * b.k + PAD;
+      let pick = -1;
       if (b.noLand <= 0 && Math.random() < 0.45) {
-        let pick = 0;
-        for (let k = 0; k < 5; k++) {
-          pick = Math.floor(Math.random() * w.flowers.length);
-          if (!list.some((o) => o !== b && o.fl === pick)) break;
+        for (let k = 0; k < 5 && pick < 0; k++) {
+          const i = Math.floor(Math.random() * w.flowers.length);
+          const fp = w.flowers[i];
+          // A flower too near the edge to land on whole is not a choice.
+          if (
+            fp &&
+            fp.hx > mx &&
+            fp.hx < w.W - mx &&
+            !list.some((o) => o !== b && o.fl === i)
+          )
+            pick = i;
         }
-        b.fl = pick;
-      } else {
-        b.tx = 30 + Math.random() * (w.W - 60);
-        b.ty = 30 + Math.random() * (w.g1 - 60);
+      }
+      if (pick >= 0) b.fl = pick;
+      else {
+        b.tx = mx + Math.random() * (w.W - 2 * mx);
+        b.ty = REACH_UP * b.k + PAD + Math.random() * (w.g1 - 60);
       }
     }
     const ax = b.tx - b.x;
@@ -124,8 +153,8 @@ export function stepButterflies(w: World, list: Butterfly[], dt: number) {
     }
     b.x += b.vx * dt;
     b.y += b.vy * dt;
-    b.x = clamp(b.x, 6, w.W - 6);
-    b.y = clamp(b.y, 8, w.g1);
+    keepButterflyIn(w, b);
+    b.y = Math.min(b.y, w.g1);
   }
 }
 

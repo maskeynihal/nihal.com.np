@@ -132,9 +132,16 @@ export interface Bounds {
   /** Nearest and farthest depth (m, positive) a free body may have. */
   zNear: number;
   zFar: number;
-  /** Slopes dx/dz of the viewport's left and right edges (x = slope * depth). */
+  /** Slopes dx/dz of the walls through the camera (x = slope * depth): the sheet's inner left and right edges. */
   left: number;
   right: number;
+  /**
+   * How far (m, along each plane's normal) the floor and the side walls are moved inward from
+   * those through-the-camera planes: the clearance from the border plus how far the biggest
+   * drawn mesh reaches beyond its collider. Metres, not pixels, so the gap shrinks with depth the
+   * way the object does (a plane that does not pass through the camera).
+   */
+  reach: number;
 }
 
 /**
@@ -149,15 +156,49 @@ export function boundsFor(
   zNear: number,
   zFar: number,
   padBottom: number,
+  padLeft = 0,
+  padRight = 0,
+  reach = 0,
 ): Bounds {
   return {
     floorY: (-(vh - padBottom - frame.cy) * zNear) / frame.f,
     floorSlope: -(vh - padBottom - frame.cy) / frame.f,
     zNear,
     zFar,
-    left: (0 - frame.cx) / frame.f,
-    right: (vw - frame.cx) / frame.f,
+    left: (padLeft - frame.cx) / frame.f,
+    right: (vw - padRight - frame.cx) / frame.f,
+    reach,
   };
+}
+
+/** Clearance (m) kept between a resting body's drawn mesh and the border, on top of the mesh's overhang. */
+export const ROOM_CLEARANCE = 0.012;
+
+/**
+ * Horizontal (x) or vertical (y) distance (m) at which a plane through the camera, moved inward by
+ * `reach` along its normal, sits from the unmoved one: `reach` over the cosine of its tilt, where
+ * `slope` is the plane's dx/dz or dy/dz.
+ */
+export const planeOffset = (slope: number, reach: number): number =>
+  reach * Math.hypot(1, slope);
+
+/**
+ * Where the side walls and floor sit, in px from the viewport's edges: the sheet's inner edge on
+ * the left and right, and on the right at 1024 px and up also clear of the reset button (it is
+ * fixed in the right margin; `resetLeft` is its left edge in px, null when it is not there).
+ */
+export function sidePads(
+  vw: number,
+  inset: number,
+  resetLeft: number | null,
+  gap = 8,
+  from = 1024,
+): { left: number; right: number } {
+  const right =
+    vw >= from && resetLeft !== null
+      ? Math.max(inset, vw - resetLeft + gap)
+      : inset;
+  return { left: inset, right };
 }
 
 /** Moves a camera-frame body's depth velocity into x and y so its screen velocity is unchanged, then zeroes it. */

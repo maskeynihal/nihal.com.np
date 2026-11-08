@@ -10,7 +10,9 @@ import {
   ExtrudeGeometry,
   Matrix4,
   PlaneGeometry,
+  Quaternion,
   Shape,
+  ShapeGeometry,
   SphereGeometry,
   TorusGeometry,
   Vector2,
@@ -228,6 +230,65 @@ export function dome(o: DomeOpts): Part {
 /** A flat quad facing +Y. */
 export function floor(c: Vec3, w: number, d: number): Part {
   return fromGeometry(new PlaneGeometry(w, d), at(c, -Math.PI / 2));
+}
+
+/** A rounded rectangle outline (x right, y up), counter-clockwise, `segs` points per corner arc. */
+export function roundedRect(
+  w: number,
+  d: number,
+  radius: number,
+  segs: number,
+): [number, number][] {
+  const pts: [number, number][] = [];
+  const hw = w / 2 - radius;
+  const hd = d / 2 - radius;
+  // corner centres, counter-clockwise from the +x +y corner, each with its start angle
+  const corners: [number, number, number][] = [
+    [hw, hd, 0],
+    [-hw, hd, Math.PI / 2],
+    [-hw, -hd, Math.PI],
+    [hw, -hd, (Math.PI * 3) / 2],
+  ];
+  for (const [cx, cy, a0] of corners)
+    for (let k = 0; k <= segs; k++) {
+      const a = a0 + (k / segs) * (Math.PI / 2);
+      pts.push([cx + Math.cos(a) * radius, cy + Math.sin(a) * radius]);
+    }
+  return pts;
+}
+
+/** A flat rounded-rectangle quad facing +Y (the table top: the sheet the drawing is on). */
+export function roundedFloor(
+  c: Vec3,
+  w: number,
+  d: number,
+  radius: number,
+  segs: number,
+): Part {
+  const shape = new Shape(
+    roundedRect(w, d, radius, segs).map(([x, y]) => new Vector2(x, y)),
+  );
+  return fromGeometry(new ShapeGeometry(shape), at(c, -Math.PI / 2));
+}
+
+/**
+ * A square-ended bar of section `t` x `t` from `a` to `b`: a box along Y, turned onto the segment.
+ * The 12 edges are authored as creases, like every box.
+ */
+export function bar(a: Vec3, b: Vec3, t: number): Part {
+  const dir = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const len = dir.length();
+  const part = box({ c: [0, 0, 0], s: [t, len, t] });
+  const q = new Quaternion().setFromUnitVectors(
+    new Vector3(0, 1, 0),
+    dir.normalize(),
+  );
+  const m = new Matrix4().compose(
+    new Vector3((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2),
+    q,
+    new Vector3(1, 1, 1),
+  );
+  return transform(part, m);
 }
 
 export function bounds(p: Part): { min: Vec3; max: Vec3 } {

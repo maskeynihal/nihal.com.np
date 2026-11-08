@@ -334,6 +334,10 @@ export function buildPoster(opts: PosterOptions = {}): string {
   const sheetDef = byFile.get('sheet')!;
   const sheet = place(sheetDef.buildPosed(), [0, 0, 0], [0, 0, 0, 1]);
   placed.push(sheet);
+  // The drafting table under the sheet: structural lines, and it hides what is behind its board.
+  placed.push(
+    place(byFile.get('table')!.buildPosed(), [0, 0, 0], [0, 0, 0, 1]),
+  );
   for (const o of objects) {
     if (!o.confirmed && !opts.includeUnconfirmed) continue;
     if (opts.phone && !phoneObjectIds.has(o.id)) continue;

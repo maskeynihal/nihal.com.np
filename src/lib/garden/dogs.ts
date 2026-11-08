@@ -1,4 +1,11 @@
-import { type Ball, type Colors, type World, TAU, clamp } from './core';
+import {
+  type Ball,
+  type Colors,
+  type World,
+  BALL_EDGE,
+  TAU,
+  clamp,
+} from './core';
 
 export interface Dog {
   x: number;
@@ -111,7 +118,8 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
         d.timer = 2 + Math.random() * 3;
         if (Math.random() < 0.5) {
           d.state = 'wander';
-          d.tx = 40 + Math.random() * (w.W - 80);
+          const [lo, hi] = dogSpan(w, d);
+          d.tx = lo + Math.random() * (hi - lo);
           d.ty = w.g0 + 20 + Math.random() * (w.g1 - w.g0 - 20);
         }
       }
@@ -121,7 +129,7 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
       const b = d.ball;
       // Face the ball from the side the dog is on, and stop where the mouth, not the body, meets it.
       if (Math.abs(b.x - d.x) > 12) d.f = b.x > d.x ? 1 : -1;
-      d.tx = clamp(b.x - d.f * reach(d) * sc, 20, w.W - 20);
+      d.tx = clamp(b.x - d.f * reach(d) * sc, ...dogSpan(w, d));
       d.ty = clamp(b.y, w.g0, w.g1 + 6);
       const l = Math.hypot(d.tx - d.x, (d.ty - d.y) * 1.6);
       speed = 300;
@@ -152,7 +160,7 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
       dipTo = d.gt < 0.25 ? 1 - d.gt * 4 : 0;
       // Bring it to the pointer, stopping a little short on the dog's own side.
       const side = (d.x < w.px ? -1 : 1) * 60 * d.size;
-      d.tx = clamp(w.px + side, 30, w.W - 30);
+      d.tx = clamp(w.px + side, ...dogSpan(w, d));
       d.ty = clamp(w.py, w.g0 + 14, w.g1);
       if (dist(d.x, d.y, d.tx, d.ty) < 26) {
         d.state = 'set';
@@ -168,7 +176,7 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
         b.held = false;
         b.claimed = false;
         b.fetch = false;
-        b.x = clamp(m[0], 8, w.W - 8);
+        b.x = clamp(m[0], BALL_EDGE, w.W - BALL_EDGE);
         b.y = d.y;
         b.z = Math.max(0, d.y - 8 - m[1]);
         b.vx = b.vy = b.vz = 0;
@@ -198,7 +206,7 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
         speed = s;
       }
     }
-    d.x = clamp(d.x, 20, w.W - 20);
+    keepDogIn(w, d);
     d.y = clamp(d.y, w.g0, w.g1 + 6);
     d.speed += (speed - d.speed) * Math.min(1, dt * 10);
     // Feet cover the ground at the body's pace: no skating.
@@ -208,6 +216,48 @@ export function stepDogs(w: World, dogs: Dog[], dt: number) {
 }
 
 export const scaleOf = (d: Dog) => d.size * (0.85 + (d.y / 400) * 0.25);
+
+/**
+ * How far the drawn dog reaches from `d.x` in its own units (times `scaleOf`): the nose, with the
+ * ball in the jaws (a ball is 8 px, about 4 units, beyond the mouth), ahead of the body, and the
+ * tail, at its widest wag, behind it. Measured from `drawDog`: the nose is at about 62, the tail tip
+ * at about 52 (retriever). Taken as one value per direction so a dog of either breed fits.
+ */
+export const DOG_FRONT = 64;
+export const DOG_BACK = 56;
+/** Gap kept between the drawn dog and the canvas edge, px. */
+const DOG_EDGE = 4;
+
+/**
+ * The x range (px) that keeps the whole drawn dog inside the canvas as it is drawn now. `fv` is the
+ * facing as drawn (-1..1), so the range is wider while the dog is turning (it is narrower on screen
+ * then) and the tail's side and the nose's side swap with the facing.
+ */
+export function dogLimits(w: World, d: Dog): [number, number] {
+  const sc = scaleOf(d);
+  const right = Math.max(d.fv, 0);
+  const left = Math.max(-d.fv, 0);
+  return [
+    DOG_EDGE + sc * (right * DOG_BACK + left * DOG_FRONT),
+    w.W - DOG_EDGE - sc * (right * DOG_FRONT + left * DOG_BACK),
+  ];
+}
+
+/**
+ * Where a dog may be sent: inside the range it fits in whichever way it faces on arrival (the
+ * nose is the longer side), so it turns round at the target instead of running into the edge.
+ * A canvas too narrow for that puts it in the middle.
+ */
+export function dogSpan(w: World, d: Dog): [number, number] {
+  const m = DOG_EDGE + scaleOf(d) * DOG_FRONT;
+  return m * 2 > w.W ? [w.W / 2, w.W / 2] : [m, w.W - m];
+}
+
+/** Moves a dog inside the canvas (see `dogLimits`). */
+export function keepDogIn(w: World, d: Dog): void {
+  const [lo, hi] = dogLimits(w, d);
+  d.x = lo > hi ? w.W / 2 : clamp(d.x, lo, hi);
+}
 
 /** Two breeds: a sturdy retriever with a deep chest and a leaner terrier with longer legs. */
 interface Build {
