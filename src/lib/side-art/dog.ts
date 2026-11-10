@@ -1164,7 +1164,7 @@ export const dog: Scene = {
           l.x,
           l.y,
           l.sz,
-          l.y % 3 < 1 ? 'garden' : l.y % 3 < 2 ? 'daboo' : 'ktm',
+          l.y % 3 < 1 ? 'garden' : l.y % 3 < 2 ? 'park' : 'ktm',
         );
       else if (k === 'pond') DG.pond(l.x, l.y, l.sz, t);
       else if (k === 'lamp') DG.lamp(l.x, l.y, l.sz, gl);

@@ -35,18 +35,6 @@ export interface GraphLd {
   '@context': 'https://schema.org';
   '@graph': [
     PersonLd,
-    {
-      '@type': 'Organization';
-      '@id': string;
-      name: string;
-      url: string;
-      address: {
-        '@type': 'PostalAddress';
-        addressLocality: string;
-        addressCountry: string;
-      };
-      founder: { '@id': string };
-    },
     { '@type': 'WebSite'; '@id': string; url: string; name: string },
     {
       '@type': 'ProfilePage';
@@ -93,27 +81,14 @@ export function buildPerson(
   };
 }
 
-/** The full `@graph`: Person, Daboo Spaces (founder), WebSite, ProfilePage. */
+/** The full `@graph`: Person, WebSite, ProfilePage. */
 export function buildGraph(
   socials: readonly { label: string; href: string }[] = copy.contact.socials,
 ): GraphLd {
-  const d = site.daboo;
   return {
     '@context': 'https://schema.org',
     '@graph': [
       buildPerson(socials),
-      {
-        '@type': 'Organization',
-        '@id': `${d.url}/#organization`,
-        name: d.name,
-        url: d.url,
-        address: {
-          '@type': 'PostalAddress',
-          addressLocality: d.locality,
-          addressCountry: d.country,
-        },
-        founder: { '@id': PERSON_ID },
-      },
       {
         '@type': 'WebSite',
         '@id': `${site.url}/#website`,

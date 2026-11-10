@@ -72,7 +72,6 @@ test('JSON-LD Person parses with the expected fields @A-06', async ({
   const graph: { '@type': string }[] = ld['@graph'];
   expect(graph.map((n) => n['@type'])).toEqual([
     'Person',
-    'Organization',
     'WebSite',
     'ProfilePage',
   ]);
@@ -84,11 +83,7 @@ test('JSON-LD Person parses with the expected fields @A-06', async ({
     worksFor: { '@type': 'Organization', name: 'Leapfrog Technology' },
     address: { addressLocality: 'Kathmandu', addressCountry: 'NP' },
   });
-  expect(graph[1]).toMatchObject({
-    name: 'Daboo Spaces',
-    founder: { '@id': `${ORIGIN}/#person` },
-  });
-  expect(graph[3]).toMatchObject({
+  expect(graph[2]).toMatchObject({
     mainEntity: { '@id': `${ORIGIN}/#person` },
   });
   expect((person as unknown as { sameAs: string[] }).sameAs).toEqual([

@@ -25,15 +25,13 @@ describe('buildPerson', () => {
       'https://nihalmaskey.hashnode.dev',
     ]);
   });
-  it('graph has Daboo Spaces founded by the person', () => {
+  it('graph has the person, website and profile page', () => {
     const g = buildGraph();
     expect(g['@graph'].map((n) => n['@type'])).toEqual([
       'Person',
-      'Organization',
       'WebSite',
       'ProfilePage',
     ]);
-    expect(g['@graph'][1]).toMatchObject({ founder: { '@id': p['@id'] } });
   });
   it('never mentions the client', () => {
     expect(JSON.stringify(buildGraph())).not.toMatch(/trayt/i);

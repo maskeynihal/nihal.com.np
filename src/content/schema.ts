@@ -201,8 +201,6 @@ export const Copy = z.strictObject({
   }),
   about: z.strictObject({
     paragraphs: z.tuple([text, text, text]),
-    /** Fourth paragraph with a link in the middle: before + link + after. */
-    daboo: z.strictObject({ before: text, link: Link, after: text }),
     facts: z.array(z.strictObject({ label: text, value: text })),
   }),
   work: z.strictObject({
@@ -225,7 +223,7 @@ export const Copy = z.strictObject({
   cv: z.strictObject({
     cards: z
       .array(z.strictObject({ label: text, title: text, text }))
-      .length(3),
+      .length(2),
   }),
   contact: z.strictObject({
     lead: text,

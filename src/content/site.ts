@@ -36,12 +36,6 @@ export const site = {
     },
     address: { locality: 'Kathmandu', country: 'NP' },
   },
-  daboo: {
-    name: 'Daboo Spaces',
-    url: 'https://daboospaces.com',
-    locality: 'Sankhamul, Kathmandu',
-    country: 'NP',
-  },
   /** Formspree form id (docs/specs/00-product-brief.md: the existing endpoint `xanoenzo` stays). */
   formspreeId: 'xanoenzo',
   og: { image: '/og.png', width: 1200, height: 630 },

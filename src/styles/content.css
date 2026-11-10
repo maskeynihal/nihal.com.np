@@ -611,7 +611,7 @@
   transform: translateX(3px);
 }
 
-/* CV cards: co-founder, education, skills, one paper card each after the roles table. */
+/* CV cards: education, skills, one paper card each after the roles table. */
 .cv-cards {
   list-style: none;
   margin: 1rem 0 0;

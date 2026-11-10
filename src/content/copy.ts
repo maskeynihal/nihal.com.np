@@ -30,7 +30,7 @@ export const copy = {
   titleBlock: {
     name: 'nihal maskey',
     kicker: 'lead software engineer · kathmandu, nepal',
-    line: 'Lead engineer at Leapfrog Technology. I lead the team that designs and ships health-tech software, from architecture to production. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
+    line: 'Lead engineer at Leapfrog Technology. I lead the team that designs and ships health-tech software, from architecture to production.',
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
     seeProjects: 'see the projects →',
@@ -52,16 +52,9 @@ export const copy = {
       "Today I lead the engineering team behind a US health-tech platform. I own its architecture and the security and compliance work that comes with sensitive health data. I also mentor engineers, set the team's engineering standards, and work with product and design on what ships next.",
       "I lead across the US, Australia and Nepal, so I write clear specs and run code reviews that raise the team's standard.",
     ],
-    daboo: {
-      before: 'Outside work I co-founded ',
-      link: { label: 'Daboo Spaces', href: 'https://daboospaces.com' },
-      after:
-        ', a coworking space in Sankhamul, Kathmandu, with desks, private offices and a community of founders, freelancers and remote workers.',
-    },
     facts: [
       { label: 'location', value: 'Kathmandu, Nepal' },
       { label: 'role', value: 'Lead Engineer, Leapfrog Technology' },
-      { label: 'co-founder', value: 'Daboo Spaces' },
       {
         label: 'focus',
         value: 'Health tech, cloud architecture, engineering leadership',
@@ -97,11 +90,6 @@ export const copy = {
   },
   cv: {
     cards: [
-      {
-        label: 'co-founder',
-        title: 'Daboo Spaces, Kathmandu',
-        text: 'A coworking space in Sankhamul Tower 1.',
-      },
       {
         label: 'education',
         title: 'BE computer engineering',
@@ -148,9 +136,9 @@ export const copy = {
   meta: {
     title: 'Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal',
     description:
-      'Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He leads health-tech engineering at Leapfrog Technology and co-founded Daboo Spaces.',
+      'Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He leads health-tech engineering at Leapfrog Technology.',
     keywords:
-      'Nihal Maskey, software engineer in Nepal, software engineer Kathmandu, lead engineer Nepal, team lead Nepal, team lead Kathmandu, lead engineer at Leapfrog Technology, healthcare software engineer, health tech engineer Nepal, full stack developer Nepal, React developer Nepal, Node.js developer Kathmandu, TypeScript engineer, AWS engineer Nepal, Laravel developer Nepal, engineering manager Nepal, Daboo Spaces co-founder',
+      'Nihal Maskey, software engineer in Nepal, software engineer Kathmandu, lead engineer Nepal, team lead Nepal, team lead Kathmandu, lead engineer at Leapfrog Technology, healthcare software engineer, health tech engineer Nepal, full stack developer Nepal, React developer Nepal, Node.js developer Kathmandu, TypeScript engineer, AWS engineer Nepal, Laravel developer Nepal, engineering manager Nepal',
     ogAlt: 'Nihal Maskey, lead software engineer, Kathmandu, Nepal',
   },
   notFound: {

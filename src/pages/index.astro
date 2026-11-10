@@ -72,13 +72,6 @@ const year = String(new Date().getFullYear());
       <p>{about.paragraphs[0]}</p>
       <p>{about.paragraphs[1]}</p>
       <p>{about.paragraphs[2]}</p>
-      <p>
-        {about.daboo.before}
-        <a class="sheet-link" href={about.daboo.link.href} rel="noopener">
-          {about.daboo.link.label}
-        </a>
-        {about.daboo.after}
-      </p>
       <dl class="about-facts">
         {about.facts.map((f) => (
           <div>

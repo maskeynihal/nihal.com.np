@@ -135,21 +135,17 @@ test.describe('work, open source, writing, cv @B-04', () => {
   }) => {
     await page.goto('/');
     const table = page.getByRole('table', { name: copy.headings.cv });
-    await expect(table.locator('tr')).toHaveCount(rows.length); // roles only: co-founder, education and skills are cards
+    await expect(table.locator('tr')).toHaveCount(rows.length); // roles only: education and skills are cards
     for (const [i, r] of rows.entries()) {
       const tr = table.locator('tr').nth(i);
       await expect(tr.locator('th[scope="row"]')).toHaveText(r.when);
       await expect(tr.locator('td').nth(0)).toContainText(r.role);
       await expect(tr.locator('td').nth(1)).toHaveText(r.org);
     }
-    // Co-founder, education and skills are a paper card each, after the table.
+    // Education and skills are a paper card each, after the table.
     const cards = page.locator('#cv .cv-card');
     await expect(cards).toHaveCount(copy.cv.cards.length);
-    expect(copy.cv.cards.map((c) => c.label)).toEqual([
-      'co-founder',
-      'education',
-      'skills',
-    ]);
+    expect(copy.cv.cards.map((c) => c.label)).toEqual(['education', 'skills']);
     for (const [i, c] of copy.cv.cards.entries()) {
       await expect(cards.nth(i).locator('.cv-card-label')).toHaveText(c.label);
       await expect(cards.nth(i)).toContainText(c.title);

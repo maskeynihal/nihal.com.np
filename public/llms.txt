@@ -1,10 +1,10 @@
 # Nihal Maskey
 
-> Lead software engineer in Kathmandu, Nepal. Leads health-tech engineering at Leapfrog Technology and co-founded Daboo Spaces.
+> Lead software engineer in Kathmandu, Nepal. Leads health-tech engineering at Leapfrog Technology.
 
 Nihal is lead engineer at Leapfrog Technology, where his team builds a US health-tech platform. He joined Leapfrog as an intern in 2020 and has led engineering teams there since 2021. He owns the platform's architecture and the security and compliance work that comes with sensitive health data. He leads across the US, Australia and Nepal.
 
-He co-founded Daboo Spaces, a coworking space in Sankhamul, Kathmandu. He studied computer engineering at Kantipur Engineering College, Tribhuvan University (2021).
+He studied computer engineering at Kantipur Engineering College, Tribhuvan University (2021).
 
 - Location: Kathmandu, Nepal (UTC+5:45)
 - Focus: health tech, cloud architecture, engineering leadership
@@ -15,7 +15,7 @@ He co-founded Daboo Spaces, a coworking space in Sankhamul, Kathmandu. He studie
 
 The site is a single page. Each section has an anchor.
 
-- [About](https://nihal.com.np/#about): role, work and Daboo Spaces
+- [About](https://nihal.com.np/#about): role and work
 - [Projects](https://nihal.com.np/#projects): side projects
 - [Open source](https://nihal.com.np/#open-source): my public projects and merged contributions to other repos
 - [Writing](https://nihal.com.np/#writing): posts on Hashnode
@@ -77,4 +77,3 @@ Contributions to other repos (one per repo):
 ## Optional
 
 - [Leapfrog Technology](https://lftechnology.com)
-- [Daboo Spaces](https://daboospaces.com)
