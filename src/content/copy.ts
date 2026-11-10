@@ -30,10 +30,9 @@ export const copy = {
   titleBlock: {
     name: 'nihal maskey',
     kicker: 'lead software engineer · kathmandu, nepal',
-    line: 'Lead engineer at Leapfrog Technology. I lead the team building a US behavioural-health platform on AWS, under HIPAA and SOC 2. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
+    line: 'Lead engineer at Leapfrog Technology. I lead the team that designs and ships health-tech software, from architecture to production. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
     email: 'contact@nihal.com.np',
     timeLabel: 'kathmandu · utc+5:45',
-    revLine: 'rev {rev} · sheet 1 of 1 · scale 1:1',
     seeProjects: 'see the projects →',
     reset: 'put everything back',
     skip: 'skip the 3D desk',
@@ -50,7 +49,7 @@ export const copy = {
   about: {
     paragraphs: [
       "I'm a lead software engineer in Kathmandu, Nepal. I joined Leapfrog Technology as an intern in 2020 and have led engineering teams there since 2021.",
-      'Today I lead the team behind a US behavioural-health platform. The work is mostly TypeScript, React, Node.js and AWS: queues, Lambdas and Step Functions, with patient data that has to meet HIPAA and SOC 2. On this platform I cut the frontend bundle by 20% and made key APIs more than twice as fast. I care about fast pages, boring deploys and code the next person can read.',
+      "Today I lead the engineering team behind a US health-tech platform. I own its architecture and the security and compliance work that comes with sensitive health data. I also mentor engineers, set the team's engineering standards, and work with product and design on what ships next.",
       "I lead across the US, Australia and Nepal, so I write clear specs and run code reviews that raise the team's standard.",
     ],
     daboo: {
@@ -63,7 +62,10 @@ export const copy = {
       { label: 'location', value: 'Kathmandu, Nepal' },
       { label: 'role', value: 'Lead Engineer, Leapfrog Technology' },
       { label: 'co-founder', value: 'Daboo Spaces' },
-      { label: 'stack', value: 'TypeScript, React, Node.js, Laravel, AWS' },
+      {
+        label: 'focus',
+        value: 'Health tech, cloud architecture, engineering leadership',
+      },
       {
         label: 'open to',
         value: 'consulting, mentorship, speaking',
@@ -71,13 +73,21 @@ export const copy = {
     ],
   },
   work: {
-    intro: 'Side projects. Each one solves a problem I hit at work or at home, and each one shipped.',
+    intro:
+      'Side projects. Each one solves a problem I hit at work or at home, and each one shipped.',
     play: 'play',
     leave: 'esc to leave',
     openNewTab: 'open the game in a new tab',
+    more: 'more',
+    stack: 'stack',
+    scrollLeft: 'scroll left',
+    scrollRight: 'scroll right',
   },
   openSource: {
     columns: ['repo', 'what', 'merged'],
+    since: 'since',
+    ownHeading: 'my projects',
+    contribHeading: 'contributions',
   },
   writing: {
     intro:
@@ -99,8 +109,8 @@ export const copy = {
       },
       {
         label: 'skills',
-        title: 'What I work with',
-        text: 'TypeScript, JavaScript, React, Node.js, Laravel, PHP, AWS (Lambda, SQS, EventBridge, Step Functions), PostgreSQL, MySQL, HIPAA and SOC 2 compliance, engineering leadership.',
+        title: 'What I work on',
+        text: 'Full-stack web products, cloud architecture, security and compliance for sensitive data, and leading and mentoring engineering teams.',
       },
     ],
   },
@@ -138,7 +148,7 @@ export const copy = {
   meta: {
     title: 'Nihal Maskey · Lead Software Engineer in Kathmandu, Nepal',
     description:
-      'Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He builds healthcare software on AWS at Leapfrog Technology and co-founded Daboo Spaces.',
+      'Nihal Maskey is a lead software engineer in Kathmandu, Nepal. He leads health-tech engineering at Leapfrog Technology and co-founded Daboo Spaces.',
     keywords:
       'Nihal Maskey, software engineer in Nepal, software engineer Kathmandu, lead engineer Nepal, team lead Nepal, team lead Kathmandu, lead engineer at Leapfrog Technology, healthcare software engineer, health tech engineer Nepal, full stack developer Nepal, React developer Nepal, Node.js developer Kathmandu, TypeScript engineer, AWS engineer Nepal, Laravel developer Nepal, engineering manager Nepal, Daboo Spaces co-founder',
     ogAlt: 'Nihal Maskey, lead software engineer, Kathmandu, Nepal',
@@ -158,6 +168,10 @@ export const copy = {
     heading: 'sent',
     body: "I'll reply from contact@nihal.com.np within two working days.",
     back: 'back to the desk',
+  },
+  desk: {
+    hint: 'tap anything on the desk',
+    dismiss: 'got it',
   },
   status: {
     loading: 'loading 3D',

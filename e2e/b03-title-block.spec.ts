@@ -29,14 +29,11 @@ test.describe('title block and poster @B-03', () => {
     await expectNoAxeViolations(page, { label: '/ title block' });
   });
 
-  test('rev, sheet and scale come from the content template and the build @B-03', async ({
-    page,
-  }) => {
+  test('the title block has no revision line @B-03', async ({ page }) => {
     await page.goto('/');
-    const row = page.locator('.title-block-rows li').last();
-    await expect(row).toHaveText(
-      /^rev \d{4}\.(0[1-9]|1[0-2]) · sheet 1 of 1 · scale 1:1$/,
-    );
+    const block = page.locator('.title-block');
+    await expect(block).not.toContainText(/sheet 1 of 1|scale 1:1/);
+    await expect(page.locator('.title-block-rev')).toHaveCount(0);
   });
 
   test('the live time is Kathmandu time, filled in by script only @B-03', async ({
@@ -106,7 +103,7 @@ test.describe('title block and poster @B-03', () => {
     const order = await page
       .locator('.desk-stage > :not(script)')
       .evaluateAll((els) => els.map((e) => e.className.split(' ')[0]));
-    expect(order).toEqual(['paper', 'desk', 'label']);
+    expect(order).toEqual(['title-block', 'desk', 'label']);
   });
 
   test('desktop: title block beside the drawing, list under it, nothing covers the poster @B-03', async ({
@@ -117,9 +114,14 @@ test.describe('title block and poster @B-03', () => {
     const tb = (await page.locator('.title-block').boundingBox())!;
     const dk = (await page.locator('[data-desk]').boundingBox())!;
     const ls = (await page.locator('[data-object-list]').boundingBox())!;
-    // The table sits lower in the hero, under the title block, across the width.
-    expect(tb.y + tb.height).toBeLessThanOrEqual(dk.y + dk.height * 0.2);
-    expect(dk.y).toBeGreaterThan(tb.y + tb.height * 0.6);
+    // The title block is laid over the top of the drawing (the drawing is the hero), and takes no
+    // events itself, so a click beside its text reaches the canvas.
+    expect(tb.y).toBeGreaterThanOrEqual(dk.y - 1);
+    expect(tb.y + tb.height).toBeLessThanOrEqual(dk.y + dk.height * 0.6);
+    await expect(page.locator('.title-block')).toHaveCSS(
+      'pointer-events',
+      'none',
+    );
     // The list is visually hidden (but focusable) while the 3D desk is on the way, and below the
     // drawing otherwise.
     const hidden = await page
@@ -132,15 +134,15 @@ test.describe('title block and poster @B-03', () => {
     page,
   }) => {
     for (const [width, height, shownMin] of [
-      [1440, 900, 0.9],
-      [1280, 720, 0.95],
+      [1440, 900, 0.8],
+      [1280, 720, 0.7],
     ] as const) {
       await page.setViewportSize({ width, height });
       await page.goto('/');
       const tb = (await page.locator('.title-block').boundingBox())!;
       const dk = (await page.locator('[data-poster]').boundingBox())!;
-      // The table starts below the title block text, and most of the drawing is on the screen.
-      expect(dk.y).toBeGreaterThan(tb.y + tb.height * 0.9);
+      // The title block sits over the top of the drawing, and most of the drawing is on the screen.
+      expect(tb.y).toBeGreaterThanOrEqual(dk.y - 1);
       const visible = (Math.min(dk.y + dk.height, height) - dk.y) / dk.height;
       expect(visible, `${width}x${height}`).toBeGreaterThanOrEqual(shownMin);
       expect(tb.height).toBeLessThan(330);

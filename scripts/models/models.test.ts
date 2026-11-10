@@ -8,6 +8,7 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import { Matrix4, Vector3 } from 'three';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { objects } from '../../src/content/objects';
+import { isFixedModel } from '../../src/lib/desk/object-def';
 import { buildAssets, type BuiltAssets } from './build';
 import { bounds } from './geom';
 import { models } from './models';
@@ -89,7 +90,29 @@ describe('asset pipeline', () => {
       arduino: ['screen'],
       cruiser: [],
       sheet: [],
-      table: [],
+      table: ['legs'],
+      desk: ['tray', 'card', 'duck'],
+      chair: ['swivel'],
+      dev: [
+        'torso',
+        'head',
+        'upper-l',
+        'fore-l',
+        'upper-r',
+        'fore-r',
+        'thigh-l',
+        'shin-l',
+        'thigh-r',
+        'shin-r',
+      ],
+      monitor: ['screen'],
+      keyboard: ['row-0', 'row-1', 'row-2'],
+      lamp: ['head'],
+      plant: ['leaves'],
+      mouse: [],
+      mug: [],
+      headphones: [],
+      phone: [],
     };
     for (const [file, names] of Object.entries(want)) {
       const doc = await io().readBinary(built.glbs.get(`${file}.glb`)!);
@@ -122,6 +145,8 @@ describe('asset pipeline', () => {
     for (const [file, n] of [
       ['calendar', 'face-mesh'],
       ['arduino', 'screen-mesh'],
+      ['monitor', 'screen-mesh'],
+      ['desk', 'card-mesh'],
     ] as const) {
       const doc = await io().readBinary(built.glbs.get(`${file}.glb`)!);
       const node = doc
@@ -185,7 +210,11 @@ describe('asset pipeline', () => {
           ? [a[0]!, a[1]!, a[2]!]
           : [a[0]!, a[0]!, a[0]!];
       const tol = 1e-4;
-      expect(b.min[1], o.id).toBeCloseTo(0, 4);
+      // furniture is placed by its own origin: the chair and the developer reach down to the floor
+      // the ghost's scalloped hem is sampled at thirds of a tooth, so its lowest vertex hangs 6 mm up
+      const rest = o.id === 'ghost' ? 0.006 : 0;
+      if (!isFixedModel(o.model.replace(/\.glb$/, '')))
+        expect(b.min[1], o.id).toBeCloseTo(rest, 4);
       expect(b.min[0]).toBeGreaterThanOrEqual(ox - half[0]! - tol);
       expect(b.max[0]).toBeLessThanOrEqual(ox + half[0]! + tol);
       expect(b.min[1]).toBeGreaterThanOrEqual(oy - half[1]! - tol);

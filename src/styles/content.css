@@ -1,14 +1,5 @@
 /* Work panels, revision table, writing list, cv table (B-04). All of it plain HTML on paper. */
 
-/* Anchors for desk objects and the index: land with the panel clear of the border. */
-.work-panel {
-  scroll-margin-block-start: calc(var(--inset) + var(--gutter));
-}
-
-.section-body > .work-panel {
-  margin-block-start: 1.5rem;
-}
-
 .work-mark {
   width: 4rem;
   height: 4rem;
@@ -21,41 +12,9 @@
   height: 100%;
 }
 
-.work-panel h3 {
-  overflow-wrap: anywhere;
-}
-
-.work-panel > * + * {
-  margin-block-start: 0.75rem;
-}
-
 .work-date,
 .work-meta {
   margin-block-start: 0.5rem;
-}
-
-.work-panel .sheet-links {
-  margin-block-end: 0;
-}
-
-/* Client work with no code: an empty drawing frame, title block filled in at the corner. */
-.drawing-frame {
-  margin: 1rem 0 0;
-  min-height: 9rem;
-  border: 1px solid var(--panel-ink);
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-}
-
-.drawing-frame figcaption {
-  display: grid;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  border-inline-start: 1px solid var(--panel-ink);
-  border-block-start: 1px solid var(--panel-ink);
-  max-width: 24rem;
-  font-size: var(--text-small);
 }
 
 /* --- Tables (revision table, cv) ------------------------------------------------------- */
@@ -380,52 +339,82 @@
   border: 0;
 }
 
-/* --- Ledger leader lines (C-02) --------------------------------------------------------- */
-/* A row's leader line extends 24 px from the panel edge to the row in 160 ms on hover or
-   keyboard focus (transform only). The panel padding is 24 px, so it lives in that margin.
-   Motion off: the global reset keeps only opacity transitions, so the line appears at once. */
-.revision-table tbody th,
-.cv-table th,
-.writing-list li {
-  position: relative;
+/* --- Ledger row hover (C-02) ------------------------------------------------------------- */
+/* Revision table, CV table and writing list share one hover. The row takes a faint tint (below),
+   the name shifts to the accent, an underline draws in under the text from the left (a 1 px
+   background gradient with box-decoration-break: clone, so every wrapped line gets its own),
+   and a small arrow slides in after a link. Keyboard focus-visible does the same. Transitions
+   only under data-motion='full'; motion off shows the end state at once. */
+.revision-table tbody th a,
+.writing-list li a {
+  /* Inline (the table's default is inline-flex): a flex box has one box, so wrapped lines could
+     not each get the underline. */
+  display: inline;
+  min-height: 0;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
-.revision-table tbody th::before,
-.cv-table th::before,
-.writing-list li::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: -1.5rem;
-  inset-block-start: calc(0.5rem + 0.7em);
-  width: 1.5rem;
-  height: 1px;
-  background: var(--panel-ink);
-  pointer-events: none;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+.revision-table tbody th a::after,
+.writing-list li a::after {
+  content: '↗' / '';
+  display: inline-block;
+  margin-inline-start: 0.3em;
+  opacity: 0;
+  transform: translateX(-0.35em);
 }
 
-.writing-list li::before {
-  inset-block-start: calc(0.75rem + 0.7em);
+[data-motion='full'] .revision-table tbody th a,
+[data-motion='full'] .writing-list li a,
+[data-motion='full'] .cv-table th {
+  transition:
+    background-size var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
-.writing-list li:first-child::before {
-  inset-block-start: 0.7em;
+[data-motion='full'] .revision-table tbody th a::after,
+[data-motion='full'] .writing-list li a::after {
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
 @media (hover: hover) {
-  .revision-table tbody tr:hover th::before,
-  .cv-table tr:hover th::before,
-  .writing-list li:hover::before {
-    transform: scaleX(1);
+  .revision-table tbody tr:hover th a,
+  .writing-list li:hover a,
+  .cv-table tr:hover th {
+    color: var(--panel-accent);
+  }
+
+  .revision-table tbody tr:hover th a,
+  .writing-list li:hover a {
+    background-size: 100% 1px;
+  }
+
+  .revision-table tbody tr:hover th a::after,
+  .writing-list li:hover a::after {
+    opacity: 1;
+    transform: none;
   }
 }
 
-.revision-table tbody tr:has(:focus-visible) th::before,
-.cv-table tr:has(:focus-visible) th::before,
-.writing-list li:has(:focus-visible)::before {
-  transform: scaleX(1);
+.revision-table tbody tr:has(:focus-visible) th a,
+.writing-list li:has(:focus-visible) a,
+.cv-table tr:has(:focus-visible) th {
+  color: var(--panel-accent);
+}
+
+.revision-table tbody tr:has(:focus-visible) th a,
+.writing-list li:has(:focus-visible) a {
+  background-size: 100% 1px;
+}
+
+.revision-table tbody tr:has(:focus-visible) th a::after,
+.writing-list li:has(:focus-visible) a::after {
+  opacity: 1;
+  transform: none;
 }
 
 /* v3 WS1: about facts, CV bullets, title-block kicker */
@@ -478,7 +467,6 @@
 .revision-table a,
 .writing-list a,
 .cv-table a,
-.work-panel h3 a,
 .section-body p a {
   text-decoration: none;
   background-image: linear-gradient(currentColor, currentColor);
@@ -498,7 +486,7 @@
 [data-motion='full'] .revision-table a,
 [data-motion='full'] .writing-list a,
 [data-motion='full'] .cv-table a {
-  transition: background-size 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: background-size var(--dur-1) var(--ease-out);
 }
 
 .sheet-links a:hover,
@@ -512,23 +500,8 @@
 .writing-list a:hover,
 .writing-list a:focus-visible,
 .cv-table a:hover,
-.cv-table a:focus-visible,
-.work-panel:hover h3,
-.work-panel:focus-within h3 {
+.cv-table a:focus-visible {
   background-size: 100% 1px;
-}
-
-.work-panel h3 {
-  background-image: linear-gradient(currentColor, currentColor);
-  background-repeat: no-repeat;
-  background-position: 0 100%;
-  background-size: 0% 1px;
-  width: fit-content;
-  max-width: 100%;
-}
-
-[data-motion='full'] .work-panel h3 {
-  transition: background-size 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 /* Nav rows: a short leader slides out and the label shifts 4 px. */
@@ -551,8 +524,8 @@
 [data-motion='full'] .sheet-index-link,
 [data-motion='full'] .sheet-index-link::before {
   transition:
-    transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
-    padding 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transform var(--dur-1) var(--ease-out),
+    padding var(--dur-1) var(--ease-out);
 }
 
 .sheet-index-link:hover,
@@ -570,10 +543,10 @@
   outline-offset: -2px;
 }
 
-/* Table rows: a faint tint beside the C-02 leader. */
+/* Table rows: a faint tint under the hover (part of the ledger hover above). */
 .revision-table tbody tr,
 .cv-table tr {
-  transition: background-color 160ms;
+  transition: background-color var(--dur-1);
 }
 
 .revision-table tbody tr:hover,
@@ -590,8 +563,8 @@
 .arcade-play,
 .arcade-leave {
   transition:
-    background-color 120ms,
-    color 120ms;
+    background-color var(--dur-1),
+    color var(--dur-1);
 }
 
 .form-submit:hover,
@@ -630,58 +603,12 @@
 }
 
 [data-motion='full'] .contact-panel .sheet-links a::after {
-  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: transform var(--dur-1) var(--ease-out);
 }
 
 .contact-panel .sheet-links a:hover::after,
 .contact-panel .sheet-links a:focus-visible::after {
   transform: translateX(3px);
-}
-
-/* Work panels: lift 4 px with a crisp offset outline, the mark redraws once.
-   The lift is for fine pointers only; keyboard focus gets the outline without moving. */
-.work-panel {
-  --lift-ring: 0 0 0 0 var(--stroke);
-}
-
-@keyframes mark-draw {
-  from {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 0;
-  }
-}
-
-[data-motion='full'] .work-panel:focus-within .work-mark path {
-  animation: mark-draw 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  [data-motion='full'] .work-panel {
-    transition:
-      transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
-      box-shadow 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
-      opacity var(--enter-ms) cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-
-  .work-panel:hover {
-    box-shadow: 4px 4px 0 0 var(--stroke);
-  }
-
-  [data-motion='full'] .work-panel:hover {
-    transform: translate(-2px, -4px);
-  }
-
-  [data-motion='full'] .work-panel:hover .work-mark path {
-    animation: mark-draw 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-}
-
-.work-panel:focus-within {
-  box-shadow: 4px 4px 0 0 var(--stroke);
 }
 
 /* CV cards: co-founder, education, skills, one paper card each after the roles table. */
@@ -710,4 +637,140 @@
 
 .cv-card-title {
   margin-block-end: 0.25rem;
+}
+
+/* ===== Hero blend: the title block is not a card. It has no panel, border, radius or shadow; its
+   text is ink on the page surface, which is also what the transparent 3D canvas / poster draws on,
+   so the two read as one title sheet. Contrast: --ink on --page is the pair every lamp level was
+   checked for (white on blue, blue-ink on paper / #e6e4dc / #b3b4c6, #e8ecff on #0a1348), and the
+   small text uses --ink-soft, checked the same way. Rules are thin drafting lines (--hair-strong).
+   Loaded after desk.css, so the .desk-stage prefix (more specific) wins over its card-era rules.
+   The title block never overlaps the drawing: the lamp and anything raised keep their headroom. ===== */
+.desk-stage .title-block {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--ink);
+}
+
+.desk-stage .title-block-rows {
+  border-block-start-color: var(--hair-strong);
+}
+
+.desk-stage .title-block-prefs {
+  color: var(--ink-soft);
+}
+
+.desk-stage .desk {
+  margin-block-start: 0;
+}
+
+@media (min-width: 1024px) {
+  /* The drawing is the hero: poster / canvas fill the sheet column, and the title block is laid over
+     the top of the same grid cell (row 1), name block top-left, meta column top-right. The wrapper
+     takes no events (the canvas ignores them anyway; the Scene listens on window), only its text and
+     controls do, so a click anywhere else still reaches the drawing. The block stays first in the DOM. */
+  /* The stage keeps the poster's 10:7 and is never taller than what is left of the first screen
+     under the sheet's top padding (4.5 rem = padding above, border below), so the whole workstation,
+     lamp to chair casters, shows without scrolling on a wide, short laptop. When the height caps it
+     the box is narrower than the column and sits against the right of it: the drawing (poster,
+     canvas and fall layer share the box and the one camera) moves right, clear of the title text.
+     Not below 26 rem tall: a very short window scrolls instead. */
+  .desk-stage .desk {
+    grid-column: 1 / 13;
+    grid-row: 1;
+    width: min(100%, max(26rem, 100svh - 4.5rem) * 10 / 7);
+    max-width: none;
+    justify-self: end;
+    /* a little into the sheet's right padding, to clear the title text by a margin */
+    margin: 0 -1.5rem 0 0;
+  }
+
+  .desk-stage .object-list {
+    grid-row: 2;
+  }
+
+  .desk-stage .title-block {
+    grid-column: 1 / 13;
+    grid-row: 1;
+    z-index: 2;
+    isolation: isolate;
+    position: relative;
+    grid-template-columns: minmax(0, 34rem) minmax(0, 1fr);
+    padding: 1.5rem 0 0;
+    border-block-start: 0;
+    pointer-events: none;
+  }
+
+  .desk-stage .title-block > *,
+  .desk-stage .title-block a,
+  .desk-stage .title-block button {
+    pointer-events: auto;
+  }
+
+  .desk-stage .title-block .name {
+    font-size: clamp(3.5rem, 2rem + 3.5vw, 6rem);
+    justify-self: start;
+  }
+
+  .desk-stage .title-block-line {
+    min-block-size: 0;
+    max-inline-size: 30rem;
+  }
+
+  /* Meta column: compact, right edge, top. */
+  .desk-stage .title-block-side {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: start;
+    justify-self: end;
+    inline-size: min(100%, 15rem);
+    padding-inline-start: 1rem;
+    border-inline-start-color: var(--hair-strong);
+  }
+
+  /* Highlighted but not boxed: a soft fade of the page colour behind each text group. The fade is
+     opaque (>= 90 %) under the text and reaches nothing at its edge, so the drawing's lines carry on
+     beneath it and dissolve into it. It is a pseudo-element: no border, no edge, no events. */
+  .desk-stage .title-block::before,
+  .desk-stage .title-block-side::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      farthest-corner at 50% 50%,
+      var(--page) 0%,
+      color-mix(in srgb, var(--page) 92%, transparent) 62%,
+      color-mix(in srgb, var(--page) 55%, transparent) 80%,
+      transparent 100%
+    );
+  }
+
+  /* Text group one: name, kicker, sentence (left column). */
+  .desk-stage .title-block::before {
+    inset-block: -1.5rem -4rem;
+    inset-inline: -3rem auto;
+    inline-size: calc(min(100%, 34rem) + 7rem);
+  }
+
+  .desk-stage .title-block-side {
+    position: relative;
+  }
+
+  .desk-stage .title-block-side::before {
+    inset: -3rem -3rem -3rem -2rem;
+  }
+
+  /* Name highlight: a marker-weight underline in the ink, soft, per line. No animation (the title
+     block paints complete on the first frame, c01). */
+  .desk-stage .title-block .name {
+    text-decoration: underline;
+    text-decoration-thickness: 0.1em;
+    text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
+    text-decoration-skip-ink: none;
+    text-underline-offset: 0.06em;
+  }
 }

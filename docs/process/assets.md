@@ -32,10 +32,15 @@ Named nodes (all pivot origins are in the model's local frame, metres, y up):
 
 `ModelDef.build()` is the rest pose merged into one `Part` (used for bounds, tri counts, `lines.json`); `buildPosed()` additionally applies each node's `posterYaw` (clock hands at 10:10) and is used only by the poster. The GLB nodes stay at identity.
 
-Budgets (tests): each model <= 1,200 triangles, objects <= 8,000 total, GLBs <= 150 KB total, poster <= 16 KB. Authored lines that sit on a surface are lifted 0.3 mm (`LIFT`) so they never z-fight with it; textured quads sit 0.3 to 0.9 mm off their host.
+Budgets (tests): each model <= 1,200 triangles, objects <= 8,000 total, GLBs <= 150 KB total, poster <= 24 KB (see Workstation models). Authored lines that sit on a surface are lifted 0.3 mm (`LIFT`) so they never z-fight with it; textured quads sit 0.3 to 0.9 mm off their host.
 
 ## Shared line data for the SVG poster (D-01)
 `src/assets/models/lines.json` is `{ [file]: number[] }`: flat `x y z x y z` pairs per segment in each object's local frame, unquantized, rest pose, body first then each named node in GLB order. D-01 can also import `models` and `buildAssets` from `scripts/models` to get triangles for silhouette extraction. Project both through the hero camera so 2D and 3D come from one source.
+
+## Workstation models
+Besides the table objects, the hero scene has a small workstation, each a model in `scripts/models/models.ts` (same GLB contract, origin on the floor or desk): `chair`, `dev` (the developer), `monitor`, `keyboard`, `mouse`, `lamp`, `mug`, `headphones`, `phone`, `plant` and `desk`. The `desk` kit is the board with an A-frame base (`legs` node, below y = 0), the drawer (`tray` node slides out toward +z, carrying its items) and the handset on the right front edge that sets the desk height. The desk is furniture, not an object: no collider, never picked. Build or change any of them, then run `pnpm assets` so the GLBs, `lines.json` and both posters (`poster.svg`, `poster-phone.svg`) are rebuilt together.
+
+Models budget (enforced in `scripts/models/models.test.ts` and `poster.test.ts`): each model <= 1,200 triangles; all objects together <= 8,000 triangles (the sheet and table are furniture and not counted); all GLBs <= 150 KB; poster <= 24 KB and phone poster <= 20 KB, and the phone poster stays lighter than the desktop one. The GLBs are close to the byte budget, so check the total before adding detail.
 
 ## CI
 Add `pnpm assets && git diff --exit-code src/assets` to the CI workflow when it exists (A-07 owns it).

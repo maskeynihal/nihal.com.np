@@ -273,12 +273,13 @@ export function roundedFloor(
 
 /**
  * A square-ended bar of section `t` x `t` from `a` to `b`: a box along Y, turned onto the segment.
- * The 12 edges are authored as creases, like every box.
+ * The 12 edges are authored as creases, like every box, unless `edges` is false (a thin bar the
+ * silhouette pass already outlines).
  */
-export function bar(a: Vec3, b: Vec3, t: number): Part {
+export function bar(a: Vec3, b: Vec3, t: number, edges = true): Part {
   const dir = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   const len = dir.length();
-  const part = box({ c: [0, 0, 0], s: [t, len, t] });
+  const part = box({ c: [0, 0, 0], s: [t, len, t], edges });
   const q = new Quaternion().setFromUnitVectors(
     new Vector3(0, 1, 0),
     dir.normalize(),

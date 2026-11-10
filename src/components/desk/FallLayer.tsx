@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { PerspectiveCamera } from 'three';
-import { heroCamera, posterAspect } from '../../assets/camera';
+import { heroCamera } from '../../assets/camera';
 import { dprFor } from '../../lib/prefs';
 import { THEME_EVENT } from '../../lib/desk/tokens';
 import type { LineArt } from './line-art';
@@ -40,10 +40,10 @@ function FallRig({ art }: { art: LineArt }) {
     // R3F camera props are mutated in place by design.
     // eslint-disable-next-line react-hooks/immutability
     (cam as unknown as { manual: boolean }).manual = true;
-    cam.fov = heroCamera.fov;
+    // The table camera's lens at the canvas's real shape (its focal length in px is `frame.f`).
+    cam.fov = (2 * Math.atan(frame.h / 2 / frame.f) * 180) / Math.PI;
     cam.near = 0.05;
     cam.far = 30;
-    cam.aspect = posterAspect;
     cam.position.set(0, 0, 0);
     cam.rotation.set(0, 0, 0);
     // The viewport is a window onto the table canvas's picture, at the place the canvas was.

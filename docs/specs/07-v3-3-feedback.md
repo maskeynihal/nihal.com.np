@@ -120,3 +120,13 @@ copy for other mentions of this section and leave phrases about employment ("wor
 at level 4 with contrast violations across the page. This is unresolved and may be a real bug. Find out whether axe
 samples colours during the 300 ms fade or whether WebKit really shows wrong colours at level 4. If it is timing, wait for
 the fade in the test and confirm the settled colours by reading them. If real, fix it.
+
+## S1 as built: one canvas of side art
+The first S1 plan (a sticky SVG per section) was replaced. Current design, code in `src/lib/side-art/`, mount in `src/components/SectionArt.astro`, section wiring through each section's `art` prop in `src/pages/index.astro`:
+
+- **One fixed canvas** under the page, `aria-hidden`, no text, no layout space, no pointer events. The engine measures each `section[data-art]` and draws into that section's empty column (the grid minus the text body). Pointer and taps are read from the window, so text stays selectable; presses on links, panels, controls and the desk are ignored.
+- **Drawings**, one per section: about is a kite, projects a circuit, open source a dog (follows the page down a path, fetches on a click), writing a lamp (sky, sun and moon, birds, bats, clouds and fireflies that follow the lamp level), cv a tree (grows down the column with the scroll, one node per role, a click adds a leaf), contact an ivy with birds (a click startles a bird, it flaps off and returns).
+- **Loading:** the mount script is tiny and eager; the engine is its own chunk, fetched when the page is idle (`requestIdleCallback`, 4 s timeout) and only from 1024 px. Narrowing then widening still loads it. Hidden below 1024 px, in print and without JS.
+- **Cost and motion:** at most 30 fps, DPR at most 2, asleep when no column is on screen or the tab is hidden. Under reduced motion (`data-motion`, which follows the OS) one settled still frame is drawn instead of a loop.
+- **Colour:** strokes use the page tokens (`--stroke`, `--page`), so all five lamp levels work; the sky eases toward the level's brightness. Quiet by design, never pulling attention from the text.
+- **Bounds:** characters stay in the measured safe column using their own extents (constants at the top of each drawing file); scenery may reach a wider clip and fades there.

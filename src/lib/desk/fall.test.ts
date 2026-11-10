@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
 import {
   boundsFor,
+  depthRange,
   floorPad,
   leavingView,
   liftForFloor,
+  handoffDue,
+  strandedBelowTop,
+  floorWentDown,
   foldDepthVelocity,
   planeOffset,
   project,
@@ -27,15 +31,18 @@ import {
 import { GRAVITY, WORLD_SCALE, feelFor } from './materials';
 import type { Frame } from '../../components/desk/physics-bridge';
 import { PerspectiveCamera } from 'three';
+import { posterAspect } from '../../assets/camera';
 
+// a canvas the shape of the poster (the camera's own aspect)
+const H = 900 / posterAspect;
 const frame = (left: number, top: number): Frame => ({
   left,
   top,
   w: 900,
-  h: 525,
+  h: H,
   cx: left + 450,
-  cy: top + 262.5,
-  f: focalPx(525),
+  cy: top + H / 2,
+  f: focalPx(H),
 });
 
 describe('fall frame maths', () => {
@@ -159,16 +166,16 @@ describe('hero camera', () => {
     const a = new PerspectiveCamera();
     applyHeroCamera(a);
     expect(a.position.y).toBeCloseTo(heroPose().position.y, 9);
-    expect(a.aspect).toBeCloseTo(1200 / 700, 9);
+    expect(a.aspect).toBeCloseTo(posterAspect, 9);
   });
 });
 
 describe('materials', () => {
   it('balls bounce, heavy things thud', () => {
-    expect(feelFor('ball-m').restitution).toBeGreaterThan(0.5);
+    expect(feelFor('ball-l').restitution).toBeGreaterThan(0.5);
     expect(feelFor('laptop').restitution).toBeLessThan(0.1);
     expect(feelFor('laptop').friction).toBeGreaterThan(
-      feelFor('ball-m').friction,
+      feelFor('ball-l').friction,
     );
     expect(feelFor('unknown-model').restitution).toBeLessThan(0.1);
   });
@@ -180,15 +187,27 @@ describe('gravity and materials, one source', () => {
     expect(GRAVITY).toBeCloseTo(9.81 * WORLD_SCALE, 9);
   });
   it('balls lose speed rolling in seconds, not tens of seconds', () => {
-    for (const m of ['ball-s', 'ball-m', 'ball-l', 'pacman']) {
+    for (const m of ['ball-l', 'pacman']) {
       const f = feelFor(m);
       const rate = f.linearDamping + (f.angularDamping * 2) / 7;
       expect(rate).toBeGreaterThan(0.8);
     }
   });
-  it('heavy things barely bounce', () => {
-    for (const m of ['laptop', 'clock', 'letter-n', 'arduino', 'calendar'])
-      expect(feelFor(m).restitution).toBeLessThanOrEqual(0.05);
+  it('things bounce a little and lose most of it, and a ball bounces more than any of them', () => {
+    for (const m of [
+      'laptop',
+      'clock',
+      'letter-n',
+      'arduino',
+      'calendar',
+      'mug',
+      'phone',
+    ]) {
+      expect(feelFor(m).restitution).toBeGreaterThan(0.05);
+      expect(feelFor(m).restitution).toBeLessThan(
+        feelFor('ball-l').restitution,
+      );
+    }
   });
 });
 
@@ -275,5 +294,80 @@ describe('liftForFloor', () => {
     expect(liftForFloor(short, tall, short.floorSlope * 2.5 + 0.1, 2.5)).toBe(
       0,
     );
+  });
+});
+
+describe('depth range of the fall room', () => {
+  it('spans the given depths with room either side, never nearer than the floor', () => {
+    expect(depthRange([4, 5], 0.5)).toEqual({ near: 3.5, far: 5.5 });
+    expect(depthRange([0.8, 1], 0.5, 0.6).near).toBe(0.6);
+    expect(depthRange([])).toEqual({ near: 2, far: 3.3 });
+  });
+
+  it('contains the depth of every point of the desk and of the area a carried object can reach, so a handoff never changes a body depth (no pop)', () => {
+    const cam = heroPose();
+    const depths: number[] = [];
+    const p = new Vector3();
+    for (const x of [-1.35, -1, 0, 1, 1.35])
+      for (const z of [-0.8, 0, 0.6, 0.95])
+        for (const y of [-0.5, 0, 0.6])
+          depths.push(-p.set(x, y, z).applyMatrix4(cam.matrixWorldInverse).z);
+    const r = depthRange(depths);
+    for (const d of depths) {
+      expect(d).toBeGreaterThan(r.near);
+      expect(d).toBeLessThan(r.far);
+    }
+    // The camera sits well back from the desk (the old fixed 2.0 to 3.3 m range excluded all of it).
+    expect(Math.min(...depths)).toBeGreaterThan(3.3);
+  });
+});
+
+describe('handoffDue', () => {
+  const base = {
+    held: false,
+    off: 0.2,
+    y: -0.12,
+    gap: 3,
+    clearSteps: 2,
+    ready: true,
+    asleep: false,
+    reach: 0.1,
+    leaving: () => false,
+  };
+
+  it('takes a sleeping body that came to rest under the table top past the rim (chair seat, open tray) once the layer is up', () => {
+    expect(handoffDue({ ...base, asleep: true })).toBe(true);
+    expect(strandedBelowTop(0.2, -0.12, false)).toBe(true);
+  });
+
+  it('waits for the layer, for the body to be clear of the slab, and never takes a held body or one over the slab', () => {
+    expect(handoffDue({ ...base, asleep: true, ready: false })).toBe(false);
+    expect(handoffDue({ ...base, asleep: true, gap: 1 })).toBe(false);
+    expect(handoffDue({ ...base, held: true })).toBe(false);
+    expect(handoffDue({ ...base, off: 0 })).toBe(false);
+    expect(strandedBelowTop(0.2, 0.05, false)).toBe(false);
+    expect(strandedBelowTop(0.2, -0.12, true)).toBe(false);
+  });
+
+  it('takes an awake body above the top only when it is beyond its reach and leaving the canvas; a sleeping one never', () => {
+    const above = { ...base, y: 0.2 };
+    expect(handoffDue(above)).toBe(false);
+    expect(handoffDue({ ...above, leaving: () => true })).toBe(true);
+    expect(handoffDue({ ...above, off: 0.05, leaving: () => true })).toBe(
+      false,
+    );
+    expect(handoffDue({ ...above, asleep: true, leaving: () => true })).toBe(
+      false,
+    );
+  });
+});
+
+describe('floorWentDown', () => {
+  it('flags a floor that moved down (sleeping bodies on the old one must be woken to fall), not one that rose or stayed', () => {
+    const tall = boundsFor(frame(120, 60), 1000, 900, 3, 4, 20);
+    const short = boundsFor(frame(120, 60), 1000, 500, 3, 4, 20);
+    expect(floorWentDown(short, tall)).toBe(true);
+    expect(floorWentDown(tall, short)).toBe(false);
+    expect(floorWentDown(tall, tall)).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import {
   BackSide,
   Color,
+  EdgesGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -253,5 +254,33 @@ export function sphereProbe(art: LineArt, geometry: BufferGeometry): Group {
   const h = new Mesh(geometry, art.hull);
   h.raycast = noRaycast;
   g.add(m, h);
+  return g;
+}
+
+/**
+ * Line art for a shape built in code (the things that come out of the drawer): the same three
+ * passes as a model, with the creases taken from the geometry (edges sharper than `edgeAngle`
+ * degrees). The hull and the lines take no picks; the occluder does.
+ */
+export function lineArtMesh(
+  art: LineArt,
+  geometry: BufferGeometry,
+  edgeAngle = 30,
+): Group {
+  const g = new Group();
+  g.add(new Mesh(geometry, art.occluder));
+  const hull = new Mesh(geometry, art.hull);
+  hull.raycast = noRaycast;
+  g.add(hull);
+  const edges = new EdgesGeometry(geometry, edgeAngle);
+  const lines = new LineSegments2(
+    new LineSegmentsGeometry().setPositions(
+      edges.getAttribute('position').array as Float32Array,
+    ),
+    art.line,
+  );
+  lines.raycast = noRaycast;
+  g.add(lines);
+  edges.dispose();
   return g;
 }

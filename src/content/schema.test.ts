@@ -7,6 +7,7 @@ import {
   Holiday,
   Post,
   PR,
+  PRList,
   WorkItem,
 } from './schema';
 import { copy } from './copy';
@@ -57,6 +58,17 @@ describe('WorkItem', () => {
   it('rejects a wrong type', () =>
     rejects(WorkItem, { ...w, confirmed: 'yes' }));
   it('rejects empty body', () => rejects(WorkItem, { ...w, body: [] }));
+  it('rejects an unknown group', () =>
+    rejects(WorkItem, { ...w, group: 'misc' }));
+  it('rejects empty tags', () => rejects(WorkItem, { ...w, tags: [] }));
+  it('accepts a card with no primary link', () =>
+    accepts(WorkItem, omit(w, 'cta')));
+});
+
+describe('PRList', () => {
+  const pr = oss[0]!;
+  it('accepts distinct repos', () => accepts(PRList, oss));
+  it('rejects the same repo twice', () => rejects(PRList, [pr, { ...pr }]));
 });
 
 describe('PR', () => {
@@ -95,6 +107,8 @@ describe('BodyDef', () => {
       '#projects',
       '#work-trayt',
       '#work-tz-converter',
+      '#work-sprintnudge',
+      '#work-underhood',
       '#work-space-hog',
       '#work-car-sensors',
       '#work-pac-man',
@@ -192,6 +206,8 @@ describe('BodyDef', () => {
       '#projects',
       '#work-trayt',
       '#work-tz-converter',
+      '#work-sprintnudge',
+      '#work-underhood',
       '#work-space-hog',
       '#work-car-sensors',
       '#work-pac-man',

@@ -17,8 +17,18 @@
 
   /* --- Title block: name, role line, sentence, then one row of email and link, the clock line,
      and the two preferences in a single quiet row. The REV / SHEET / SCALE line is dropped. */
-  .title-block {
-    padding: 1rem 1.25rem;
+  /* No card: the text sits on the page, flush with the sheet column, and the scene follows under
+     it with no overlap (desk.css pulled the frame up into the title block; that is gone). */
+  .desk-stage .title-block {
+    padding: 0;
+    border-block-start: 1px solid var(--hair-strong);
+    padding-block-start: 1rem;
+  }
+
+  .desk-stage .desk {
+    margin-inline: -0.75rem;
+    margin-block-start: -1.5rem;
+    margin-block-end: -1.5rem;
   }
 
   .title-block .name {
@@ -44,14 +54,10 @@
     flex-basis: 100%;
   }
 
-  .title-block-rows > li.title-block-rev {
-    display: none;
-  }
-
   .title-block-prefs {
     gap: 0 1rem;
     margin-block-start: 0;
-    color: var(--panel-ink-soft);
+    color: var(--ink-soft);
   }
 
   /* Under an OS reduce setting the note sits below the toggle; let it wrap so both preferences

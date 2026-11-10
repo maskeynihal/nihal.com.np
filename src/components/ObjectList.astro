@@ -1,6 +1,6 @@
 ---
 import { getCopy, getObjects, getWork } from '../content';
-import { objectLinks } from '../lib/object-links';
+import { handsetAction, objectActions, objectLinks } from '../lib/object-links';
 import { phoneObjectIds } from '../lib/desk/phone';
 
 /**
@@ -8,8 +8,17 @@ import { phoneObjectIds } from '../lib/desk/phone';
  * derived from `getObjects()` (the same set as the poster and its description). Visible on
  * every viewport while the poster is the drawing (E-01 hides it on desktop until focus once the
  * canvas replaces the poster; it stays the keyboard path). Not part of the Desk island.
+ *
+ * The objects that only react (the developer, the chair, the lamp, the keyboard...) are buttons
+ * that fire the same reaction as a tap (`nihal:desk-act`); what the reaction did is said in the
+ * status line below. The buttons exist only while the 3D desk is live (a poster cannot react).
  */
 const links = objectLinks(getObjects(), getWork());
+// Everything else on the drawn desk reacts to a tap too: one button each (shown while the 3D desk is live).
+const actions = [
+  ...objectActions(getObjects()),
+  ...handsetAction(getObjects()),
+];
 const { oledNote } = getCopy().titleBlock;
 ---
 
@@ -22,4 +31,41 @@ const { oledNote } = getCopy().titleBlock;
       </a>
     </li>
   ))}
+  {actions.map((a) => (
+    <li
+      data-act-item
+      data-phone-hidden={phoneObjectIds.has(a.id) ? undefined : ''}
+    >
+      <button type="button" data-object-act={a.id}>
+        {a.label} → {a.act}
+      </button>
+    </li>
+  ))}
 </ul>
+<p class="sr-only" role="status" data-desk-say></p>
+
+<script>
+  // The keyboard path to a reaction: a link (an object with a section) and a button both fire the
+  // object's reaction in the Scene; the status line carries what it did.
+  const fire = (id: string | undefined) => {
+    if (id)
+      window.dispatchEvent(
+        new CustomEvent('nihal:desk-act', { detail: { id } }),
+      );
+  };
+  document
+    .querySelectorAll<HTMLElement>('[data-object], [data-object-act]')
+    .forEach((el) =>
+      el.addEventListener('click', () =>
+        fire(el.dataset['objectAct'] ?? el.dataset['object']),
+      ),
+    );
+  const say = document.querySelector<HTMLElement>('[data-desk-say]');
+  window.addEventListener('nihal:desk-say', (e) => {
+    const d = (e as CustomEvent<unknown>).detail;
+    // what a find says is shown on the monitor in the scene; here it is only read out
+    const text =
+      typeof d === 'string' ? d : (d as { text?: unknown } | null)?.text;
+    if (say && typeof text === 'string') say.textContent = text;
+  });
+</script>

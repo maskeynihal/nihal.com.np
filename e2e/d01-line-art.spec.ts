@@ -1,7 +1,15 @@
 import { readFileSync, statSync } from 'node:fs';
 import { test, expect } from './fixtures';
 
-const ids = ['trayt', 'tz-converter', 'space-hog', 'car-sensors', 'pac-man'];
+const ids = [
+  'trayt',
+  'tz-converter',
+  'sprintnudge',
+  'underhood',
+  'space-hog',
+  'car-sensors',
+  'pac-man',
+];
 
 test('poster, marks and nib exist and are well formed @D-01', () => {
   expect(statSync('src/assets/poster.svg').size).toBeLessThanOrEqual(16 * 1024);

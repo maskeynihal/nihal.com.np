@@ -44,6 +44,15 @@ html {
   text-size-adjust: 100%;
 }
 
+/* Plain in-page jumps (skip link, object links, no-JS anchors) glide. The index and the title
+   block's links run their own eased scroll (sheet-index.ts) with an instant scrollTo, so this
+   never stacks with it. Motion off resets it to auto in the blocks below. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   margin: 0;
   background: var(--page);

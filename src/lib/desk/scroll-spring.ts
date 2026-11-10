@@ -18,8 +18,6 @@ export interface ScrollFeel {
 }
 
 const byModel: Record<string, ScrollFeel> = {
-  'ball-s': { gain: 1, rollRadius: 0.035 },
-  'ball-m': { gain: 0.95, rollRadius: 0.05 },
   'ball-l': { gain: 0.85, rollRadius: 0.07 },
   pacman: { gain: 0.55, rollRadius: 0 },
   ghost: { gain: 0.55, rollRadius: 0 },

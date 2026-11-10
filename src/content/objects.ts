@@ -3,15 +3,173 @@ import type { BodyDef } from './schema';
 const Q0: [number, number, number, number] = [0, 0, 0, 1];
 
 /**
- * Desk body defs (impl spec 4). Poses and colliders are placeholders taken from the
- * grey-box prototype (docs/prototype/blueprint-sneak-peek.html); E-tickets tune them.
- * `target` ids are section ids; `#work-car-sensors` and `#work-pac-man` are the work panels.
+ * Desk body defs (impl spec 4). The desk is a developer's workstation: the chair, the developer,
+ * the monitor, the keyboard, the mouse, the lamp and the drawer are fixed (see `FIXED_MODELS` in
+ * `lib/desk/object-def.ts`: drawn, hovered and tapped, never thrown); everything else is loose and
+ * can be dragged and thrown. Poses are in world metres (y = 0 is the desk top); the chair and
+ * the developer share one point, the chair's axis. `target` ids are section ids; `#work-car-sensors`
+ * and `#work-pac-man` are the work panels. `act` is the words for a tap that is not a link.
  */
 export const objects: BodyDef[] = [
   {
+    id: 'chair',
+    model: 'chair.glb',
+    home: { p: [0.2, 0, 0.79], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.25, 0.345, 0.275],
+      offset: [0, -0.155, 0.01],
+    },
+    mass: 6,
+    label: 'office chair',
+    act: 'spin it',
+    confirmed: true,
+  },
+  {
+    id: 'dev',
+    model: 'dev.glb',
+    home: { p: [0.2, 0, 0.79], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.29, 0.48, 0.245],
+      offset: [0.062, -0.02, -0.113],
+    },
+    mass: 6,
+    label: 'the developer',
+    act: 'say hello',
+    confirmed: true,
+  },
+  {
+    id: 'monitor',
+    model: 'monitor.glb',
+    home: { p: [0.2, 0, -0.12], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.32, 0.2475, 0.08],
+      offset: [0, 0.2475, 0],
+    },
+    mass: 5,
+    target: '#projects',
+    label: 'monitor',
+    act: 'change the screen',
+    confirmed: true,
+  },
+  {
+    id: 'keyboard',
+    model: 'keyboard.glb',
+    home: { p: [0.2, 0, 0.46], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.21, 0.012, 0.07],
+      offset: [0, 0.012, 0],
+    },
+    mass: 1,
+    label: 'keyboard',
+    act: 'type faster',
+    confirmed: true,
+  },
+  {
+    id: 'mouse',
+    model: 'mouse.glb',
+    home: { p: [0.52, 0, 0.46], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.03, 0.019, 0.0525],
+      offset: [0, 0.019, 0],
+    },
+    mass: 0.3,
+    label: 'mouse',
+    act: 'click',
+    confirmed: true,
+  },
+  {
+    id: 'lamp',
+    model: 'lamp.glb',
+    home: { p: [-0.9, 0, -0.42], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.19, 0.151, 0.13],
+      offset: [0.13, 0.151, 0.07],
+    },
+    mass: 2,
+    label: 'desk lamp',
+    act: 'toggle the lamp',
+    confirmed: true,
+  },
+  {
+    id: 'drawer',
+    model: 'desk.glb',
+    home: { p: [0, 0, 0], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.855, 0.085, 0.255],
+      offset: [0.12, -0.06, 0.397],
+    },
+    mass: 5,
+    label: 'desk drawer',
+    act: 'open it',
+    confirmed: true,
+  },
+  {
+    id: 'mug',
+    model: 'mug.glb',
+    home: { p: [0.62, 0, 0.54], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.056, 0.043, 0.039],
+      offset: [0.019, 0.043, 0],
+    },
+    mass: 0.4,
+    label: 'coffee mug',
+    act: 'take a sip',
+    confirmed: true,
+  },
+  {
+    id: 'headphones',
+    model: 'headphones.glb',
+    home: { p: [-0.42, 0.041, 0.14], q: [Math.SQRT1_2, 0, 0, Math.SQRT1_2] },
+    collider: {
+      kind: 'cuboid',
+      args: [0.133, 0.0935, 0.041],
+      offset: [0, 0.0935, 0],
+    },
+    mass: 0.4,
+    label: 'headphones',
+    act: 'put them on',
+    confirmed: true,
+  },
+  {
+    id: 'phone',
+    model: 'phone.glb',
+    home: { p: [0.02, 0, 0.06], q: [0, 0.1494, 0, 0.9888] },
+    collider: {
+      kind: 'cuboid',
+      args: [0.036, 0.005, 0.074],
+      offset: [0, 0.005, 0],
+    },
+    mass: 0.2,
+    target: '#contact',
+    label: 'phone',
+    confirmed: true,
+  },
+  {
+    id: 'plant',
+    model: 'plant.glb',
+    home: { p: [0.88, 0, -0.4], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.056, 0.1175, 0.058],
+      offset: [0, 0.1175, 0],
+    },
+    mass: 0.8,
+    label: 'plant',
+    act: 'sway the leaves',
+    confirmed: true,
+  },
+  {
     id: 'arduino',
     model: 'arduino.glb',
-    home: { p: [0.05, 0, -0.12], q: Q0 },
+    home: { p: [-0.4, 0, -0.46], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.17, 0.03, 0.11],
@@ -25,8 +183,12 @@ export const objects: BodyDef[] = [
   {
     id: 'clock-ktm',
     model: 'clock.glb',
-    home: { p: [-0.62, 0, -0.34], q: Q0 },
-    collider: { kind: 'cuboid', args: [0.1, 0.03, 0.1], offset: [0, 0.03, 0] },
+    home: { p: [-0.84, 0, -0.1], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.1, 0.03, 0.1],
+      offset: [0, 0.03, 0],
+    },
     mass: 0.6,
     target: '#contact',
     label: 'clocks',
@@ -35,27 +197,33 @@ export const objects: BodyDef[] = [
   {
     id: 'clock-2',
     model: 'clock.glb',
-    home: { p: [-0.55, 0, 0.02], q: Q0 },
-    collider: { kind: 'cuboid', args: [0.1, 0.03, 0.1], offset: [0, 0.03, 0] },
+    home: { p: [-0.12, 0, 0.02], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.1, 0.03, 0.1],
+      offset: [0, 0.03, 0],
+    },
     mass: 0.6,
-    target: '#contact',
     label: 'clock two',
     confirmed: false,
   },
   {
     id: 'clock-3',
     model: 'clock.glb',
-    home: { p: [-0.55, 0, 0.34], q: Q0 },
-    collider: { kind: 'cuboid', args: [0.1, 0.03, 0.1], offset: [0, 0.03, 0] },
+    home: { p: [0.4, 0, 0.04], q: Q0 },
+    collider: {
+      kind: 'cuboid',
+      args: [0.1, 0.03, 0.1],
+      offset: [0, 0.03, 0],
+    },
     mass: 0.6,
-    target: '#contact',
     label: 'clock three',
     confirmed: false,
   },
   {
     id: 'calendar',
     model: 'calendar.glb',
-    home: { p: [0.58, 0, -0.3], q: Q0 },
+    home: { p: [0.82, 0, -0.17], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.09, 0.07, 0.03],
@@ -69,8 +237,12 @@ export const objects: BodyDef[] = [
   {
     id: 'ghost',
     model: 'ghost.glb',
-    home: { p: [0.58, 0, 0.3], q: Q0 },
-    collider: { kind: 'ball', args: [0.09], offset: [0, 0.09, 0] },
+    home: { p: [0.86, 0, 0.2], q: Q0 },
+    collider: {
+      kind: 'ball',
+      args: [0.09],
+      offset: [0, 0.09, 0],
+    },
     mass: 0.5,
     kinematicWhenIdle: true,
     target: '#work-pac-man',
@@ -80,7 +252,7 @@ export const objects: BodyDef[] = [
   {
     id: 'cruiser',
     model: 'cruiser.glb',
-    home: { p: [0.1, 0, 0.5], q: Q0 },
+    home: { p: [0.34, 0, 0.22], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.12, 0.05, 0.06],
@@ -94,11 +266,11 @@ export const objects: BodyDef[] = [
   {
     id: 'laptop',
     model: 'laptop.glb',
-    home: { p: [-0.32, 0, 0.2], q: Q0 },
+    home: { p: [-0.34, 0, -0.1], q: Q0 },
     collider: {
       kind: 'cuboid',
-      args: [0.14, 0.0925, 0.1245],
-      offset: [0, 0.0925, -0.0292],
+      args: [0.14, 0.1125, 0.125],
+      offset: [0, 0.1125, -0.0292],
     },
     mass: 1,
     target: '#projects',
@@ -106,54 +278,23 @@ export const objects: BodyDef[] = [
     confirmed: true,
   },
   {
-    id: 'ball-s',
-    model: 'ball-s.glb',
-    home: { p: [-0.7, 0, 0.02], q: Q0 },
-    collider: { kind: 'ball', args: [0.035], offset: [0, 0.035, 0] },
-    mass: 0.1,
-    label: 'ball s',
-    confirmed: true,
-  },
-  {
-    id: 'ball-m',
-    model: 'ball-m.glb',
-    home: { p: [-0.62, 0, 0.45], q: Q0 },
-    collider: { kind: 'ball', args: [0.05], offset: [0, 0.05, 0] },
-    mass: 0.25,
-    label: 'ball m',
-    confirmed: true,
-  },
-  {
     id: 'ball-l',
     model: 'ball-l.glb',
-    home: { p: [-0.08, 0, 0.42], q: Q0 },
-    collider: { kind: 'ball', args: [0.07], offset: [0, 0.07, 0] },
+    home: { p: [-0.88, 0, 0.25], q: Q0 },
+    collider: {
+      kind: 'ball',
+      args: [0.07],
+      offset: [0, 0.07, 0],
+    },
     mass: 0.6,
     label: 'ball l',
-    confirmed: true,
-  },
-  {
-    id: 'pacman-1',
-    model: 'pacman.glb',
-    home: { p: [0.1, 0, 0.3], q: Q0 },
-    collider: { kind: 'ball', args: [0.06], offset: [0, 0.06, 0] },
-    mass: 0.3,
-    label: 'pac-man',
-    confirmed: true,
-  },
-  {
-    id: 'pacman-2',
-    model: 'pacman.glb',
-    home: { p: [0.28, 0, 0.3], q: [0, 1, 0, 0] },
-    collider: { kind: 'ball', args: [0.06], offset: [0, 0.06, 0] },
-    mass: 0.3,
-    label: 'pac-man',
+    act: 'bounce it',
     confirmed: true,
   },
   {
     id: 'letter-n',
     model: 'letter-n.glb',
-    home: { p: [-0.3, 0, -0.5], q: Q0 },
+    home: { p: [-0.944, 0, 0.52], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.056, 0.075, 0.02],
@@ -161,12 +302,13 @@ export const objects: BodyDef[] = [
     },
     mass: 0.4,
     label: 'letter n',
+    act: 'knock it over',
     confirmed: true,
   },
   {
     id: 'letter-i',
     model: 'letter-i.glb',
-    home: { p: [-0.18, 0, -0.5], q: Q0 },
+    home: { p: [-0.837, 0, 0.52], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.021, 0.075, 0.02],
@@ -174,12 +316,13 @@ export const objects: BodyDef[] = [
     },
     mass: 0.4,
     label: 'letter i',
+    act: 'knock it over',
     confirmed: true,
   },
   {
     id: 'letter-h',
     model: 'letter-h.glb',
-    home: { p: [-0.06, 0, -0.5], q: Q0 },
+    home: { p: [-0.73, 0, 0.52], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.056, 0.075, 0.02],
@@ -187,12 +330,13 @@ export const objects: BodyDef[] = [
     },
     mass: 0.4,
     label: 'letter h',
+    act: 'knock it over',
     confirmed: true,
   },
   {
     id: 'letter-a',
     model: 'letter-a.glb',
-    home: { p: [0.1, 0, -0.5], q: Q0 },
+    home: { p: [-0.578, 0, 0.52], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.066, 0.075, 0.02],
@@ -200,12 +344,13 @@ export const objects: BodyDef[] = [
     },
     mass: 0.4,
     label: 'letter a',
+    act: 'knock it over',
     confirmed: true,
   },
   {
     id: 'letter-l',
     model: 'letter-l.glb',
-    home: { p: [0.25, 0, -0.5], q: Q0 },
+    home: { p: [-0.436, 0, 0.52], q: Q0 },
     collider: {
       kind: 'cuboid',
       args: [0.046, 0.075, 0.02],
@@ -213,6 +358,7 @@ export const objects: BodyDef[] = [
     },
     mass: 0.4,
     label: 'letter l',
+    act: 'knock it over',
     confirmed: true,
   },
 ];

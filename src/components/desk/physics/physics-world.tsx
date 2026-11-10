@@ -33,6 +33,12 @@ import {
   tiltFor,
 } from '../../../lib/desk/drag';
 import { GRAVITY, SURFACE, feelFor } from '../../../lib/desk/materials';
+import {
+  CHAIR_SEAT,
+  STANDING_BOXES,
+  TRAY_BOX,
+  TRAY_MIN,
+} from '../../../lib/desk/furniture';
 import type { ObjectDef } from '../../../lib/desk/object-def';
 import { registry, type RegistryEntry } from '../registry';
 import { table, tableFrame } from '../table';
@@ -45,7 +51,11 @@ import {
   type PhysicsApi,
 } from '../physics-bridge';
 import { handToFall } from './handoff';
-import { leavingView } from '../../../lib/desk/fall';
+import {
+  handoffDue,
+  leavingView,
+  strandedBelowTop,
+} from '../../../lib/desk/fall';
 import { roomPadsAt } from './room';
 
 /**
@@ -149,6 +159,99 @@ function Slab({
       position={[0, -SLAB_THICK, 0]}
       {...NEUTRAL}
     />
+  );
+}
+
+/**
+ * The furniture, so nothing thrown or dragged passes through it: fixed boxes for the monitor (foot,
+ * neck, panel), the laptop, the lamp's base and the keyboard; a kinematic box that follows the
+ * chair's seat (the chair rolls aside when the sitter stands and sinks with the floor when the desk
+ * rises); and one for the open drawer's tray, parked far below while it is shut.
+ */
+function Furniture(): ReactNode {
+  const chairRb = useRef<RapierRigidBody>(null);
+  const trayRb = useRef<RapierRigidBody>(null);
+  const boxes = useMemo(() => {
+    const out: {
+      key: string;
+      c: [number, number, number];
+      h: [number, number, number];
+    }[] = [];
+    for (const [model, list] of Object.entries(STANDING_BOXES)) {
+      const e = registry.pickable().find((x) => x.def.model === model);
+      if (!e) continue;
+      list.forEach((b, i) =>
+        out.push({
+          key: `${model}-${i}`,
+          c: [e.def.p[0] + b.c[0], e.def.p[1] + b.c[1], e.def.p[2] + b.c[2]],
+          h: b.h,
+        }),
+      );
+    }
+    return out;
+  }, []);
+  const hasChair = useMemo(() => !!registry.get('chair'), []);
+  const hasDrawer = useMemo(() => !!registry.get('drawer'), []);
+
+  useBeforePhysicsStep(() => {
+    const chair = registry.get('chair');
+    if (chair && chairRb.current) {
+      const p = chair.obj.position;
+      chairRb.current.setNextKinematicTranslation({ x: p.x, y: p.y, z: p.z });
+      const q = chair.obj.quaternion;
+      chairRb.current.setNextKinematicRotation({
+        x: q.x,
+        y: q.y,
+        z: q.z,
+        w: q.w,
+      });
+    }
+    const tray = registry.get('drawer')?.lift.getObjectByName('tray');
+    if (tray && trayRb.current) {
+      // the tray node sits at the front edge (z = 0.6) when shut: how far it is out is the slide
+      const out = tray.position.z - 0.6;
+      trayRb.current.setNextKinematicTranslation({
+        x: 0,
+        y: out > TRAY_MIN ? 0 : -50,
+        z: out > TRAY_MIN ? out : 0,
+      });
+    }
+  });
+
+  return (
+    <>
+      {boxes.map((b) => (
+        <CuboidCollider key={b.key} args={b.h} position={b.c} {...NEUTRAL} />
+      ))}
+      {hasChair ? (
+        <RigidBody
+          ref={chairRb}
+          type="kinematicPosition"
+          colliders={false}
+          position={[0, -50, 0]}
+        >
+          <CuboidCollider
+            args={CHAIR_SEAT.h}
+            position={CHAIR_SEAT.c}
+            {...NEUTRAL}
+          />
+        </RigidBody>
+      ) : null}
+      {hasDrawer ? (
+        <RigidBody
+          ref={trayRb}
+          type="kinematicPosition"
+          colliders={false}
+          position={[0, -50, 0]}
+        >
+          <CuboidCollider
+            args={TRAY_BOX.h}
+            position={TRAY_BOX.c}
+            {...NEUTRAL}
+          />
+        </RigidBody>
+      ) : null}
+    </>
   );
 }
 
@@ -257,6 +360,8 @@ function World({
   const bodies = useRef(new Map<string, RapierRigidBody>());
   const grab = useRef<Grab | null>(null);
   const outSince = useRef(new Map<string, number>());
+  /** When a body stranded under the table last asked for the fall layer (retries are throttled). */
+  const askedAt = useRef(0);
   const speeds = useRef(new Map<string, number>());
   const handed = useRef(new Set<string>());
   const slab = useRef<RapierCollider | null>(null);
@@ -452,29 +557,50 @@ function World({
       // The second canvas takes a moment to come up (a new WebGL context), so it is asked for
       // early: while something is carried near the rim, and when anything is moving so that it
       // would be past the rim within a moment.
-      if (fallBridge.state() === 'off' && !rb.isSleeping()) {
+      // A body already past the rim and below the table top (resting on the chair seat or the open
+      // drawer's tray, asleep) needs the fall layer as much as a moving one.
+      const stranded = strandedBelowTop(off, p.y, held);
+      // Asleep, nothing steps the world again: keep it stepping until the layer has taken it.
+      if (stranded) invalidate();
+      const retry = stranded && now - askedAt.current > 2000;
+      if (fallBridge.state() === 'off' && (retry || !rb.isSleeping())) {
         const v = rb.linvel();
         const ahead = rimEdge(p.x + v.x * LOOKAHEAD_S, p.z + v.z * LOOKAHEAD_S);
-        if (held ? rimEdge(p.x, p.z) > -NEAR_RIM : ahead > 0) {
+        if (retry || (held ? rimEdge(p.x, p.z) > -NEAR_RIM : ahead > 0)) {
+          askedAt.current = now;
           const frame = tableFrame();
           if (frame) fallBridge.request(frame);
         }
       }
-      if (!held && off > 0 && !rb.isSleeping()) {
+      if (!held && off > 0 && (stranded || !rb.isSleeping())) {
         // Clear of the slab (no contact for a few steps) and below the table top: the fall layer
         // takes it. A body that is still tipping over the rim keeps touching it, so it pivots.
-        const gap = touchingSlab(rb)
-          ? 0
-          : (clear.current.get(entry.id) ?? 0) + 1;
+        // A sleeping body is not tipping: one resting against the slab's front face on the open tray
+        // would otherwise count as touching it for ever.
+        const gap = rb.isSleeping()
+          ? CLEAR_STEPS
+          : touchingSlab(rb)
+            ? 0
+            : (clear.current.get(entry.id) ?? 0) + 1;
         clear.current.set(entry.id, gap);
         // A hard throw flies past the canvas's edge before it has dropped below the table top: the
         // fall layer takes it there, at the edge, instead of after it has left the picture (it
         // would then be moved back inside, a jump of 100 px or more). Only once it is clear of the
         // slab by more than its own reach, so it cannot be about to land on the rim.
-        const ready = fallBridge.state() === 'ready' && gap >= CLEAR_STEPS;
+        // A body that came to rest there before the fall layer was up is asleep: it is handed over
+        // all the same (it falls from rest), or it would stay on the chair or the tray for good.
         if (
-          ready &&
-          (p.y < -0.01 || (off > reachOf(entry) && leaving(rb))) &&
+          handoffDue({
+            held,
+            off,
+            y: p.y,
+            gap,
+            clearSteps: CLEAR_STEPS,
+            ready: fallBridge.state() === 'ready',
+            asleep: rb.isSleeping(),
+            reach: reachOf(entry),
+            leaving: () => leaving(rb),
+          }) &&
           handOver(entry, rb)
         )
           continue;
@@ -545,10 +671,12 @@ function World({
       },
       release: (vx, vz) => dropHeld(vx, vz),
       drop: () => dropHeld(0, 0),
-      reset() {
+      reset(keep) {
         grab.current = null;
-        fallBridge.api()?.reset();
+        fallBridge.api()?.reset(keep);
         for (const e of entries) {
+          // still in the fall layer, held there for the tether to reel home
+          if (keep?.includes(e.id) && handed.current.has(e.id)) continue;
           const wasAway = handed.current.has(e.id);
           respawn(e);
           if (wasAway) {
@@ -640,6 +768,7 @@ function World({
   return (
     <>
       <Slab slabRef={slab} />
+      <Furniture />
       {entries.map((entry) =>
         shown.handed.has(entry.id) ? null : (
           <Body

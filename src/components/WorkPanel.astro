@@ -1,8 +1,10 @@
 ---
 import type { WorkItem } from '../content/schema';
 import { splitDateLine } from '../lib/dates';
+import { getCopy } from '../content';
 import PaperPanel from './PaperPanel.astro';
 import ArcadePanel from './ArcadePanel.astro';
+import '../styles/projects.css';
 
 const marks = import.meta.glob<string>('../assets/marks/*.svg', {
   query: '?raw',
@@ -11,61 +13,78 @@ const marks = import.meta.glob<string>('../assets/marks/*.svg', {
 });
 
 /**
- * One work panel: anchor `work-<id>` (desk objects link here), heading, a mono date line
- * (what happened, when), prose and real links. All plain HTML. An item with a `frameNote`
- * (client work with no code) also gets an empty drawing frame whose title block is filled in.
- * Each panel carries one hand-drawn mark (src/assets/marks/<id>.svg, currentColor): already drawn,
- * decorative, never animated.
+ * One compact project card: anchor `work-<id>` (desk objects link here), a small hand-drawn mark,
+ * the title, a mono date line, a one or two line summary, stack chips and the calls to action.
+ * The longer description sits in a collapsed `<details>` (still in the HTML). Primary link: the
+ * project's own site when it has one, otherwise its repo; everything else is a secondary link.
+ * Styles and the group rail are in src/styles/projects.css and ProjectGroup.astro.
  */
 interface Props {
   item: WorkItem;
 }
 const { item } = Astro.props;
-// pathLength=1 lets the hover redraw animate stroke-dashoffset on any path.
 const mark = marks[`../assets/marks/${item.id}.svg`];
 if (!mark) throw new Error(`no mark for work item ${item.id}`);
+const { work: workCopy } = getCopy();
 const headingId = `work-${item.id}-heading`;
 const { date, rest } = splitDateLine(item.dateLine);
 ---
 
-<PaperPanel as="article" id={`work-${item.id}`} class="work-panel">
-  <div
-    class="work-mark"
-    aria-hidden="true"
-    data-mark={item.id}
-    set:html={mark.replaceAll('<path', '<path pathLength="1"')}
-  />
-  <h3 id={headingId}>{item.title}</h3>
-  <p class="label work-date">
-    {date ? (
-      <time datetime={date.datetime} data-date-line>
-        {date.text}
-      </time>
-    ) : null}
-    {rest}
-  </p>
-  <p class="label work-meta">{item.meta}</p>
-  {item.body.map((p) => (
-    <p>{p}</p>
-  ))}
-  {item.frameNote && (
-    <figure class="drawing-frame">
-      <figcaption>
-        <span class="label">{item.title}</span>
-        <span>{item.frameNote}</span>
-      </figcaption>
-    </figure>
-  )}
+<PaperPanel as="article" id={`work-${item.id}`} class="proj-card" still>
+  <header class="proj-head">
+    <div
+      class="work-mark"
+      aria-hidden="true"
+      data-mark={item.id}
+      set:html={mark.replaceAll('<path', '<path pathLength="1"')}
+    />
+    <div class="proj-titles">
+      <h4 id={headingId}>{item.title}</h4>
+      <p class="label work-date">
+        {date ? (
+          <time datetime={date.datetime} data-date-line>
+            {date.text}
+          </time>
+        ) : null}
+        {rest}
+      </p>
+    </div>
+  </header>
+  <p class="proj-summary">{item.summary}</p>
+  <ul class="proj-tags label" aria-label={workCopy.stack}>
+    {item.tags.map((t) => (
+      <li>{t}</li>
+    ))}
+  </ul>
   {item.arcade && <ArcadePanel title={item.title} href={item.arcade.href} />}
-  {item.links.length > 0 && (
-    <ul class="label sheet-links">
-      {item.links.map((l) => (
-        <li>
-          <a href={l.href} rel="noopener">
-            {l.label}
-          </a>
-        </li>
+  <details class="proj-more">
+    <summary class="label">{workCopy.more}</summary>
+    <div class="proj-more-body">
+      <p class="label work-meta">{item.meta}</p>
+      {item.body.map((p) => (
+        <p>{p}</p>
       ))}
-    </ul>
+      {item.frameNote && <p class="proj-note">{item.frameNote}</p>}
+    </div>
+  </details>
+  {(item.cta || item.links.length > 0) && (
+    <div class="proj-actions">
+      {item.cta && (
+        <a class="proj-cta label" href={item.cta.href} rel="noopener">
+          {item.cta.label}
+        </a>
+      )}
+      {item.links.length > 0 && (
+        <ul class="proj-links label">
+          {item.links.map((l) => (
+            <li>
+              <a href={l.href} rel="noopener">
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )}
 </PaperPanel>

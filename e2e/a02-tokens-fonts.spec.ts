@@ -82,8 +82,16 @@ test.describe('tokens and fonts @A-02', () => {
     expect(o.focusVisible).toBe(true);
     expect(o.width).toBeGreaterThanOrEqual(2);
     expect(o.style).toBe('solid');
-    // inside .paper the ring is --blue
-    expect(o.color).toBe('rgb(31, 63, 224)');
+    // the title block is no card any more: the ring is --stroke, the page's line colour
+    const stroke = await page.evaluate(() => {
+      const probe = document.createElement('i');
+      probe.style.color = 'var(--stroke)';
+      document.body.append(probe);
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    });
+    expect(o.color).toBe(stroke);
   });
 
   test('CLS is 0 on load', async ({ page, javaScriptEnabled }) => {

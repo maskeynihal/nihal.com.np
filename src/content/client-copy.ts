@@ -5,6 +5,12 @@
  */
 export const soundLabel = { on: 'on', off: 'off' } as const;
 
+/** The first-visit line under the 3D desk. Equal to `copy.desk`; pinned by `content.test.ts`. */
+export const deskHint = {
+  hint: 'tap anything on the desk',
+  dismiss: 'got it',
+} as const;
+
 /** Shown when the 3D desk fails (A-10). Equal to `copy.status.lost`; pinned by `content.test.ts`. */
 export const deskNote = {
   lost: "3D paused. Reload if it doesn't come back.",

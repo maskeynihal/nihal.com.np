@@ -123,6 +123,24 @@ export function reanchor(p: Vector3, v: Vector3, from: Frame, to: Frame): void {
   p.y += dy;
 }
 
+/**
+ * The depth range (m from the camera) the fall world lets a body have: it must contain every depth
+ * a body can be handed over at, because a body whose depth is changed at the handoff changes size
+ * and place on screen (a pop). `depths` are the camera depths of the points a body may leave from
+ * (the table's rim and the area a carried object can reach); `margin` is room either side.
+ */
+export function depthRange(
+  depths: readonly number[],
+  margin = 0.6,
+  floor = 0.6,
+): { near: number; far: number } {
+  const lo = Math.min(...depths);
+  const hi = Math.max(...depths);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi))
+    return { near: 2, far: 3.3 };
+  return { near: Math.max(floor, lo - margin), far: hi + margin };
+}
+
 /** The fall world's boundaries, in the camera frame. */
 export interface Bounds {
   /** y of the floor plane at the nearest depth. */
@@ -262,4 +280,47 @@ export function leavingView(
   const margin = (WALL_MARGIN * f) / depth + 6;
   const ahead = sx + svx * lead;
   return ahead < box.left + margin || ahead > box.right - margin;
+}
+
+/** The table top is y = 0; a body whose centre is below this is under it. */
+export const BELOW_TOP = -0.01;
+
+/** True for a body past the slab's rim and under the table top that nobody is holding. */
+export function strandedBelowTop(
+  off: number,
+  y: number,
+  held: boolean,
+): boolean {
+  return !held && off > 0 && y < BELOW_TOP;
+}
+
+/**
+ * Whether the table world should hand a body to the fall layer now: it is past the rim, the layer
+ * is ready and the body has been clear of the slab for `clearSteps` steps, and either it is under
+ * the table top (asleep or not: one that came to rest on the chair seat or the open tray before the
+ * layer was up must still fall) or it is awake, beyond its own reach and about to leave the canvas
+ * (`leaving` is called only then).
+ */
+export function handoffDue(s: {
+  held: boolean;
+  off: number;
+  y: number;
+  gap: number;
+  clearSteps: number;
+  ready: boolean;
+  asleep: boolean;
+  reach: number;
+  leaving: () => boolean;
+}): boolean {
+  if (s.held || s.off <= 0 || !s.ready || s.gap < s.clearSteps) return false;
+  if (s.y < BELOW_TOP) return true;
+  return !s.asleep && s.off > s.reach && s.leaving();
+}
+
+/** True when the floor moved down between two rooms, so a body resting on the old one must be woken to fall. */
+export function floorWentDown(
+  prev: Pick<Bounds, 'floorSlope'>,
+  next: Pick<Bounds, 'floorSlope'>,
+): boolean {
+  return next.floorSlope < prev.floorSlope - 1e-9;
 }

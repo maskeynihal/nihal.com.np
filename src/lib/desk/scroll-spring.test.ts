@@ -59,16 +59,15 @@ describe('scroll nudge', () => {
   });
 
   it('slides towards the viewer when the page scrolls down, away when it scrolls up', () => {
-    const down = drive('ball-s', 40, () => 30).xs;
-    const up = drive('ball-s', 40, () => -30).xs;
+    const down = drive('ball-l', 40, () => 30).xs;
+    const up = drive('ball-l', 40, () => -30).xs;
     expect(Math.sign(down[39]!)).toBe(SLIDE_SIGN);
     expect(Math.sign(up[39]!)).toBe(-SLIDE_SIGN);
   });
 
   it('lighter things slide more: balls, then pac-men and the ghost, then the laptop and board', () => {
     const p = (m: string) => peak(drive(m, 90, () => 50).xs);
-    expect(p('ball-s')).toBeGreaterThan(p('pacman'));
-    expect(p('ball-m')).toBeGreaterThan(p('pacman'));
+    expect(p('ball-l')).toBeGreaterThan(p('pacman'));
     expect(p('pacman')).toBeCloseTo(p('ghost'), 6);
     expect(p('pacman')).toBeGreaterThan(p('laptop') * 3);
     expect(p('pacman')).toBeGreaterThan(p('arduino') * 3);
@@ -77,21 +76,24 @@ describe('scroll nudge', () => {
   });
 
   it('never exceeds about 6 px, at any speed', () => {
-    for (const m of ['ball-s', 'pacman', 'clock', 'laptop'])
+    for (const m of ['ball-l', 'pacman', 'clock', 'laptop'])
       for (const px of [20, 100, 400])
         expect(peak(drive(m, 240, () => px).xs)).toBeLessThanOrEqual(
           MAX_PX * 1.03,
         );
-    expect(targetPx(1e9, scrollFeelFor('ball-s'))).toBeCloseTo(MAX_PX, 5);
+    expect(targetPx(1e9, scrollFeelFor('ball-l'))).toBeCloseTo(
+      MAX_PX * 0.85,
+      5,
+    );
   });
 
   it('ignores a jump of the page (a link, not a scroll)', () => {
     expect(frameSpeed(3000, DT)).toBe(0);
-    expect(peak(drive('ball-s', 30, (i) => (i === 3 ? 3000 : 0)).xs)).toBe(0);
+    expect(peak(drive('ball-l', 30, (i) => (i === 3 ? 3000 : 0)).xs)).toBe(0);
   });
 
   it('the spring is close to critical: at most one overshoot, and a small one', () => {
-    const feel = scrollFeelFor('ball-s');
+    const feel = scrollFeelFor('ball-l');
     const s: Spring = { x: 0, v: 0 };
     const xs: number[] = [];
     for (let i = 0; i < 240; i++) {
@@ -102,14 +104,14 @@ describe('scroll nudge', () => {
     expect(Math.max(...xs)).toBeLessThan(5 * 0.04);
     expect(feel.gain).toBeGreaterThan(0);
     // A scroll that starts and stops: push out, one return, at most one crossing of zero.
-    const burst = drive('ball-s', 240, (i) => (i < 20 ? 40 : 0)).xs;
+    const burst = drive('ball-l', 240, (i) => (i < 20 ? 40 : 0)).xs;
     expect(signChanges(burst)).toBeLessThanOrEqual(1);
     expect(peak(burst.slice(120))).toBeLessThan(0.5);
   });
 
   it('wheel steps do not read as jerks: the slide changes smoothly from frame to frame', () => {
     // A mouse wheel: a 100 px step every 4th frame (about 15 steps/s), nothing between.
-    const { xs } = drive('ball-s', 120, (i) => (i % 4 === 0 ? 100 : 0));
+    const { xs } = drive('ball-l', 120, (i) => (i % 4 === 0 ? 100 : 0));
     let worst = 0;
     for (let i = 1; i < xs.length; i++)
       worst = Math.max(worst, Math.abs(xs[i]! - xs[i - 1]!));
@@ -120,8 +122,8 @@ describe('scroll nudge', () => {
   });
 
   it('gives the same motion at a slow frame rate (software GL, about 7 fps)', () => {
-    const fast = drive('ball-s', 120, () => 20, 60);
-    const slow = drive('ball-s', 14, () => 20 * (60 / 7), 7);
+    const fast = drive('ball-l', 120, () => 20, 60);
+    const slow = drive('ball-l', 14, () => 20 * (60 / 7), 7);
     expect(peak(slow.xs)).toBeGreaterThan(peak(fast.xs) * 0.5);
     expect(peak(slow.xs)).toBeLessThanOrEqual(MAX_PX * 1.05);
   });
@@ -157,8 +159,8 @@ describe('scroll nudge', () => {
   });
 
   it('only a ball turns, and it rolls exactly the distance it slid', () => {
-    const ball = scrollFeelFor('ball-s');
-    expect(rollAngle(0.007, ball)).toBeCloseTo(0.007 / 0.035, 9);
+    const ball = scrollFeelFor('ball-l');
+    expect(rollAngle(0.007, ball)).toBeCloseTo(0.007 / 0.07, 9);
     // Arc length on the ball's rim equals the slide.
     const d = 0.012;
     expect(rollAngle(d, scrollFeelFor('ball-l')) * 0.07).toBeCloseTo(d, 9);

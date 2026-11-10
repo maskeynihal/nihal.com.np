@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deskNote } from '../../content/client-copy';
+import { deskHint, deskNote } from '../../content/client-copy';
 import { DeskShell, type DeskStatus } from './DeskShell';
 import { IslandRoot } from './island-root';
 import { DESK_RESET_EVENT } from '../../lib/desk/bus';
 import { installGlobalErrorReporting } from './island-errors';
+import { hintSeen, markHintSeen } from '../../lib/desk/hint';
+import { reactions } from '../../lib/desk/reactions';
 
 /**
  * The `client:only="react"` entry. It is deliberately tiny and cannot fail on its own.
@@ -23,6 +25,9 @@ import { installGlobalErrorReporting } from './island-errors';
 export default function Desk() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<DeskStatus>('poster');
+  // First visit: one line that says the desk can be touched, until it is dismissed or touched.
+  const [dismissed, setDismissed] = useState(false);
+  const hint = status === 'live' && !dismissed && !hintSeen();
 
   // `failed` is final for the page; `live` never overrides it.
   const onStatus = useCallback(
@@ -49,6 +54,23 @@ export default function Desk() {
     return () => button.removeEventListener('click', reset);
   }, []);
 
+  const dismissHint = useCallback(() => {
+    markHintSeen();
+    setDismissed(true);
+  }, []);
+
+  // Touching anything on the desk (a tap, a button in the object list) is the answer to the hint.
+  useEffect(() => {
+    if (!hint) return;
+    const off = reactions.subscribe(dismissHint);
+    const grab = () => dismissHint();
+    window.addEventListener('nihal:drag', grab);
+    return () => {
+      off();
+      window.removeEventListener('nihal:drag', grab);
+    };
+  }, [hint, dismissHint]);
+
   useEffect(
     () => installGlobalErrorReporting(() => onStatus('failed')),
     [onStatus],
@@ -62,6 +84,14 @@ export default function Desk() {
       <p role="status" className="label desk-note">
         {status === 'failed' || status === 'paused' ? deskNote.lost : ''}
       </p>
+      {hint && status === 'live' ? (
+        <p className="label desk-hint">
+          {deskHint.hint}{' '}
+          <button type="button" onClick={dismissHint}>
+            {deskHint.dismiss}
+          </button>
+        </p>
+      ) : null}
     </div>
   );
 }

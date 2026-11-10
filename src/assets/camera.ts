@@ -4,9 +4,13 @@
  * import, safe in the client shell and in Node scripts. World units are metres, +y up, the sheet
  * lies in the y = 0 plane and its centre is the world origin.
  *
- * It is the E-01..E-07 camera (perspective, looking down at the table from the viewer's side) with
- * the frame cropped to 1200 x 700: the table fills about 80% of the width at its front edge and
- * leaves room below and to the sides for an object that falls off before the fall layer takes it.
+ * A three-quarter view from the front right and above, framed on the whole workstation: the desk
+ * with the monitor at its back, the chair pulled up to the front edge with the developer in it, and
+ * the five-star base on the floor. The frame is 1200 x 840 (10:7): the workstation sits in the lower
+ * 60% and a little right of centre, and the top 40% is left calm for the title text laid over it.
+ * It still has room for the desk at standing height (everything on it 0.24 m higher, the sitter on
+ * their feet, arms up in a stretch) and for a walk past the right end of the desk, and both sides
+ * are free for an object that falls off before the fall layer takes it. The sitter faces the monitor, so the camera sees the screen over their shoulder.
  */
 export interface CameraDef {
   fov: number;
@@ -20,27 +24,28 @@ export const heroCamera: CameraDef = {
   /** Vertical field of view, degrees. */
   fov: 31,
   near: 0.5,
-  far: 8,
-  position: [0, 1.95, 1.5],
-  lookAt: [0, 0, 0.12],
+  far: 10,
+  position: [1.744, 3.084, 3.877],
+  lookAt: [0, 0.4, 0.3],
 };
 
 /** Poster viewBox. Its aspect is the aspect the camera is projected with. */
-export const posterViewBox = { width: 1200, height: 700 } as const;
+export const posterViewBox = { width: 1200, height: 840 } as const;
 
 export const posterAspect = posterViewBox.width / posterViewBox.height;
 
 /**
- * The portrait view for phones (under 768 px): steeper and closer than the wide view, so the whole
- * table fills the width of the sheet (about 92 %) instead of a wide drawing being scaled down or
- * pushed past the edge. Same lens, so every consumer of the field of view stays the same.
+ * The portrait view for phones (under 768 px): steeper and nearer the front than the wide view, so
+ * the desk, the chair and the developer fill the sheet (about 85 % of its width) instead of a wide
+ * drawing being scaled down or pushed past the edge. Same lens, so every consumer of the field
+ * of view stays the same.
  */
 export const phoneCamera: CameraDef = {
   fov: heroCamera.fov,
   near: heroCamera.near,
   far: heroCamera.far,
-  position: [0, 2.77, 1.05],
-  lookAt: [0, 0, 0.04],
+  position: [0.553, 2.47, 2.903],
+  lookAt: [0, -0.1, 0.3],
 };
 
 export const phoneViewBox = { width: 1000, height: 880 } as const;

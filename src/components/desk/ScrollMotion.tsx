@@ -31,8 +31,8 @@ import { setMotionProbe } from './scene-hooks';
  */
 
 /** Ball that rocks once per visit, and how hard (px/s along the table, about 5 px of travel). */
-/** The small ball, else the medium one (the phone desk has no small ball). */
-const NUDGE_IDS = ['ball-s', 'ball-m'];
+/** The one ball on the desk. */
+const NUDGE_IDS = ['ball-l'];
 const nudgeId = () => NUDGE_IDS.find((id) => registry.get(id));
 const NUDGE_SPEED = 190;
 const NUDGE_DELAY_MS = 1800;

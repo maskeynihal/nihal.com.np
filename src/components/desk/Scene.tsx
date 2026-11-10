@@ -28,12 +28,16 @@ import { applyHeroCamera, setPhoneView } from '../../lib/desk/camera';
 import { isPhoneWidth, phoneObjectIds } from '../../lib/desk/phone';
 import { heroCamera } from '../../assets/camera';
 import { handAngles, clockZone, pivotY } from '../../lib/desk/clock';
-import { calendarFace } from '../../lib/desk/calendar';
+import { calendarFace, localDate } from '../../lib/desk/calendar';
 import { eyeYaw } from '../../lib/desk/eyes';
 import { ghostLook } from '../../lib/desk/ghost-look';
 import { OLED_TICK_MS } from '../../lib/desk/oled';
 import { playTick } from '../../lib/sound';
-import { parseObjects, type ObjectDef } from '../../lib/desk/object-def';
+import {
+  isFixedModel,
+  parseObjects,
+  type ObjectDef,
+} from '../../lib/desk/object-def';
 import { THEME_EVENT, readToken } from '../../lib/desk/tokens';
 import holidays from '../../content/holidays.json';
 import type { Holiday } from '../../content/schema';
@@ -67,6 +71,12 @@ import {
 import { disposedProbe } from './disposed-probe';
 import { createContextPolicy, type ContextEvent } from './context-loss';
 import { Interaction } from './Interaction';
+import {
+  Workstation,
+  deskParts,
+  useCardMaterial,
+  useScreenMaterial,
+} from './Workstation';
 import { ScrollMotion } from './ScrollMotion';
 import { IslandBoundary } from './IslandBoundary';
 import { fallBridge, physicsBridge } from './physics-bridge';
@@ -110,7 +120,7 @@ const SHEET_DEF: ObjectDef = {
   model: 'sheet',
   p: [0, 0, 0],
   q: [0, 0, 0, 1],
-  collider: { kind: 'cuboid', args: [0.8, 0.01, 0.6], offset: [0, 0, 0] },
+  collider: { kind: 'cuboid', args: [1.0, 0.01, 0.6], offset: [0, 0, 0] },
   mass: 1,
 };
 
@@ -175,7 +185,7 @@ function Rig({ art }: { art: LineArt }) {
     // R3F must not re-fit the frustum to the canvas size: the poster aspect is the aspect.
     // eslint-disable-next-line react-hooks/immutability
     (cam as unknown as { manual: boolean }).manual = true;
-    applyHeroCamera(cam);
+    applyHeroCamera(cam, size.width / size.height);
     table.scene = scene;
     table.camera = cam;
     table.canvas = gl.domElement;
@@ -252,6 +262,7 @@ function Model({
   const gltf = useGltf(url);
   const group = useRef<Group>(null);
   const pivot = useRef<Group>(null);
+  const fx = useRef<Group>(null);
   const root = useMemo(() => {
     const clone = gltf.scene.clone(true);
     prepareLineArt(clone, art, { textured, sheet: sheet ?? false });
@@ -262,8 +273,17 @@ function Model({
   useLayoutEffect(() => {
     const obj = group.current;
     const pv = pivot.current;
-    if (sheet || fixed || !obj || !pv) return;
-    return registry.register({ id: def.id, def, obj, pivot: pv, lift: root });
+    const f = fx.current;
+    if (sheet || fixed || !obj || !pv || !f) return;
+    return registry.register({
+      id: def.id,
+      def,
+      obj,
+      pivot: pv,
+      fx: f,
+      lift: root,
+      fixed: isFixedModel(def.model),
+    });
   }, [def, root, sheet, fixed]);
   return (
     <group
@@ -274,7 +294,9 @@ function Model({
       quaternion={def.q}
     >
       <group ref={pivot} name={`${def.id}-pivot`}>
-        <primitive object={root} />
+        <group ref={fx} name={`${def.id}-fx`}>
+          <primitive object={root} />
+        </group>
       </group>
       {children?.(root)}
     </group>
@@ -380,12 +402,14 @@ function useCalendarMaterial() {
   useEffect(() => {
     let last = '';
     const refresh = (force = false) => {
-      const face = calendarFace(new Date(), holidays as Holiday[]);
+      const now = new Date();
+      const face = calendarFace(now, holidays as Holiday[]);
+      const local = localDate(now);
       setCalendarProbe(face);
-      const key = JSON.stringify(face ?? null);
+      const key = JSON.stringify([local, face ?? null]);
       if (!force && key === last) return;
       last = key;
-      calendar.draw(face);
+      calendar.draw(local, face);
       if (!isQuiet()) invalidate();
     };
     refresh(true);
@@ -441,6 +465,8 @@ function ObjectNode({ def, url }: { def: ObjectDef; url: string }) {
         {(root) => <ClockHands id={def.id} root={root} />}
       </Model>
     );
+  if (def.model === 'monitor') return <Monitor def={def} url={url} />;
+  if (def.model === 'desk') return <DeskKit def={def} url={url} />;
   if (def.model === 'ghost')
     return (
       <Model url={url} def={def}>
@@ -456,10 +482,56 @@ function Arduino({ def, url }: { def: ObjectDef; url: string }) {
   return <Model url={url} def={def} textured={textured} />;
 }
 
+/** The glass is a canvas texture the workstation redraws; the lines authored on it (for the poster) are hidden. */
+function hideLinesOf(prefix: string) {
+  return (root: Object3D): void => {
+    root.traverse((o) => {
+      if (
+        o.name.startsWith(prefix) &&
+        (o as { isLineSegments2?: boolean }).isLineSegments2
+      )
+        o.visible = false;
+    });
+  };
+}
+const hideGlassLines = hideLinesOf('monitor-screen');
+const hideFaceLines = hideLinesOf('calendar-face');
+
+/** The desk's base, found by name: the Scene stretches it when the desk goes up. */
+function grabTable(root: Object3D): void {
+  deskParts.legs = root.getObjectByName('legs') ?? null;
+}
+
+function Monitor({ def, url }: { def: ObjectDef; url: string }) {
+  const material = useScreenMaterial();
+  const textured = useMemo(
+    () => ({ 'screen-mesh': material, 'monitor-screen': material }),
+    [material],
+  );
+  return (
+    <Model url={url} def={def} textured={textured} onRoot={hideGlassLines} />
+  );
+}
+
+/** The drawer and the handset; the card in the drawer is a canvas texture (the easter eggs). */
+function DeskKit({ def, url }: { def: ObjectDef; url: string }) {
+  const material = useCardMaterial();
+  const textured = useMemo(
+    () => ({ 'card-mesh': material, 'desk-card': material }),
+    [material],
+  );
+  return <Model url={url} def={def} textured={textured} />;
+}
+
 function Calendar({ def, url }: { def: ObjectDef; url: string }) {
   const material = useCalendarMaterial();
-  const textured = useMemo(() => ({ 'face-mesh': material }), [material]);
-  return <Model url={url} def={def} textured={textured} />;
+  const textured = useMemo(
+    () => ({ 'face-mesh': material, 'calendar-face': material }),
+    [material],
+  );
+  return (
+    <Model url={url} def={def} textured={textured} onRoot={hideFaceLines} />
+  );
 }
 
 function Desk({
@@ -486,7 +558,9 @@ function Desk({
   return (
     <>
       <group ref={tableRef} name="table" visible={!probeOn}>
-        {tableUrl ? <Model url={tableUrl} def={TABLE_DEF} fixed /> : null}
+        {tableUrl ? (
+          <Model url={tableUrl} def={TABLE_DEF} fixed onRoot={grabTable} />
+        ) : null}
         {sheetUrl ? <Model url={sheetUrl} def={SHEET_DEF} sheet /> : null}
         {objects.map((def) => {
           const url = urls[def.model];
@@ -683,9 +757,11 @@ export default function Scene({
 
   useEffect(() => {
     let live = true;
-    void resolveModelUrls(['sheet', 'table', ...objects.map((o) => o.model)]).then(
-      (u) => live && setUrls(u),
-    );
+    void resolveModelUrls([
+      'sheet',
+      'table',
+      ...objects.map((o) => o.model),
+    ]).then((u) => live && setUrls(u));
     return () => {
       live = false;
     };
@@ -745,6 +821,7 @@ export default function Scene({
             <ThemeWatch art={art} />
             <Interaction />
             <ScrollMotion />
+            <Workstation />
             {physicsOn ? (
               <IslandBoundary
                 island="physics"

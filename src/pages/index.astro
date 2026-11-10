@@ -12,7 +12,7 @@ import SectionArt from '../components/SectionArt.astro';
 import SheetBorder from '../components/SheetBorder.astro';
 import SheetIndex from '../components/SheetIndex.astro';
 import Lamp from '../components/Lamp.astro';
-import WorkPanel from '../components/WorkPanel.astro';
+import ProjectGroup from '../components/ProjectGroup.astro';
 import RevisionTable from '../components/RevisionTable.astro';
 import WritingList from '../components/WritingList.astro';
 import CvTable from '../components/CvTable.astro';
@@ -28,12 +28,14 @@ import {
   getClocks,
 } from '../content';
 import { site } from '../content/site';
+import { workGroups } from '../content/work';
 
 const {
   titleBlock,
   headings,
   about,
   work: workCopy,
+  openSource,
   writing,
   cv,
   contact,
@@ -94,8 +96,11 @@ const year = String(new Date().getFullYear());
       art="circuit"
     >
       <p>{workCopy.intro}</p>
-      {work.map((item) => (
-        <WorkPanel item={item} />
+      {workGroups.map((group) => (
+        <ProjectGroup
+          group={group}
+          items={work.filter((w) => w.group === group.id)}
+        />
       ))}
     </Section>
 
@@ -105,8 +110,25 @@ const year = String(new Date().getFullYear());
       side="right"
       art="dog"
     >
-      <PaperPanel>
-        <RevisionTable rows={oss} />
+      <PaperPanel class="oss-panel">
+        <h3 id="oss-own-heading" class="oss-heading">
+          {openSource.ownHeading}
+        </h3>
+        <RevisionTable
+          rows={oss.filter((r) => r.kind === 'own')}
+          kind="own"
+          labelledby="oss-own-heading"
+        />
+      </PaperPanel>
+      <PaperPanel class="oss-panel">
+        <h3 id="oss-contrib-heading" class="oss-heading">
+          {openSource.contribHeading}
+        </h3>
+        <RevisionTable
+          rows={oss.filter((r) => r.kind === 'contribution')}
+          kind="contribution"
+          labelledby="oss-contrib-heading"
+        />
       </PaperPanel>
     </Section>
 
@@ -117,7 +139,7 @@ const year = String(new Date().getFullYear());
       </PaperPanel>
     </Section>
 
-    <Section id="cv" heading={headings.cv} side="right" art="climb">
+    <Section id="cv" heading={headings.cv} side="right" art="tree">
       <PaperPanel>
         <CvTable rows={cvRows} />
       </PaperPanel>
@@ -134,7 +156,7 @@ const year = String(new Date().getFullYear());
       </ul>
     </Section>
 
-    <Section id="contact" heading={headings.contact} side="left" art="bloom">
+    <Section id="contact" heading={headings.contact} side="left" art="ivy">
       <PaperPanel class="contact-panel">
         <p>{contact.lead}</p>
         <p>

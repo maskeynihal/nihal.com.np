@@ -36,15 +36,22 @@ export function screenRect(
   obj.traverse((node) => {
     const mesh = node as Mesh;
     if (!mesh.isMesh || node.name.endsWith('-hull')) return;
-    const pos = mesh.geometry.getAttribute('position');
-    for (let i = 0; i < pos.count; i++) {
-      _c.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-      const s = project(_c);
-      x0 = Math.min(x0, s.x);
-      y0 = Math.min(y0, s.y);
-      x1 = Math.max(x1, s.x);
-      y1 = Math.max(y1, s.y);
-    }
+    // Line-art strokes are instanced quads: their `position` is a unit template, the real ends
+    // are `instanceStart` and `instanceEnd`.
+    const g = mesh.geometry;
+    const starts = g.getAttribute('instanceStart');
+    const ends = g.getAttribute('instanceEnd');
+    const attrs =
+      starts && ends ? [starts, ends] : [g.getAttribute('position')];
+    for (const pos of attrs)
+      for (let i = 0; i < pos.count; i++) {
+        _c.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        const s = project(_c);
+        x0 = Math.min(x0, s.x);
+        y0 = Math.min(y0, s.y);
+        x1 = Math.max(x1, s.x);
+        y1 = Math.max(y1, s.y);
+      }
   });
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }

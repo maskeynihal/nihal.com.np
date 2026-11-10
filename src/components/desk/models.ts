@@ -7,10 +7,18 @@ import clock from '../../assets/models/clock.glb?url&no-inline';
 import calendar from '../../assets/models/calendar.glb?url&no-inline';
 import ghost from '../../assets/models/ghost.glb?url&no-inline';
 import laptop from '../../assets/models/laptop.glb?url&no-inline';
-import ballS from '../../assets/models/ball-s.glb?url&no-inline';
-import ballM from '../../assets/models/ball-m.glb?url&no-inline';
 import ballL from '../../assets/models/ball-l.glb?url&no-inline';
-import pacman from '../../assets/models/pacman.glb?url&no-inline';
+import desk from '../../assets/models/desk.glb?url&no-inline';
+import chair from '../../assets/models/chair.glb?url&no-inline';
+import dev from '../../assets/models/dev.glb?url&no-inline';
+import monitor from '../../assets/models/monitor.glb?url&no-inline';
+import keyboard from '../../assets/models/keyboard.glb?url&no-inline';
+import mouse from '../../assets/models/mouse.glb?url&no-inline';
+import lamp from '../../assets/models/lamp.glb?url&no-inline';
+import mug from '../../assets/models/mug.glb?url&no-inline';
+import headphones from '../../assets/models/headphones.glb?url&no-inline';
+import phone from '../../assets/models/phone.glb?url&no-inline';
+import plant from '../../assets/models/plant.glb?url&no-inline';
 import letterN from '../../assets/models/letter-n.glb?url&no-inline';
 import letterI from '../../assets/models/letter-i.glb?url&no-inline';
 import letterH from '../../assets/models/letter-h.glb?url&no-inline';
@@ -29,10 +37,18 @@ const urls: Record<string, () => Promise<string>> = {
   calendar: () => Promise.resolve(calendar),
   ghost: () => Promise.resolve(ghost),
   laptop: () => Promise.resolve(laptop),
-  'ball-s': () => Promise.resolve(ballS),
-  'ball-m': () => Promise.resolve(ballM),
   'ball-l': () => Promise.resolve(ballL),
-  pacman: () => Promise.resolve(pacman),
+  desk: () => Promise.resolve(desk),
+  chair: () => Promise.resolve(chair),
+  dev: () => Promise.resolve(dev),
+  monitor: () => Promise.resolve(monitor),
+  keyboard: () => Promise.resolve(keyboard),
+  mouse: () => Promise.resolve(mouse),
+  lamp: () => Promise.resolve(lamp),
+  mug: () => Promise.resolve(mug),
+  headphones: () => Promise.resolve(headphones),
+  phone: () => Promise.resolve(phone),
+  plant: () => Promise.resolve(plant),
   'letter-n': () => Promise.resolve(letterN),
   'letter-i': () => Promise.resolve(letterI),
   'letter-h': () => Promise.resolve(letterH),

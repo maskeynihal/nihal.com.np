@@ -39,3 +39,30 @@ export function readToken(name: TokenName): string {
 
 /** Window event the theme toggle dispatches after changing `data-theme` (`detail.theme`). */
 export const THEME_EVENT = 'nihal:theme';
+
+/**
+ * The site's motion tokens (`--ease-out`, `--ease-in-out` and the 160 / 240 / 360 ms durations in
+ * `styles/tokens.css`), for the code that animates in JS: hover, reactions, the calm transitions.
+ */
+export const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+export const EASE_IN_OUT = 'cubic-bezier(0.65, 0, 0.35, 1)';
+export const DURATION_FAST = 160;
+export const DURATION_BASE = 240;
+export const DURATION_SLOW = 360;
+
+/** The ease-out curve as a function of progress 0..1 (what `EASE_OUT` draws). Pure. */
+export function easeOut(u: number): number {
+  const x = Math.min(Math.max(u, 0), 1);
+  // cubic-bezier(0.22, 1, 0.36, 1) solved for x by bisection, y read off
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const t = (lo + hi) / 2;
+    const bx =
+      3 * (1 - t) * (1 - t) * t * 0.22 + 3 * (1 - t) * t * t * 0.36 + t * t * t;
+    if (bx < x) lo = t;
+    else hi = t;
+  }
+  const t = (lo + hi) / 2;
+  return 3 * (1 - t) * (1 - t) * t + 3 * (1 - t) * t * t + t * t * t;
+}

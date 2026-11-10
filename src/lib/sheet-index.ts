@@ -31,6 +31,9 @@ export function progressOf(
   return max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
 }
 
+/** Heading arrival animation window; at least the --dur-2 token in tokens.css (240 ms). */
+const ARRIVE_MS = 300;
+
 /** Eased scroll: 450 ms for short hops, growing with distance, never past 700 ms. */
 export function scrollDuration(distance: number): number {
   const d = Math.abs(distance);
@@ -67,8 +70,41 @@ export function initSheetIndex(nav: HTMLElement): void {
     return -1;
   };
 
+  // Sliding marker: one absolutely placed block that glides to the current row. CSS animates the
+  // custom properties' effect (transform, width, height); with no JS the link keeps its own fill.
+  const marker = nav.querySelector<HTMLElement>('.sheet-index-marker');
+  let shownNow = -1;
+  const place = (animate: boolean) => {
+    if (!marker) return;
+    const a = shownNow >= 0 ? links[shownNow] : undefined;
+    if (!a) {
+      marker.dataset['on'] = 'false';
+      return;
+    }
+    const n = nav.getBoundingClientRect();
+    const r = a.getBoundingClientRect();
+    if (!r.width) return;
+    if (!animate) marker.dataset['snap'] = '';
+    marker.style.setProperty('--mx', `${(r.left - n.left).toFixed(1)}px`);
+    marker.style.setProperty('--my', `${(r.top - n.top).toFixed(1)}px`);
+    marker.style.setProperty('--mw', `${r.width.toFixed(1)}px`);
+    marker.style.setProperty('--mh', `${r.height.toFixed(1)}px`);
+    marker.dataset['on'] = 'true';
+    nav.dataset['marker'] = '';
+    if (!animate)
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => delete marker.dataset['snap']),
+      );
+  };
+  const replace = () => place(false);
+  window.addEventListener('resize', replace, { passive: true });
+  document.fonts?.ready.then(replace);
+
   const mark = () => {
     const shown = shownRow(current);
+    const first = shownNow === -1;
+    shownNow = shown;
+    place(!first);
     links.forEach((a, n) => {
       if (n === shown) a.setAttribute('aria-current', 'location');
       else a.removeAttribute('aria-current');
@@ -165,7 +201,10 @@ export function initSheetIndex(nav: HTMLElement): void {
       heading.removeAttribute('data-arrive');
       void heading.offsetWidth; // restart the animation on a repeat click
       heading.setAttribute('data-arrive', '');
-      window.setTimeout(() => heading.removeAttribute('data-arrive'), 300);
+      window.setTimeout(
+        () => heading.removeAttribute('data-arrive'),
+        ARRIVE_MS,
+      );
     }
   };
 
@@ -230,7 +269,9 @@ export function initSheetIndex(nav: HTMLElement): void {
     raf = requestAnimationFrame(step);
   };
 
-  nav.addEventListener('click', (e) => {
+  // Index rows and any link marked `data-glide` (the title block's "see the projects") share the
+  // eased scroll. A link whose target has no index row still glides; only the highlight is skipped.
+  document.addEventListener('click', (e) => {
     if (
       e.defaultPrevented ||
       e.button !== 0 ||
@@ -242,11 +283,12 @@ export function initSheetIndex(nav: HTMLElement): void {
     )
       return;
     const link = (e.target as Element).closest<HTMLAnchorElement>(
-      'a[href^="#"]',
+      '.sheet-index a[href^="#"], a[data-glide][href^="#"]',
     );
-    const index = link ? links.indexOf(link) : -1;
-    const el = index >= 0 ? targets[index] : null;
-    if (!link || !el) return;
+    if (!link) return;
+    const el = document.getElementById(link.hash.slice(1));
+    if (!el) return;
+    const index = links.findIndex((a) => a.hash === link.hash);
     e.preventDefault();
     glide(index, el, link.hash);
   });

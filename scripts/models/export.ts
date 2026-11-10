@@ -16,6 +16,66 @@ import type { ModelParts } from './models';
 
 const MODE_LINES = 1;
 
+/**
+ * The JSON chunk is more than half of a small GLB: float32 numbers are written with their full
+ * double expansion (`0.20999999344348907` for 0.21). Rewrite the chunk with 8 significant digits
+ * (the same float32 when read back) and without the generator string, and keep the layout valid.
+ */
+function slimJson(glb: Uint8Array): Uint8Array {
+  const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+  const jsonLen = view.getUint32(12, true);
+  const json = JSON.parse(
+    new TextDecoder().decode(glb.subarray(20, 20 + jsonLen)),
+  ) as Record<string, unknown>;
+  const round = (v: unknown): unknown => {
+    if (typeof v === 'number')
+      return Number.isInteger(v) ? v : Number(v.toPrecision(8));
+    if (Array.isArray(v)) return v.map(round);
+    if (v && typeof v === 'object')
+      return Object.fromEntries(
+        Object.entries(v).map(([k, x]) => [k, round(x)]),
+      );
+    return v;
+  };
+  const slim = round(json) as {
+    asset?: { generator?: string };
+    accessors?: { normalized?: boolean; byteOffset?: number }[];
+    bufferViews?: {
+      byteOffset?: number;
+      extensions?: { EXT_meshopt_compression?: { byteOffset?: number } };
+    }[];
+    meshes?: { primitives?: { mode?: number; extras?: unknown }[] }[];
+  };
+  if (slim.asset) delete slim.asset.generator;
+  // spec defaults need not be written
+  for (const a of slim.accessors ?? []) {
+    if (a.normalized === false) delete a.normalized;
+    if (a.byteOffset === 0) delete a.byteOffset;
+  }
+  for (const b of slim.bufferViews ?? []) {
+    if (b.byteOffset === 0) delete b.byteOffset;
+    const m = b.extensions?.EXT_meshopt_compression;
+    if (m?.byteOffset === 0) delete m.byteOffset;
+  }
+  for (const m of slim.meshes ?? [])
+    for (const p of m.primitives ?? []) {
+      if (p.mode === 4) delete p.mode;
+      delete p.extras;
+    }
+  const text = new TextEncoder().encode(JSON.stringify(slim));
+  const padded = Math.ceil(text.length / 4) * 4;
+  const rest = glb.subarray(20 + jsonLen);
+  const out = new Uint8Array(20 + padded + rest.length);
+  out.set(glb.subarray(0, 20));
+  out.fill(0x20, 20, 20 + padded);
+  out.set(text, 20);
+  out.set(rest, 20 + padded);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(8, out.length, true);
+  dv.setUint32(12, padded, true);
+  return out;
+}
+
 export async function modelToGlb(
   name: string,
   mp: ModelParts,
@@ -64,6 +124,7 @@ export async function modelToGlb(
     doc.createNode('body').setMesh(meshOf(`${name}-body`, mp.body)),
   );
   for (const n of mp.nodes) {
+    if (n.posterOnly) continue;
     const pivot = doc.createNode(n.name).setTranslation(n.origin);
     pivot.addChild(
       doc
@@ -81,5 +142,5 @@ export async function modelToGlb(
     .registerDependencies({
       'meshopt.encoder': MeshoptEncoder,
     });
-  return io.writeBinary(doc);
+  return slimJson(await io.writeBinary(doc));
 }

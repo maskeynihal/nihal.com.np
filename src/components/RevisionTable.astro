@@ -2,20 +2,30 @@
 import type { PR } from '../content/schema';
 import { isDatetime } from '../lib/dates';
 import { getCopy } from '../content';
+import '../styles/projects.css';
 
 /**
  * The open-source ledger as a revision table: repo, what, merged. A real `<table>` named by the
- * section heading. Month values become `<time datetime>`; ranges and bare years stay text.
+ * heading above it. One row per repo. Month values become `<time datetime>`; ranges and bare
+ * years stay text. `own` tables (my projects) say "since" in the last column, not "merged".
  */
 interface Props {
   rows: PR[];
+  kind?: PR['kind'];
+  /** id of the heading that names this table. */
+  labelledby?: string;
 }
-const { rows } = Astro.props;
+const {
+  rows,
+  kind = 'contribution',
+  labelledby = 'open-source-heading',
+} = Astro.props;
 const { openSource } = getCopy();
-const [repo, what, merged] = openSource.columns;
+const [repo, what, mergedLabel] = openSource.columns;
+const merged = kind === 'own' ? openSource.since : mergedLabel;
 ---
 
-<table class="revision-table" aria-labelledby="open-source-heading">
+<table class="revision-table" aria-labelledby={labelledby}>
   <thead>
     <tr>
       <th scope="col">{repo}</th>

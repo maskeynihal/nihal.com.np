@@ -9,7 +9,12 @@ import type { ObjectDef } from '../../lib/desk/object-def';
  *  - `obj`:  the group at the object's home pose (local to the table while `free` is false).
  *  - `pivot`: a group between `obj` and the model root. The scroll spring (D3) moves only this, and
  *    it is zero for anything held, moving or free, so a body, a handoff and a pick never see it.
- *  - `lift`: the model root inside `pivot`. Hover lift (4 mm) moves only this, never the body.
+ *  - `fx`: a group between `pivot` and `lift`. A reaction (a hop, a buzz, the mug raised to the
+ *    sitter's mouth) moves only this, so it never fights the scroll spring or a body.
+ *  - `lift`: the model root inside `fx`. Hover lift (4 mm, or a 2 % swell for furniture) moves only this.
+ *  - `fixed`: furniture (the chair, the developer, the monitor, the keyboard, the mouse, the lamp):
+ *    picked, hovered and tapped like the rest but never given a body, never thrown. `all()` leaves
+ *    it out (the physics layer and the scroll spring ask for bodies); `pickable()` has everything.
  *  - `free`: the object has left the table and lives in the fall layer (its own canvas).
  */
 export interface RegistryEntry {
@@ -17,7 +22,9 @@ export interface RegistryEntry {
   def: ObjectDef;
   obj: Object3D;
   pivot: Object3D;
+  fx: Object3D;
   lift: Object3D;
+  fixed: boolean;
   free: boolean;
 }
 
@@ -38,7 +45,10 @@ export const registry = {
     };
   },
   get: (id: string): RegistryEntry | undefined => entries.get(id),
-  all: (): RegistryEntry[] => [...entries.values()],
+  /** Every entry that has a body: the loose objects. */
+  all: (): RegistryEntry[] => [...entries.values()].filter((e) => !e.fixed),
+  /** Everything that can be hovered and tapped: the loose objects and the furniture. */
+  pickable: (): RegistryEntry[] => [...entries.values()],
   /** Marks an object free or back on the table; listeners hear about it. */
   setFree(id: string, free: boolean): void {
     const e = entries.get(id);

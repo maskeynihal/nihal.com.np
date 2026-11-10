@@ -16,25 +16,48 @@ export const Link = z.strictObject({ label: text, href: url });
 export const WORK_IDS = [
   'trayt',
   'tz-converter',
+  'sprintnudge',
+  'underhood',
   'space-hog',
   'car-sensors',
   'pac-man',
 ] as const;
 
+/** Project cards are grouped; a group with no visible card is not drawn. */
+export const WORK_GROUPS = ['client', 'products', 'hardware-games'] as const;
+
+export const WorkGroup = z.strictObject({
+  id: z.enum(WORK_GROUPS),
+  title: text,
+  note: text,
+});
+
 export const WorkItem = z.strictObject({
   id: z.enum(WORK_IDS),
+  group: z.enum(WORK_GROUPS),
   title: text,
   dateLine: text,
+  /** Platform or where it runs; shown inside the card's details. */
   meta: text,
+  /** One or two lines, always visible on the card. */
+  summary: text,
+  /** Short stack and platform chips under the summary. */
+  tags: z.array(text).min(1),
+  /** Primary call to action: the project's own site when it has one, otherwise its repo. */
+  cta: Link.optional(),
+  /** The longer description, collapsed by default (still in the HTML). */
   body: z.array(text).min(1),
   frameNote: text.optional(),
   /** A playable embed (B-08): the cross-origin game page, also linked directly. */
   arcade: z.strictObject({ href: url }).optional(),
+  /** Secondary links (store listings, repo, write-up). */
   links: z.array(Link),
   confirmed: z.boolean(),
 });
 
 export const PR = z.strictObject({
+  /** `own`: a public project of mine. `contribution`: work merged into someone else's repo. */
+  kind: z.enum(['own', 'contribution']),
   repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
   what: text,
   merged: text,
@@ -92,8 +115,6 @@ export const BodyDef = z.strictObject({
     'ghost',
     'cruiser',
     'laptop',
-    'ball-s',
-    'ball-m',
     'ball-l',
     'pacman-1',
     'pacman-2',
@@ -102,6 +123,17 @@ export const BodyDef = z.strictObject({
     'letter-h',
     'letter-a',
     'letter-l',
+    'chair',
+    'drawer',
+    'dev',
+    'monitor',
+    'keyboard',
+    'mouse',
+    'lamp',
+    'mug',
+    'headphones',
+    'phone',
+    'plant',
   ]),
   model: text,
   home: z.strictObject({
@@ -121,6 +153,8 @@ export const BodyDef = z.strictObject({
     .regex(SECTION_TARGET, 'target must be a section id')
     .optional(),
   label: text,
+  /** What a tap does when it is not a link: the words for the keyboard path (a button in the object list). */
+  act: text.optional(),
   confirmed: z.boolean(),
 });
 
@@ -150,8 +184,6 @@ export const Copy = z.strictObject({
     line: text,
     email: z.email(),
     timeLabel: text,
-    /** Template; {rev} is the build month as YYYY.MM. */
-    revLine: text,
     /** Second action next to the email: link to #projects. */
     seeProjects: text,
     reset: text,
@@ -178,9 +210,16 @@ export const Copy = z.strictObject({
     play: text,
     leave: text,
     openNewTab: text,
+    more: text,
+    stack: text,
+    scrollLeft: text,
+    scrollRight: text,
   }),
   openSource: z.strictObject({
     columns: z.tuple([text, text, text]),
+    since: text,
+    ownHeading: text,
+    contribHeading: text,
   }),
   writing: z.strictObject({ intro: text, all: text, allHref: url }),
   cv: z.strictObject({
@@ -233,6 +272,10 @@ export const Copy = z.strictObject({
     body: text,
     back: text,
   }),
+  desk: z.strictObject({
+    hint: text,
+    dismiss: text,
+  }),
   status: z.strictObject({
     loading: text,
     off: text,
@@ -257,6 +300,7 @@ export const GithubData = z.strictObject({
 
 export type Link = z.infer<typeof Link>;
 export type WorkItem = z.infer<typeof WorkItem>;
+export type WorkGroup = z.infer<typeof WorkGroup>;
 export type PR = z.infer<typeof PR>;
 export type Post = z.infer<typeof Post>;
 export type CvRow = z.infer<typeof CvRow>;
@@ -266,8 +310,14 @@ export type Holiday = z.infer<typeof Holiday>;
 export type Copy = z.infer<typeof Copy>;
 export type GithubData = z.infer<typeof GithubData>;
 
-export const WorkList = z.array(WorkItem).length(5);
-export const PRList = z.array(PR);
+export const WorkList = z.array(WorkItem).length(7);
+export const PRList = z
+  .array(PR)
+  .refine(
+    (rows) =>
+      new Set(rows.map((r) => `${r.kind}:${r.repo}`)).size === rows.length,
+    { message: 'one row per repo' },
+  );
 export const PostList = z.array(Post);
 export const CvList = z.array(CvRow);
 export const ClockList = z.array(ClockDef).length(3);

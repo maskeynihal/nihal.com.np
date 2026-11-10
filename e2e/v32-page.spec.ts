@@ -32,7 +32,7 @@ test.describe('v3.2 page: footer, section art, cv ticks, index scroll @P', () =>
   test('the hero sentence is the owner text @P8', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.title-block-line')).toHaveText(
-      'Lead engineer at Leapfrog Technology. I lead the team building a US behavioural-health platform on AWS, under HIPAA and SOC 2. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
+      'Lead engineer at Leapfrog Technology. I lead the team that designs and ships health-tech software, from architecture to production. Co-founder of Daboo Spaces, a coworking space in Kathmandu.',
     );
   });
 

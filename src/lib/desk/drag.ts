@@ -23,10 +23,10 @@ export const FOLLOW = 0.14;
 export const LIFT = 0.06;
 /** Tilt limit while dragging, 25 degrees in radians. */
 export const MAX_TILT = (25 * Math.PI) / 180;
-/** The table (sheet) is 1.6 x 1.2 m and has no walls: past this rim an object falls. */
-export const TABLE_HALF = { x: 0.8, z: 0.6 } as const;
+/** The table (sheet) is 2.0 x 1.2 m and has no walls: past this rim an object falls. */
+export const TABLE_HALF = { x: 1.0, z: 0.6 } as const;
 /** How far a dragged object may be carried: the area the canvas shows around the table. */
-export const DRAG_HALF = { x: 1.1, zMin: -0.8, zMax: 0.95 } as const;
+export const DRAG_HALF = { x: 1.35, zMin: -0.8, zMax: 0.95 } as const;
 /** Only the last RING samples within RING_WINDOW_MS count towards a throw. */
 const RING = 5;
 const RING_WINDOW_MS = 100;

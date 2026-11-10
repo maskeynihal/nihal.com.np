@@ -70,8 +70,6 @@ const HEAVY: Feel = {
 };
 
 const byModel: Record<string, Feel> = {
-  'ball-s': { ...BALL, restitution: 0.68 },
-  'ball-m': BALL,
   'ball-l': { ...BALL, restitution: 0.55 },
   // A standing disc on a round collider: rolls, but less livelily than a ball.
   pacman: {
@@ -81,21 +79,27 @@ const byModel: Record<string, Feel> = {
     angularDamping: 3,
   },
   ghost: {
-    restitution: 0.2,
+    restitution: 0.34,
     friction: 0.7,
     linearDamping: 0.3,
     angularDamping: 3,
   },
-  laptop: { ...HEAVY, restitution: 0.02, friction: 0.95 },
-  arduino: { ...HEAVY, restitution: 0.03 },
-  clock: { ...HEAVY, restitution: 0.03 },
-  calendar: { ...HEAVY, restitution: 0.03 },
-  cruiser: { ...HEAVY, restitution: 0.05, friction: 0.7 },
-  'letter-n': { ...HEAVY, restitution: 0.03 },
-  'letter-i': { ...HEAVY, restitution: 0.03 },
-  'letter-h': { ...HEAVY, restitution: 0.03 },
-  'letter-a': { ...HEAVY, restitution: 0.03 },
-  'letter-l': { ...HEAVY, restitution: 0.03 },
+  // Things bounce a little and lose most of it each time: the laptop and the pot barely, the
+  // phone, headphones and mug a hop or two, the clock and the board a little more. Nothing stops dead.
+  laptop: { ...HEAVY, restitution: 0.08, friction: 0.95 },
+  mug: { ...HEAVY, restitution: 0.2, friction: 0.8 },
+  headphones: { ...HEAVY, restitution: 0.26, friction: 0.85 },
+  phone: { ...HEAVY, restitution: 0.3, friction: 0.9 },
+  plant: { ...HEAVY, restitution: 0.1, friction: 0.9 },
+  arduino: { ...HEAVY, restitution: 0.2 },
+  clock: { ...HEAVY, restitution: 0.24 },
+  calendar: { ...HEAVY, restitution: 0.16 },
+  cruiser: { ...HEAVY, restitution: 0.25, friction: 0.7 },
+  'letter-n': { ...HEAVY, restitution: 0.18 },
+  'letter-i': { ...HEAVY, restitution: 0.18 },
+  'letter-h': { ...HEAVY, restitution: 0.18 },
+  'letter-a': { ...HEAVY, restitution: 0.18 },
+  'letter-l': { ...HEAVY, restitution: 0.18 },
 };
 
 export function feelFor(model: string): Feel {

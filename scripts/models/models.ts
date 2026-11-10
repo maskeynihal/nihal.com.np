@@ -7,6 +7,23 @@
  * OLED screen) that the runtime rotates or textures. Each named node has its origin at its pivot,
  * so rotating it needs no other bookkeeping. Creases are authored per part, never by angle.
  */
+import { Matrix4, Quaternion, Vector3 } from 'three';
+import {
+  FLOOR_Y,
+  HAND_OFFSET,
+  HAND_R,
+  ankleAt,
+  hipAt,
+  kneeAt,
+  HEAD_OFFSET,
+  HIP,
+  LEAN,
+  NECK_H,
+  SEAT_TOP,
+  TORSO_H,
+  neckAt,
+  restArm,
+} from '../../src/lib/desk/rig';
 import {
   ball,
   bar,
@@ -24,9 +41,10 @@ import {
   roundedFloor,
   roundedRect,
   torus,
+  transform,
   translate,
+  dome,
   emptyPart,
-  floor,
   type Part,
   type Vec3,
 } from './geom';
@@ -38,6 +56,8 @@ export interface NodeDef {
   part: Part;
   /** Rotation about Y (radians) applied only when drawing the poster; the GLB node stays at identity. */
   posterYaw?: number;
+  /** Drawn on the poster only (not in the GLB): something the Scene draws itself, such as the laptop's cable. */
+  posterOnly?: boolean;
 }
 
 export interface ModelParts {
@@ -61,6 +81,7 @@ export function flatten(mp: ModelParts, posed: boolean): Part {
   const out = emptyPart();
   merge(out, mp.body);
   for (const n of mp.nodes) {
+    if (n.posterOnly && !posed) continue;
     const p = posed && n.posterYaw ? rotateY(n.part, n.posterYaw) : n.part;
     merge(out, translate(p, n.origin));
   }
@@ -81,7 +102,7 @@ function def(
   };
 }
 
-export const SHEET_SIZE = { w: 1.6, d: 1.2 } as const;
+export const SHEET_SIZE = { w: 2.0, d: 1.2 } as const;
 
 /** Lift for authored lines that sit on a surface, so they never z-fight with it. */
 const LIFT = 0.0003;
@@ -144,7 +165,7 @@ function sheet(): ModelParts {
   // grid: a small cross at each 0.2 m crossing, clear of the border (the pitch is a cost: every
   // cross is inline in both posters)
   const tick = 0.012;
-  for (let i = -3; i <= 3; i++)
+  for (let i = -4; i <= 4; i++)
     for (let j = -2; j <= 2; j++) {
       const x = i * 0.2;
       const z = j * 0.2;
@@ -170,11 +191,10 @@ function sheet(): ModelParts {
 }
 
 /**
- * The drafting table under the sheet: a thick board (rounded corners, same footprint as the
- * sheet), a pencil ledge along the front edge, a shallow drawer with a pull under the front, and
- * an A-frame trestle base (two side frames, a rung each, a foot bar, a rear stretcher and X
- * bracing between the front legs). Not an object: no collider, never picked. Everything is
- * below y = 0 except the ledge's lip, which stands 5 mm above it outside the board.
+ * The desk under the sheet: a thick board (rounded corners, same footprint as the sheet), a
+ * shallow drawer with a pull under the left front, and an A-frame trestle base (two side frames,
+ * a rung each and a rear stretcher; the front is open for the chair). Not an object: no collider,
+ * never picked. Everything is below y = 0.
  *
  * The board's own top face sits 2 mm below the sheet and hides what is under it (the rear legs);
  * its top edge is drawn by the sheet's outline, so no crease is authored there. The whole base
@@ -208,49 +228,17 @@ function table(): ModelParts {
   board.lines = lines;
   parts.push(board);
 
-  // Pencil ledge: a flat rail along the whole front edge with a lip, an L section run along x.
-  // u = -z, so the section is drawn with the front at the left.
-  const hz = SHEET_SIZE.d / 2;
-  const ledge = rotateY(
-    extrude(
-      [
-        [-hz, -0.014],
-        [-hz - 0.014, -0.014],
-        [-hz - 0.014, 0.005],
-        [-hz - 0.006, 0.005],
-        [-hz - 0.006, -0.006],
-        [-hz, -0.006],
-      ],
-      1.48,
-    ),
-    Math.PI / 2,
-  );
-  parts.push(ledge);
+  return { body: mergeAll(parts), nodes: [legs()] };
+}
 
-  // Drawer: a front panel just under the board's front edge, with a bar pull on two posts.
-  const dTop = BOARD_TOP - BOARD_THICK - 0.004;
-  const dBot = dTop - 0.07;
-  parts.push(
-    box({
-      c: [0, (dTop + dBot) / 2, hz + 0.009],
-      s: [0.72, dTop - dBot, 0.018],
-    }),
-    cylinder({
-      c: [0, (dTop + dBot) / 2, hz + 0.04],
-      radius: 0.007,
-      height: 0.12,
-      segments: 8,
-      axis: 'x',
-    }),
-  );
-  for (const x of [-0.05, 0.05])
-    parts.push(
-      box({ c: [x, (dTop + dBot) / 2, hz + 0.0265], s: [0.01, 0.012, 0.017] }),
-    );
-
-  // Trestle: two A-shaped side frames (front and rear leg meeting under a rail), joined by a foot
-  // bar, a rear stretcher and an X of braces between the front legs.
-  const XS = 0.64;
+/**
+ * The base of the desk: two A-shaped side frames (front and rear leg meeting under a rail), joined
+ * by a rung each and a rear stretcher (the front is open for the chair). The `legs` node has its
+ * pivot on the floor, so the Scene can stretch it upwards when the desk is raised for standing work.
+ */
+function legs(): NodeDef {
+  const parts: Part[] = [];
+  const XS = 0.84;
   const topY = BOARD_TOP - BOARD_THICK; // underside of the board
   const railY = topY - 0.05;
   const footY = -0.48;
@@ -274,15 +262,14 @@ function table(): ModelParts {
     const ry = -0.28;
     parts.push(bar([sx, ry, -legZ(ry)], [sx, ry, legZ(ry)], 0.03));
   }
-  const fy = -0.4;
+  // A rear stretcher only: the front stays open for the chair and the sitter's feet.
   const sy = -0.27;
-  parts.push(
-    bar([-XS, fy, legZ(fy)], [XS, fy, legZ(fy)], 0.035),
-    bar([-XS, sy, -legZ(sy)], [XS, sy, -legZ(sy)], 0.03),
-    bar([-XS, railY - 0.03, legZ(railY - 0.03)], [XS, fy, legZ(fy)], 0.022),
-    bar([XS, railY - 0.03, legZ(railY - 0.03)], [-XS, fy, legZ(fy)], 0.022),
-  );
-  return { body: mergeAll(parts), nodes: [] };
+  parts.push(bar([-XS, sy, -legZ(sy)], [XS, sy, -legZ(sy)], 0.03));
+  return {
+    name: 'legs',
+    origin: [0, FLOOR_Y, 0],
+    part: translate(mergeAll(parts), [0, -FLOOR_Y, 0]),
+  };
 }
 
 /** Header row: a box with pin-slot ticks across its top face. */
@@ -411,13 +398,13 @@ function clock(): ModelParts {
     [0.084, DIAL],
     [0, DIAL],
   ];
-  const parts: Part[] = [lathe([0, 0, 0], profile, 28)];
+  const parts: Part[] = [lathe([0, 0, 0], profile, 16)];
   parts[0]!.lines.push(
-    ...ringLines([0, 0.052, 0], 0.1, 28),
-    ...ringLines([0, 0.052, 0], 0.09, 28),
-    ...ringLines([0, DIAL, 0], 0.084, 28),
-    ...ringLines([0, 0.04, 0], 0.098, 28),
-    ...ringLines([0, FOOT, 0], 0.09, 28),
+    ...ringLines([0, 0.052, 0], 0.1, 16),
+    ...ringLines([0, 0.052, 0], 0.09, 16),
+    ...ringLines([0, DIAL, 0], 0.084, 16),
+    ...ringLines([0, 0.04, 0], 0.098, 16),
+    ...ringLines([0, FOOT, 0], 0.09, 16),
   );
   // feet
   for (const a of [
@@ -480,6 +467,19 @@ function clock(): ModelParts {
  * Standing desk calendar: plinth, back board, tear-off pad, ring binding. Fills 0.18 x 0.14 x 0.06.
  * Named node `face`: a +Z quad with UVs on the pad front, for the BS date text (aspect 0.13 : 0.075).
  */
+/** The face of the calendar: the textured quad, with a generic page drawn in front for the poster (hidden once the date is drawn). */
+function calendarFace(): Part {
+  const f = quad(0.13, 0.075);
+  const z = LIFT * 2;
+  f.lines.push(
+    ...rectZ(-0.02, 0.02, -0.012, 0.034, z),
+    ...lineSeg([-0.05, -0.027, z], [0.05, -0.027, z]),
+    ...lineSeg([-0.03, -0.034, z], [0.03, -0.034, z]),
+    ...lineSeg([-0.05, 0.03, z], [-0.03, 0.03, z]),
+  );
+  return f;
+}
+
 function calendar(): ModelParts {
   const parts: Part[] = [
     box({ c: [0, 0.006, 0], s: [0.18, 0.012, 0.056] }), // plinth
@@ -495,8 +495,8 @@ function calendar(): ModelParts {
         radius: 0.0085,
         tube: 0.0016,
         plane: 'x',
-        tubeSegments: 4,
-        ringSegments: 8,
+        tubeSegments: 3,
+        ringSegments: 6,
       }),
     );
   }
@@ -515,7 +515,7 @@ function calendar(): ModelParts {
       {
         name: 'face',
         origin: [0, 0.071, FRONT + LIFT * 3],
-        part: quad(0.13, 0.075),
+        part: calendarFace(),
       },
     ],
   };
@@ -529,7 +529,7 @@ function calendar(): ModelParts {
 function ghost(): ModelParts {
   const R = 0.088;
   const YC = 0.09; // head sphere centre
-  const N = 24; // around
+  const N = 18; // around
   const TEETH = 6;
   const hemY = (k: number) => 0.018 * Math.abs(2 * (((k * TEETH) / N) % 1) - 1);
   const p = emptyPart();
@@ -654,7 +654,7 @@ function cruiser(): ModelParts {
           c: [x, 0.026, z],
           radius: 0.026,
           height: 0.016,
-          segments: 12,
+          segments: 8,
           axis: 'z',
         }),
       );
@@ -673,7 +673,7 @@ function cruiser(): ModelParts {
       c: [-0.114, 0.074, 0],
       radius: 0.016,
       height: 0.008,
-      segments: 12,
+      segments: 8,
       axis: 'x',
     }),
   );
@@ -685,9 +685,6 @@ function cruiser(): ModelParts {
   }
   p.lines.push(...rectX(-0.036, 0.036, 0.068, 0.092, 0.0453));
   p.lines.push(...rectX(-0.036, 0.036, 0.068, 0.092, -0.0753));
-  for (const x of [-0.076, 0.076])
-    for (const z of [-0.0602, 0.0602])
-      p.lines.push(...ringLines([x, 0.026, z], 0.012, 10, 'z'));
   return { body: p, nodes: [] };
 }
 
@@ -696,6 +693,7 @@ function laptop(): ModelParts {
   const W = 0.28;
   const D = 0.19;
   const H = 0.012;
+  const RISE = 0.04; // the stand it sits on
   const base = box({ c: [0, H / 2, 0], s: [W, H, D] });
   const top = H + LIFT;
   // keyboard well: a rectangle, five key rows, eleven key columns
@@ -717,34 +715,24 @@ function laptop(): ModelParts {
   const lid = box({ c: [0, 0.09, 0], s: [W, 0.18, 0.006] });
   lid.lines.push(...rectZ(-0.126, 0.126, 0.012, 0.172, 0.003 + LIFT));
   const lean = translate(rotateX(lid, -0.314), [0, H, -D / 2]);
-  return { body: mergeAll([base, lean]), nodes: [] };
+  const lifted = translate(mergeAll([base, lean]), [0, RISE, 0]);
+  // a stand under the laptop (the cable to the monitor is drawn by the Scene, so the laptop can move)
+  const parts: Part[] = [
+    lifted,
+    box({ c: [0, RISE / 2, -0.02], s: [0.2, RISE, 0.1] }),
+  ];
+  return { body: mergeAll(parts), nodes: [] };
 }
 
 /** A beach-ball style sphere with an equator and two meridians. Rests on y = 0. */
 function ballModel(r: number): () => ModelParts {
   return () => {
-    const p = ball(r, 20, 12);
-    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'y'));
-    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'x'));
-    p.lines.push(...ringLines([0, r, 0], r + LIFT, 24, 'z'));
+    const p = ball(r, 14, 9);
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 16, 'y'));
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 16, 'x'));
+    p.lines.push(...ringLines([0, r, 0], r + LIFT, 16, 'z'));
     return { body: p, nodes: [] };
   };
-}
-
-/** Pac-Man: a disc with a 70 degree wedge cut out of its right side, standing, 0.04 m thick. */
-function pacman(): ModelParts {
-  const R = 0.06;
-  const half = (35 * Math.PI) / 180;
-  const steps = 16;
-  const pts: [number, number][] = [[0, R]];
-  for (let i = 0; i <= steps; i++) {
-    const a = half + (i / steps) * (2 * Math.PI - 2 * half);
-    pts.push([Math.cos(a) * R, R + Math.sin(a) * R]);
-  }
-  const p = extrude(pts, 0.04, { corners: [0, 1, pts.length - 1] });
-  for (const z of [-0.02 - LIFT, 0.02 + LIFT])
-    p.lines.push(...ringLines([0.01, R + 0.032, z], 0.005, 8, 'z'));
-  return { body: p, nodes: [] };
 }
 
 type P2 = [number, number];
@@ -818,18 +806,730 @@ const LETTERS: Record<string, () => ModelParts> = {
   ]),
 };
 
+// ---- the workstation -------------------------------------------------------------------------
+//
+// Furniture and the things on it. Local origin: the item's footprint centre on the desk top
+// (y = 0) for desk things; the chair axis for the chair and the developer (y = 0 is the desk top,
+// the floor is at FLOOR_Y). Everything faces +z (the front of the desk) unless it says otherwise.
+
+const v3 = (x: number, y: number, z: number): Vec3 => [x, y, z];
+
+/** A cylinder from `a` to `b` (end rings authored as creases, so every joint reads). */
+function limb(
+  a: Vec3,
+  b: Vec3,
+  radius: number,
+  segments = 8,
+  rings = true,
+): Part {
+  const dir = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const length = dir.length();
+  const part = cylinder({
+    c: [0, 0, 0],
+    radius,
+    height: length,
+    segments,
+    rings,
+  });
+  const q = new Quaternion().setFromUnitVectors(
+    new Vector3(0, 1, 0),
+    dir.normalize(),
+  );
+  return transform(
+    part,
+    new Matrix4().compose(
+      new Vector3((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2),
+      q,
+      new Vector3(1, 1, 1),
+    ),
+  );
+}
+
+/** A sphere centred at `c`. */
+const sphereAt = (c: Vec3, r: number, segments: number, rings: number): Part =>
+  translate(ball(r, segments, rings), [c[0], c[1] - r, c[2]]);
+
+/** `part` rotated about the x axis through `pivot` (radians; positive tips +y towards +z). */
+const rotXAbout = (part: Part, pivot: Vec3, a: number): Part =>
+  transform(
+    part,
+    new Matrix4()
+      .makeTranslation(pivot[0], pivot[1], pivot[2])
+      .multiply(new Matrix4().makeRotationX(a))
+      .multiply(new Matrix4().makeTranslation(-pivot[0], -pivot[1], -pivot[2])),
+  );
+
+/** A node whose geometry is given in model coordinates: stored relative to its pivot. */
+const nodeAt = (
+  name: string,
+  origin: Vec3,
+  world: Part,
+  extra: Partial<NodeDef> = {},
+): NodeDef => ({
+  name,
+  origin,
+  part: translate(world, [-origin[0], -origin[1], -origin[2]]),
+  ...extra,
+});
+
+/** The torso's lean about the hip, applied to a part drawn upright. */
+const leanPart = (part: Part): Part =>
+  transform(
+    part,
+    new Matrix4()
+      .makeTranslation(HIP[0], HIP[1], HIP[2])
+      .multiply(new Matrix4().makeRotationX(-LEAN))
+      .multiply(new Matrix4().makeTranslation(-HIP[0], -HIP[1], -HIP[2])),
+  );
+
+/**
+ * The drawer under the left front of the desk, and the handset at the right front edge that sets
+ * the desk's height. The `tray` node (front panel, pull, box) slides out towards +z; the items
+ * (`card`, `duck`) ride in it and are shown one at a time by the Scene. The handset is a
+ * housing on the right front edge (a tap there, x > 0.5, is the handset). Origin: the desk centre.
+ */
+function deskKit(): ModelParts {
+  const hz = SHEET_SIZE.d / 2;
+  const dTop = BOARD_TOP - BOARD_THICK - 0.004;
+  const dBot = dTop - 0.07;
+  const dx = -0.5;
+  const mid = (dTop + dBot) / 2;
+  const tray = mergeAll([
+    box({ c: [dx, mid, hz + 0.009], s: [0.46, dTop - dBot, 0.018] }),
+    cylinder({
+      c: [dx, mid, hz + 0.04],
+      radius: 0.007,
+      height: 0.12,
+      segments: 6,
+      axis: 'x',
+    }),
+    box({
+      c: [dx - 0.05, mid, hz + 0.0265],
+      s: [0.01, 0.012, 0.017],
+      edges: false,
+    }),
+    box({
+      c: [dx + 0.05, mid, hz + 0.0265],
+      s: [0.01, 0.012, 0.017],
+      edges: false,
+    }),
+    box({ c: [dx, dBot + 0.004, hz - 0.225], s: [0.42, 0.008, 0.45] }),
+    box({ c: [dx - 0.206, dBot + 0.034, hz - 0.225], s: [0.008, 0.06, 0.45] }),
+    box({ c: [dx + 0.206, dBot + 0.034, hz - 0.225], s: [0.008, 0.06, 0.45] }),
+    box({ c: [dx, dBot + 0.034, hz - 0.45], s: [0.42, 0.06, 0.008] }),
+  ]);
+  const floorY = dBot + 0.008 + LIFT;
+  const at: Vec3 = [dx, floorY, hz - 0.17];
+  const card = rotateX(quad(0.13, 0.08), -Math.PI / 2);
+  const duck = mergeAll([
+    sphereAt([0, 0.03, 0], 0.03, 8, 6),
+    sphereAt([0, 0.07, 0.02], 0.02, 6, 4),
+    box({ c: [0, 0.068, 0.042], s: [0.02, 0.008, 0.02], edges: false }),
+  ]);
+  // the handset's pad, on its housing: two arrows for up and down
+  const housing = box({ c: [0.92, 0.012, 0.5], s: [0.1, 0.024, 0.05] });
+  housing.lines.push(
+    ...lineSeg([0.895, 0.024 + LIFT, 0.51], [0.905, 0.024 + LIFT, 0.49]),
+    ...lineSeg([0.905, 0.024 + LIFT, 0.49], [0.915, 0.024 + LIFT, 0.51]),
+    ...lineSeg([0.925, 0.024 + LIFT, 0.49], [0.935, 0.024 + LIFT, 0.51]),
+    ...lineSeg([0.935, 0.024 + LIFT, 0.51], [0.945, 0.024 + LIFT, 0.49]),
+  );
+  return {
+    body: housing,
+    nodes: [
+      nodeAt('tray', [dx, 0, hz], tray),
+      { name: 'card', origin: at, part: card },
+      { name: 'duck', origin: at, part: duck },
+    ],
+  };
+}
+
+/** The chair: a five-star base on casters and a gas column (the body), and a `swivel` node (seat, back, arms). */
+function chair(): ModelParts {
+  const parts: Part[] = [];
+  parts.push(
+    cylinder({ c: [0, -0.33, 0], radius: 0.022, height: 0.25, segments: 6 }),
+    cylinder({ c: [0, -0.455, 0], radius: 0.04, height: 0.04, segments: 8 }),
+  );
+  const R = 0.24;
+  for (let k = 0; k < 5; k++) {
+    const a = ((k * 72 + 36) * Math.PI) / 180;
+    const x = Math.sin(a) * R;
+    const z = Math.cos(a) * R;
+    parts.push(
+      bar([0, -0.46, 0], [x, -0.482, z], 0.026, false),
+      box({ c: [x, -0.49, z], s: [0.035, 0.02, 0.035], edges: false }),
+    );
+  }
+  const SW: Vec3 = [0, -0.21, 0];
+  const sw: Part[] = [];
+  sw.push(
+    translate(
+      rotateX(
+        extrude(roundedRect(0.36, 0.34, 0.06, 1), 0.055, { corners: [] }),
+        -Math.PI / 2,
+      ),
+      [0, SEAT_TOP - 0.0275, 0.02],
+    ),
+    box({ c: [0, -0.245, 0], s: [0.14, 0.018, 0.14] }),
+    bar([0, -0.215, 0.15], [0, -0.1, 0.205], 0.028, false),
+  );
+  const back = translate(
+    extrude(roundedRect(0.34, 0.34, 0.07, 1), 0.04, { corners: [] }),
+    [0, SEAT_TOP + 0.04 + 0.17, 0.215],
+  );
+  sw.push(rotXAbout(back, [0, SEAT_TOP + 0.04, 0.215], 0.14));
+  for (const sx of [-0.2, 0.2])
+    sw.push(
+      bar([sx, -0.2, 0.02], [sx, -0.065, 0.02], 0.02, false),
+      box({ c: [sx, -0.052, 0.0], s: [0.05, 0.022, 0.22] }),
+    );
+  return {
+    body: mergeAll(parts),
+    nodes: [nodeAt('swivel', SW, mergeAll(sw))],
+  };
+}
+
+/**
+ * The developer, seated, in the typing pose (this is the pose the poster shows). Flat pivots, all
+ * with their origin at the joint in the chair frame: `torso` (about the hip) and `head` (about the
+ * neck), and per arm `upper-*` (shoulder) and
+ * `fore-*` (elbow, with the hand). The Scene rebuilds the chain shoulder > elbow with `attach`,
+ * which keeps the world pose. The body holds the legs.
+ */
+function developer(): ModelParts {
+  const body: Part[] = [];
+
+  // torso, drawn upright and then leaned about the hip: a flannel overshirt, boxy and dropped at the
+  // shoulder, worn open over a tee
+  const cy = HIP[1] + 0.17;
+  const torsoParts: Part[] = [
+    translate(
+      extrude(
+        [
+          [-0.15, -0.19],
+          [0.15, -0.19],
+          [0.15, -0.04],
+          [0.168, 0.1],
+          [0.17, 0.15],
+          [0.105, 0.195],
+          [-0.105, 0.195],
+          [-0.17, 0.15],
+          [-0.168, 0.1],
+          [-0.15, -0.04],
+        ],
+        0.175,
+        { corners: [] },
+      ),
+      [0, cy, HIP[2]],
+    ),
+    limb(
+      v3(0, HIP[1] + TORSO_H - 0.02, HIP[2]),
+      v3(0, HIP[1] + NECK_H, HIP[2]),
+      0.034,
+      6,
+    ),
+  ];
+  const torso = mergeAll(torsoParts);
+  const zf = HIP[2] - 0.0875 - LIFT;
+  const zb = HIP[2] + 0.0875 + LIFT;
+  const top = HIP[1] + TORSO_H;
+  // back: a yoke and a plaid (three bands, three stripes); front: the open placket over the tee,
+  // a chest pocket and the tee's round neck
+  for (const y of [0.02, 0.09, 0.16])
+    torso.lines.push(
+      ...lineSeg([-0.15, HIP[1] + y, zb], [0.15, HIP[1] + y, zb]),
+    );
+  for (const x of [-0.08, 0, 0.08])
+    torso.lines.push(
+      ...lineSeg([x, HIP[1] + 0.0, zb], [x, HIP[1] + 0.195 + 0.01, zb]),
+    );
+  torso.lines.push(
+    ...lineSeg([-0.16, top - 0.07, zb], [0.16, top - 0.07, zb]),
+    ...lineSeg([-0.05, HIP[1] - 0.02, zf], [-0.05, top - 0.02, zf]),
+    ...lineSeg([0.05, HIP[1] - 0.02, zf], [0.05, top - 0.02, zf]),
+    ...rectZ(0.07, 0.125, HIP[1] + 0.2, HIP[1] + 0.25, zf),
+    ...ringLines([0, top - 0.005, HIP[2]], 0.05, 8, 'y'),
+  );
+  const torsoNode = nodeAt('torso', HIP, leanPart(torso));
+
+  // head: a longer face with a jaw, ears, a nose; short textured hair with a side part;
+  // thin rectangular glasses
+  const neck = neckAt();
+  const hc = v3(
+    neck[0] + HEAD_OFFSET[0],
+    neck[1] + HEAD_OFFSET[1],
+    neck[2] + HEAD_OFFSET[2],
+  );
+  const skull: [number, number][] = [
+    [0, -0.108],
+    [0.024, -0.106],
+    [0.047, -0.098],
+    [0.067, -0.082],
+    [0.079, -0.055],
+    [0.086, -0.02],
+    [0.088, 0.02],
+    [0.084, 0.055],
+    [0.07, 0.088],
+    [0.045, 0.108],
+    [0.02, 0.116],
+    [0, 0.118],
+  ];
+  /** The skull's radius at height y (a hair of interpolation). */
+  const rAt = (y: number): number => {
+    for (let i = 1; i < skull.length; i++) {
+      const p0 = skull[i - 1]!;
+      const p1 = skull[i]!;
+      if (y <= p1[1]) {
+        const u = (y - p0[1]) / (p1[1] - p0[1] || 1);
+        return p0[0] + (p1[0] - p0[0]) * Math.min(Math.max(u, 0), 1);
+      }
+    }
+    return 0;
+  };
+  const hair = dome({
+    c: [hc[0], hc[1] + 0.03, hc[2] + 0.014],
+    radius: 0.096,
+    widthSegments: 10,
+    heightSegments: 3,
+  });
+  const head = mergeAll([
+    lathe(hc, skull, 10),
+    hair,
+    // ears and a nose
+    box({
+      c: [-0.092, hc[1] - 0.004, hc[2] + 0.008],
+      s: [0.014, 0.034, 0.022],
+      edges: false,
+    }),
+    box({
+      c: [0.092, hc[1] - 0.004, hc[2] + 0.008],
+      s: [0.014, 0.034, 0.022],
+      edges: false,
+    }),
+    box({
+      c: [0, hc[1] - 0.02, hc[2] - 0.087],
+      s: [0.012, 0.028, 0.016],
+      edges: false,
+    }),
+  ]);
+  /** A point on the face, a hair in front of the surface. */
+  const onFace = (x: number, y: number, out = 0.0008): Vec3 => [
+    hc[0] + x,
+    hc[1] + y,
+    hc[2] - Math.sqrt(Math.max(rAt(y) ** 2 - x * x, 0)) - out,
+  ];
+  // hair: a side part and a few strokes, so it reads as cut, not as a cap
+  const hairAt = (th: number, phi: number, k = 1.0): Vec3 => [
+    hc[0] + 0.0966 * k * Math.sin(th) * Math.sin(phi),
+    hc[1] + 0.03 + 0.0966 * k * Math.cos(th),
+    hc[2] + 0.014 + 0.0966 * k * Math.sin(th) * Math.cos(phi),
+  ];
+  head.lines.push(
+    ...ringLines([hc[0], hc[1] + 0.03, hc[2] + 0.014], 0.096, 10, 'y'),
+  );
+  for (let i = 0; i < 4; i++) {
+    const t0 = 0.25 + i * 0.22;
+    head.lines.push(
+      ...lineSeg(hairAt(t0, 2.6), hairAt(t0 + 0.2, 2.6)),
+      ...lineSeg(hairAt(0.3 + i * 0.25, -0.5), hairAt(0.5 + i * 0.25, -0.62)),
+      ...lineSeg(hairAt(0.35 + i * 0.25, 0.4), hairAt(0.55 + i * 0.25, 0.5)),
+    );
+  }
+  // side part: a short line across the front of the crown, a little to the left
+  head.lines.push(...lineSeg(hairAt(0.15, 3.1), hairAt(1.05, -0.3)));
+  for (const sx of [-1, 1]) {
+    // eyes with a dark centre, and a brow
+    const e = onFace(sx * 0.036, 0.004);
+    head.lines.push(
+      ...ringLines(e, 0.007, 6, 'z'),
+      ...ringLines(e, 0.0026, 4, 'z'),
+    );
+    const b0 = onFace(sx * 0.054, 0.034);
+    const b1 = onFace(sx * 0.034, 0.039);
+    const b2 = onFace(sx * 0.018, 0.035);
+    head.lines.push(...lineSeg(b0, b1), ...lineSeg(b1, b2));
+    // thin rectangular glasses, and the arm to the ear
+    const cx = sx * 0.04;
+    const c = [
+      onFace(cx - 0.024, 0.02, 0.004),
+      onFace(cx + 0.024, 0.02, 0.004),
+      onFace(cx + 0.024, -0.012, 0.004),
+      onFace(cx - 0.024, -0.012, 0.004),
+    ];
+    for (let i = 0; i < 4; i++)
+      head.lines.push(...lineSeg(c[i]!, c[(i + 1) % 4]!));
+    const outer = c[sx < 0 ? 0 : 1]!;
+    head.lines.push(
+      ...lineSeg(outer, [hc[0] + sx * 0.088, outer[1], hc[2] + 0.006]),
+    );
+    // the jaw, from the ear to the chin
+    head.lines.push(
+      ...lineSeg(onFace(sx * 0.078, -0.03), onFace(sx * 0.06, -0.075)),
+      ...lineSeg(onFace(sx * 0.06, -0.075), onFace(sx * 0.026, -0.103)),
+    );
+  }
+  head.lines.push(
+    ...lineSeg(onFace(-0.016, 0.006, 0.004), onFace(0.016, 0.006, 0.004)),
+  );
+  // a nose line and a smile with a little more on one side
+  head.lines.push(
+    ...lineSeg(onFace(-0.007, -0.033, 0.009), onFace(0.007, -0.033, 0.009)),
+  );
+  for (let i = 0; i < 6; i++) {
+    const x0 = -0.026 + (i * 0.054) / 6;
+    const x1 = -0.026 + ((i + 1) * 0.054) / 6;
+    const y = (x: number) =>
+      -0.066 + 0.011 * (x / 0.026) ** 2 + 0.004 * (x / 0.026);
+    head.lines.push(...lineSeg(onFace(x0, y(x0)), onFace(x1, y(x1))));
+  }
+  const headNode = nodeAt('head', neck, head);
+
+  // arms, solved for the rest targets (the same solve the Scene uses): a loose sleeve to the
+  // middle of the forearm, rolled, then the arm itself
+  const nodes: NodeDef[] = [torsoNode, headNode];
+  for (const s of [-1, 1] as const) {
+    const side = s < 0 ? 'l' : 'r';
+    const { shoulder, elbow, wrist } = restArm(s);
+    const mid: Vec3 = [
+      elbow[0] + (wrist[0] - elbow[0]) * 0.4,
+      elbow[1] + (wrist[1] - elbow[1]) * 0.4,
+      elbow[2] + (wrist[2] - elbow[2]) * 0.4,
+    ];
+    nodes.push(
+      nodeAt(`upper-${side}`, shoulder, limb(shoulder, elbow, 0.042, 6, false)),
+      nodeAt(
+        `fore-${side}`,
+        elbow,
+        mergeAll([
+          limb(elbow, mid, 0.04, 6),
+          limb(mid, wrist, 0.028, 6),
+          sphereAt(
+            [
+              wrist[0] + HAND_OFFSET[0],
+              wrist[1] + HAND_OFFSET[1],
+              wrist[2] + HAND_OFFSET[2],
+            ],
+            HAND_R,
+            6,
+            4,
+          ),
+        ]),
+      ),
+    );
+  }
+  // legs: straight jeans (a thigh about the hip, a shin about the knee) and high-top canvas
+  // sneakers: ankle, toe cap and a sole
+  for (const side of [-1, 1] as const) {
+    const tag = side < 0 ? 'l' : 'r';
+    const hip = hipAt(side);
+    const knee = kneeAt(side);
+    const ankle = ankleAt(side);
+    nodes.push(
+      nodeAt(`thigh-${tag}`, hip, limb(hip, knee, 0.052, 6, false)),
+      nodeAt(
+        `shin-${tag}`,
+        knee,
+        mergeAll([
+          limb(knee, ankle, 0.046, 6),
+          box({
+            c: [ankle[0], ankle[1] - 0.012, ankle[2] - 0.01],
+            s: [0.07, 0.07, 0.08],
+            edges: false,
+          }),
+          box({
+            c: [ankle[0], ankle[1] - 0.045, ankle[2] - 0.06],
+            s: [0.075, 0.036, 0.07],
+          }),
+          box({
+            c: [ankle[0], ankle[1] - 0.062, ankle[2] - 0.042],
+            s: [0.082, 0.014, 0.135],
+          }),
+        ]),
+      ),
+    );
+  }
+  // a pelvis block keeps the body from being an empty mesh, and joins the thighs
+  body.push(box({ c: [0, -0.16, 0.04], s: [0.17, 0.05, 0.1] }));
+  return { body: mergeAll(body), nodes };
+}
+
+/**
+ * A wide monitor on a stand, facing +z. `screen` is the textured glass (the Scene draws the
+ * editor, the terminal and the page preview on it); a few code lines are authored on the glass too,
+ * so the poster shows a screen that is working.
+ */
+const MON = { w: 0.64, h: 0.37, d: 0.028, y0: 0.125 } as const;
+function monitor(): ModelParts {
+  const cy = MON.y0 + MON.h / 2;
+  const parts: Part[] = [
+    box({ c: [0, 0.006, 0.0], s: [0.24, 0.012, 0.16] }),
+    box({ c: [0, 0.075, -0.03], s: [0.045, 0.125, 0.026] }),
+    box({ c: [0, cy, 0], s: [MON.w, MON.h, MON.d] }),
+    box({ c: [0, cy, -MON.d / 2 - 0.012], s: [0.3, 0.2, 0.024] }),
+  ];
+  const p = mergeAll(parts);
+  const front = MON.d / 2;
+  // The glass: the textured quad, with its edge and a few code lines authored in front of it, so
+  // the poster shows a screen that is working. The Scene hides these lines once the texture is on.
+  const glass = quad(0.6, MON.h - 0.04);
+  const gy = MON.h / 2 - 0.02;
+  const zl = LIFT * 2;
+  glass.lines.push(...rectZ(-0.3, 0.3, -gy, gy, zl));
+  // indent, length (fraction of the glass width)
+  const code: [number, number][] = [
+    [0, 0.3],
+    [0.05, 0.5],
+    [0.05, 0.36],
+    [0.1, 0.55],
+    [0.1, 0.24],
+    [0.05, 0.3],
+    [0, 0.18],
+    [0, 0.42],
+  ];
+  code.forEach(([indent, frac], i) => {
+    const y = gy - 0.04 - i * 0.033;
+    const x0 = -0.26 + indent;
+    glass.lines.push(...lineSeg([x0, y, zl], [x0 + frac * 0.52, y, zl]));
+  });
+  // the cable to the laptop beside it, for the poster (the Scene draws a live one, since the laptop can move)
+  const way: Vec3[] = [
+    [-0.4, 0.006, 0.04],
+    [-0.3, 0.003, 0.07],
+    [-0.2, 0.003, 0.0],
+    [-0.14, 0.003, -0.01],
+    [-0.12, 0.003, 0.0],
+  ];
+  const cable = mergeAll(
+    way.slice(0, -1).map((a, i) => bar(a, way[i + 1]!, 0.006, false)),
+  );
+  return {
+    body: p,
+    nodes: [
+      { name: 'screen', origin: [0, cy, front + LIFT * 3], part: glass },
+      { name: 'cable', origin: [0, 0, 0], part: cable, posterOnly: true },
+    ],
+  };
+}
+
+/** Keyboard: a tray and three rows of keys (`row-0` at the back to `row-2`) that the Scene presses one by one. */
+function keyboard(): ModelParts {
+  const base = box({ c: [0, 0.007, 0], s: [0.42, 0.014, 0.14] });
+  const nodes: NodeDef[] = [];
+  for (let i = 0; i < 3; i++) {
+    const z = -0.04 + i * 0.04;
+    const row = box({ c: [0, 0.005, 0], s: [0.395, 0.01, 0.034] });
+    const keys = i === 2 ? [-0.06, 0.07, 0.11] : [];
+    const n = i === 2 ? 0 : 13;
+    for (let k = 1; k < n; k++) {
+      const x = -0.1975 + (k * 0.395) / n;
+      row.lines.push(
+        ...lineSeg([x, 0.01 + LIFT, -0.017], [x, 0.01 + LIFT, 0.017]),
+      );
+    }
+    for (const x of keys)
+      row.lines.push(
+        ...lineSeg([x, 0.01 + LIFT, -0.017], [x, 0.01 + LIFT, 0.017]),
+      );
+    nodes.push({ name: `row-${i}`, origin: [0, 0.014, z], part: row });
+  }
+  return { body: base, nodes };
+}
+
+/** Mouse: a rounded shell with a wheel and a split between the buttons, front towards -z. */
+function mouse(): ModelParts {
+  const shell = translate(
+    rotateX(
+      extrude(roundedRect(0.06, 0.105, 0.026, 2), 0.026, { corners: [] }),
+      -Math.PI / 2,
+    ),
+    [0, 0.013, 0],
+  );
+  const wheel = cylinder({
+    c: [0, 0.03, -0.03],
+    radius: 0.008,
+    height: 0.01,
+    segments: 8,
+    axis: 'x',
+  });
+  const p = mergeAll([shell, wheel]);
+  p.lines.push(
+    ...lineSeg([0, 0.026 + LIFT, -0.052], [0, 0.026 + LIFT, -0.012]),
+  );
+  return { body: p, nodes: [] };
+}
+
+/** Desk lamp on a two-bar arm: a base, the arm, and a `head` (shade and bulb) that tips. */
+function lamp(): ModelParts {
+  const P1 = v3(0.08, 0.25, -0.02);
+  const P2 = v3(0.25, 0.24, 0.13);
+  const parts: Part[] = [
+    cylinder({ c: [0, 0.008, 0], radius: 0.06, height: 0.016, segments: 14 }),
+    bar([0, 0.016, 0], P1, 0.014, false),
+    bar(P1, P2, 0.014, false),
+    sphereAt(P1, 0.016, 6, 4),
+  ];
+  const shade = lathe(
+    [0, 0, 0],
+    [
+      [0.07, -0.01],
+      [0.025, 0.055],
+      [0, 0.06],
+    ],
+    14,
+  );
+  shade.lines.push(...ringLines([0, -0.01, 0], 0.07, 14, 'y'));
+  const head = transform(shade, new Matrix4().makeRotationZ(0.4));
+  return {
+    body: mergeAll(parts),
+    nodes: [{ name: 'head', origin: P2, part: head }],
+  };
+}
+
+/**
+ * Mug with a handle, handle towards +x. Open at the top: the coffee is a disc the Scene puts in it
+ * (it sloshes, and pours out when the mug tips); the ring at the top of the cup is the poster's coffee.
+ */
+function mug(): ModelParts {
+  const p = mergeAll([
+    cylinder({
+      c: [0, 0.0425, 0],
+      radius: 0.038,
+      height: 0.085,
+      segments: 14,
+      openEnded: true,
+    }),
+    box({ c: [0, 0.003, 0], s: [0.05, 0.006, 0.05], edges: false }),
+    torus({
+      c: [0.047, 0.045, 0],
+      radius: 0.022,
+      tube: 0.005,
+      tubeSegments: 4,
+      ringSegments: 10,
+    }),
+  ]);
+  p.lines.push(...ringLines([0, 0.072, 0], 0.033, 14, 'y'));
+  return { body: p, nodes: [] };
+}
+
+/** Headphones lying on the desk: a band arch and two cups. */
+/**
+ * Headphones, drawn at the size they are worn: a band that arcs over a head 0.18 m wide and 0.25 m
+ * tall (an ellipse, 0.116 across the ear and 0.14 high), and a cup on each end, centred on the ear
+ * and flat to the side of the head. Stood on the desk they are a hoop; the Scene seats them on
+ * the ears by moving this same object.
+ */
+function headphones(): ModelParts {
+  const parts: Part[] = [];
+  const CY = 0.03805; // the cups' centre height (their lowest edge is on the desk)
+  const arc = (t: number): Vec3 => [
+    Math.cos(t) * 0.116,
+    CY + Math.sin(t) * 0.14,
+    0,
+  ];
+  const N = 8;
+  for (let k = 0; k < N; k++)
+    parts.push(
+      bar(arc((k * Math.PI) / N), arc(((k + 1) * Math.PI) / N), 0.012, false),
+    );
+  for (const s of [-1, 1])
+    parts.push(
+      cylinder({
+        c: [s * 0.116, CY, 0],
+        radius: 0.04,
+        height: 0.032,
+        segments: 10,
+        axis: 'x',
+      }),
+    );
+  return { body: mergeAll(parts), nodes: [] };
+}
+
+/** Phone lying face up. */
+function phone(): ModelParts {
+  const shell = translate(
+    rotateX(
+      extrude(roundedRect(0.07, 0.145, 0.012, 2), 0.008, { corners: [] }),
+      -Math.PI / 2,
+    ),
+    [0, 0.004, 0],
+  );
+  shell.lines.push(
+    ...rectY(-0.031, 0.031, 0.008 + LIFT, -0.063, 0.063),
+    ...ringLines([0, 0.008 + LIFT, -0.067], 0.002, 6, 'y'),
+  );
+  return { body: shell, nodes: [] };
+}
+
+/** Potted plant: a tapered pot and a `leaves` pivot at the soil that the Scene sways. */
+function plant(): ModelParts {
+  const SOIL = 0.086;
+  const pot = lathe(
+    [0, 0, 0],
+    [
+      [0, 0],
+      [0.036, 0],
+      [0.054, 0.088],
+      [0.058, 0.096],
+      [0.05, 0.096],
+      [0.05, SOIL],
+      [0, SOIL],
+    ],
+    10,
+  );
+  pot.lines.push(
+    ...ringLines([0, 0.096, 0], 0.058, 10, 'y'),
+    ...ringLines([0, 0.088, 0], 0.054, 10, 'y'),
+  );
+  const leaves: Part[] = [];
+  const n = 4;
+  for (let k = 0; k < n; k++) {
+    const L = 0.15 - (k % 3) * 0.03;
+    const w = 0.024;
+    const leaf = extrude(
+      [
+        [0, 0],
+        [w, 0.35 * L],
+        [w * 0.75, 0.75 * L],
+        [0, L],
+        [-w * 0.75, 0.75 * L],
+        [-w, 0.35 * L],
+      ],
+      0.004,
+      { corners: [] },
+    );
+    leaf.lines.push(...lineSeg([0, 0, 0.0025], [0, 0.85 * L, 0.0025]));
+    const m = new Matrix4()
+      .makeRotationY((k * 2 * Math.PI) / n + 0.3)
+      .multiply(new Matrix4().makeRotationZ(0.2 + (k % 3) * 0.22));
+    leaves.push(transform(leaf, m));
+  }
+  return {
+    body: pot,
+    nodes: [{ name: 'leaves', origin: [0, SOIL, 0], part: mergeAll(leaves) }],
+  };
+}
+
 export const models: ModelDef[] = [
   def('sheet', sheet),
   def('table', table),
+  def('desk', deskKit),
   def('arduino', arduino),
   def('clock', clock),
   def('calendar', calendar),
   def('ghost', ghost),
   def('cruiser', cruiser),
   def('laptop', laptop),
-  def('ball-s', ballModel(0.035)),
-  def('ball-m', ballModel(0.05)),
+  def('chair', chair),
+  def('dev', developer),
+  def('monitor', monitor),
+  def('keyboard', keyboard),
+  def('mouse', mouse),
+  def('lamp', lamp),
+  def('mug', mug),
+  def('headphones', headphones),
+  def('phone', phone),
+  def('plant', plant),
   def('ball-l', ballModel(0.07)),
-  def('pacman', pacman),
   ...Object.entries(LETTERS).map(([k, f]) => def(`letter-${k}`, f)),
 ];

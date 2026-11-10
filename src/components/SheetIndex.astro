@@ -39,6 +39,7 @@ const PHONE_SKIP = new Set(['desk', 'open-source', 'writing']);
       <path class="sheet-rule-lit" d="M1 0V1000"></path>
     </g>
   </svg>
+  <span class="sheet-index-marker" aria-hidden="true"></span>
   <ol class="sheet-index-list">
     {rows.map((row) => (
       <li data-phone-skip={PHONE_SKIP.has(row.id) ? '' : undefined}>

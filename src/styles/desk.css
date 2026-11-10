@@ -67,7 +67,7 @@
 }
 
 .poster-frame {
-  aspect-ratio: 12 / 7;
+  aspect-ratio: 10 / 7;
 }
 
 .poster {
@@ -144,7 +144,7 @@
 .desk-live {
   position: absolute;
   inset: 0 0 auto 0;
-  aspect-ratio: 12 / 7;
+  aspect-ratio: 10 / 7;
   opacity: 0;
   pointer-events: none;
   transition: opacity 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -280,6 +280,33 @@
   transition: opacity 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/* The objects that only react (the developer, the chair, the lamp...) are buttons that look like the
+   links beside them. They exist for the keyboard path to a reaction, so a poster (no 3D desk) hides them. */
+.object-list button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.6em;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: start;
+  text-transform: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+  cursor: pointer;
+}
+
+.desk-stage:not(:has(.desk[data-desk-state='live']))
+  .object-list
+  [data-act-item] {
+  display: none;
+}
+
 /* Below 1024 the button sits in the right end of the bottom strip: no fixed spot above it is clear of
    both the title card (on a short screen at the top of the page) and the objects resting on the strip.
    The strip's links make room for it while it shows. */
@@ -371,7 +398,7 @@
     margin-block-start: -2rem;
     /* Capped by the screen height as well, so on a short laptop the whole table fits under the
        title block (about 19 rem is the title block and the sheet padding). */
-    width: clamp(36rem, (100svh - 21rem) * 12 / 7, 58rem);
+    width: clamp(36rem, (100svh - 21rem) * 10 / 7, 58rem);
     max-width: 100%;
     justify-self: center;
   }
@@ -399,4 +426,37 @@ html[data-motion='full']
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* The first-visit line under the 3D desk: quiet, one line, and a plain button to dismiss it. */
+.desk-hint {
+  margin: 0.5rem 0 0;
+  opacity: 0.8;
+  animation: desk-hint-in 360ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1))
+    both;
+}
+
+.desk-hint button {
+  padding: 0 0 0 0.5em;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+}
+
+@keyframes desk-hint-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-hint {
+    animation: none;
+  }
 }

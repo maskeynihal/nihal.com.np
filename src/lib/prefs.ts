@@ -87,12 +87,16 @@ export function hasWebGL2(allowSoftware: boolean = testHooks): boolean {
   return cached;
 }
 
-export function canRun3D(): boolean {
+/**
+ * Can this device draw the 3D desk at all (screen width, memory, data saver, WebGL2)? Motion is
+ * not part of it: under reduced motion the desk is still drawn, standing still, and answers a tap
+ * with a short, gentle change.
+ */
+export function canRunScene(): boolean {
   if (!hasWindow()) return false;
   const nav = extras();
   const mem = nav.deviceMemory;
   return (
-    document.documentElement.dataset['motion'] === 'full' &&
     window.innerWidth >= 360 &&
     !nav.connection?.saveData &&
     !(typeof mem === 'number' && mem < 4) &&
@@ -100,8 +104,16 @@ export function canRun3D(): boolean {
   );
 }
 
-/** Physics loads on the first grab only; it has no rule beyond canRun3D. */
-export const canRunPhysics = (): boolean => canRun3D();
+export function canRun3D(): boolean {
+  return (
+    hasWindow() &&
+    document.documentElement.dataset['motion'] === 'full' &&
+    canRunScene()
+  );
+}
+
+/** Physics loads on the first grab only; it has no rule beyond canRunScene. */
+export const canRunPhysics = (): boolean => canRunScene();
 
 export function dprFor(): number {
   if (!hasWindow()) return 1;

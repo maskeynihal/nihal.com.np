@@ -100,14 +100,15 @@ describe('canRun3D matrix', () => {
                 save === undefined ? undefined : { saveData: save },
               );
               setProp(window, 'innerWidth', width);
-              const want3D =
-                motion === 'full' &&
+              // the scene itself does not depend on motion (reduced motion draws it still);
+              // only the full-motion 3D path (canRun3D) does
+              const wantScene =
                 gl &&
                 (mem === undefined || mem >= 4) &&
                 save !== true &&
                 width >= 360;
-              expect(prefs.canRun3D()).toBe(want3D);
-              expect(prefs.canRunPhysics()).toBe(want3D);
+              expect(prefs.canRun3D()).toBe(motion === 'full' && wantScene);
+              expect(prefs.canRunPhysics()).toBe(wantScene);
             });
           }
 });

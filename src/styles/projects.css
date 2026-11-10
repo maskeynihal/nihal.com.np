@@ -1,0 +1,388 @@
+/* Projects section: grouped rows of compact cards. Imported by WorkPanel.astro and ProjectGroup.astro.
+   Without script every card is readable in a plain scrolling row (stacked on a phone). The script adds
+   arrows, a progress hairline, mouse drag and the entrance. Motion is transform and opacity only,
+   and only while html[data-motion='full']. */
+
+.proj-group {
+  margin-block-start: 2.25rem;
+  scroll-margin-block-start: calc(var(--inset) + var(--gutter));
+}
+
+.proj-group-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 0.5rem;
+}
+
+.proj-group-head h3 {
+  font-size: var(--text-lead);
+}
+
+.proj-group-note {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-small);
+  opacity: 0.8;
+}
+
+.proj-controls {
+  display: flex;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.proj-controls[hidden],
+.proj-progress[hidden],
+.proj-arrow[hidden] {
+  display: none;
+}
+
+.proj-arrow {
+  min-width: 44px;
+  min-height: 44px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1),
+    color var(--dur-1);
+}
+
+.proj-arrow:hover:not([aria-disabled='true']),
+.proj-arrow:focus-visible:not([aria-disabled='true']) {
+  color: var(--panel);
+  background: var(--panel-ink);
+}
+
+.proj-arrow[aria-disabled='true'] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* --- The row --------------------------------------------------------------------------------- */
+.proj-rail {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.25rem;
+  scrollbar-width: thin;
+  /* room for the hover lift and the tilt without clipping */
+  padding: 0.75rem 0.25rem 1rem;
+  margin-inline: -0.25rem;
+}
+
+.proj-rail[tabindex] {
+  cursor: grab;
+}
+
+.proj-rail.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+  user-select: none;
+}
+
+.proj-rail-track {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proj-slot {
+  flex: 0 0 min(17rem, 82%);
+  scroll-snap-align: start;
+  display: flex;
+}
+
+/* An open arcade needs room: that card widens, and only while it is playing. */
+.proj-slot:has([data-arcade-stage]:not([hidden])) {
+  flex-basis: min(36rem, 100%);
+}
+
+.proj-progress {
+  height: 2px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  overflow: hidden;
+}
+
+.proj-progress span {
+  display: block;
+  height: 100%;
+  background: currentColor;
+  transform-origin: left;
+  transform: scaleX(0.3);
+  will-change: transform;
+}
+
+/* A phone stacks the cards: no sideways scroll, no controls. */
+@media (max-width: 39.99rem) {
+  .proj-rail {
+    overflow: visible;
+    scroll-snap-type: none;
+    padding-inline: 0;
+    margin-inline: 0;
+  }
+
+  .proj-rail[tabindex] {
+    cursor: auto;
+  }
+
+  .proj-rail-track {
+    flex-direction: column;
+  }
+
+  .proj-slot,
+  .proj-slot:has([data-arcade-stage]:not([hidden])) {
+    flex-basis: auto;
+  }
+
+  .proj-controls,
+  .proj-progress {
+    display: none;
+  }
+}
+
+/* --- The card -------------------------------------------------------------------------------- */
+.proj-card {
+  --proj-pad: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  padding: var(--proj-pad);
+  scroll-margin-block-start: calc(var(--inset) + var(--gutter));
+}
+
+.proj-card > * {
+  margin: 0;
+}
+
+.proj-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.proj-card .work-mark {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  margin: 0;
+}
+
+.proj-titles {
+  min-width: 0;
+}
+
+.proj-card h4 {
+  font-size: 1.1875rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.proj-card .work-date {
+  margin: 0.125rem 0 0;
+  opacity: 0.8;
+}
+
+.proj-summary {
+  font-size: var(--text-small);
+  line-height: 1.45;
+}
+
+.proj-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.proj-tags li {
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--panel-hair);
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+/* Details: collapsed. The longer text stays in the HTML. */
+.proj-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.proj-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.proj-more summary::before {
+  content: '+';
+  display: inline-block;
+  width: 1ch;
+  margin-inline-end: 0.5ch;
+}
+
+.proj-more[open] summary::before {
+  content: '−';
+}
+
+.proj-more-body {
+  display: grid;
+  gap: 0.5rem;
+  padding-block-start: 0.25rem;
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+.proj-more-body > * {
+  margin: 0;
+}
+
+.proj-note {
+  font-style: italic;
+}
+
+/* Calls to action: the primary one is a filled button, the rest are small links. */
+.proj-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-block-start: auto !important;
+  padding-block-start: 0.25rem;
+}
+
+.proj-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  color: var(--panel);
+  background: var(--panel-ink);
+  border: 1px solid var(--panel-ink);
+  border-radius: var(--radius);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  transition:
+    background-color var(--dur-1),
+    color var(--dur-1);
+}
+
+.proj-cta::after {
+  content: '→';
+  margin-inline-start: 0.5rem;
+}
+
+.proj-cta:hover,
+.proj-cta:focus-visible {
+  color: var(--panel-ink);
+  background: var(--panel);
+}
+
+.proj-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.proj-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  text-underline-offset: 0.2em;
+}
+
+/* --- Motion (full only) ------------------------------------------------------------------- */
+[data-motion='full'] .proj-card {
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion='full'] .proj-slot:hover .proj-card,
+  [data-motion='full'] .proj-slot:focus-within .proj-card {
+    transform: translateY(-4px) rotate(-0.4deg);
+  }
+}
+
+/* Entrance: until the row is first on screen the cards wait (script-armed only); then they fan
+   in from the right, staggered by --i. After the animation the card rests at its normal state. */
+@keyframes proj-fan-in {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem) rotate(2.5deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-motion='full'] [data-reveal='pending'] .proj-slot {
+  opacity: 0;
+}
+
+[data-motion='full'] [data-reveal='in'] .proj-slot {
+  animation: proj-fan-in 560ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+/* Reduced motion: nothing moves, nothing waits. The row still scrolls and the arrows still work. */
+[data-motion='reduce'] [data-reveal] .proj-slot {
+  opacity: 1;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] .proj-slot {
+    opacity: 1;
+    animation: none;
+  }
+
+  .proj-card {
+    transition: none;
+  }
+}
+
+@media print {
+  .proj-rail {
+    overflow: visible;
+  }
+
+  .proj-rail-track {
+    flex-wrap: wrap;
+  }
+
+  .proj-controls,
+  .proj-progress {
+    display: none;
+  }
+
+  [data-reveal] .proj-slot {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* --- Open source: two ledgers (my projects, contributions) ------------------------------- */
+.oss-panel + .oss-panel {
+  margin-block-start: 1.5rem;
+}
+
+.oss-heading {
+  margin-block-end: 0.75rem;
+  font-size: var(--text-lead);
+}

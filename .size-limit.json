@@ -10,6 +10,11 @@
     "limit": "15 KB"
   },
   {
+    "name": "side art (br)",
+    "path": "dist/_astro/section-art.*.js",
+    "limit": "29 KB"
+  },
+  {
     "name": "desk-vendor (br)",
     "path": "dist/_astro/desk-vendor*.js",
     "limit": "320 KB"

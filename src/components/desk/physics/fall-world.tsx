@@ -17,10 +17,18 @@ import {
   type Mesh,
   type Object3D,
 } from 'three';
-import { FOLLOW, MAX_TILT, TABLE_HALF, clamp } from '../../../lib/desk/drag';
+import {
+  DRAG_HALF,
+  FOLLOW,
+  MAX_TILT,
+  TABLE_HALF,
+  clamp,
+} from '../../../lib/desk/drag';
 import {
   ROOM_CLEARANCE,
   boundsFor,
+  depthRange,
+  floorWentDown,
   liftForFloor,
   planeOffset,
   foldDepthVelocity,
@@ -59,7 +67,9 @@ import {
   type HandoffState,
 } from '../physics-bridge';
 import { screenRect } from './handoff';
-import { readRoomPads } from './room';
+import { readRoomPads, roomPadsAt } from './room';
+import { coffee } from '../../../lib/desk/coffee';
+import { readToken } from '../../../lib/desk/tokens';
 
 /**
  * The fall world, inside the second canvas (`FallLayer.tsx`), a fixed full-viewport layer that
@@ -84,9 +94,8 @@ const STEP = 1 / 60;
 /** Steps over which a handed-over body's gravity grows from the matched value to the full one. */
 const RAMP_STEPS = HANDOFF_RAMP_STEPS;
 const WALL = 0.5;
-/** Nearest and farthest depth a body may have, metres from the camera. */
-const Z_NEAR = 2.0;
-const Z_FAR = 3.3;
+/** Depth range (metres from the camera) used until the table camera is known. */
+const Z_DEFAULT = { near: 2.0, far: 3.3 };
 const MAX_SPEED = 6;
 
 interface FallBody {
@@ -101,6 +110,12 @@ interface FallBody {
   gs0: number;
   age: number;
   speed: number;
+  /** How much speed the last step lost to an impact (read and cleared by the coffee). */
+  hit: number;
+  /** Squash from the last hard landing, 1 down to 0: the picture flattens a little and springs back. */
+  squash: number;
+  /** Held still for the tether's reel: kinematic, and it pours nothing. */
+  frozen: boolean;
 }
 
 interface Held {
@@ -129,9 +144,7 @@ function overhangOf(entry: RegistryEntry): number {
   const v = new Vector3();
   const { kind, args, offset } = entry.def.collider;
   const half =
-    kind === 'cuboid'
-      ? [args[0] ?? 0, args[1] ?? 0, args[2] ?? 0]
-      : [0, 0, 0];
+    kind === 'cuboid' ? [args[0] ?? 0, args[1] ?? 0, args[2] ?? 0] : [0, 0, 0];
   const radius =
     kind === 'ball' ? (args[0] ?? 0) : (args[0] ?? 0) + (args[1] ?? 0);
   let worst = 0;
@@ -165,6 +178,9 @@ function overhangOf(entry: RegistryEntry): number {
 }
 
 const _v = new Vector3();
+const _fxUp = new Vector3();
+const _fxM = new Vector3();
+const _fxQ = new Quaternion();
 const _q = new Quaternion();
 const _tilt = new Quaternion();
 const _cur = new Quaternion();
@@ -177,7 +193,7 @@ function FallWorld({
   onEmpty: () => void;
 }) {
   const { rapier, world } = useRapier();
-  const { scene, camera, size, invalidate } = useThree();
+  const { scene, camera, size, invalidate, gl } = useThree();
   const view = useRef({ camera, width: size.width, height: size.height });
   useLayoutEffect(() => {
     view.current = { camera, width: size.width, height: size.height };
@@ -185,6 +201,8 @@ function FallWorld({
   const bodies = useRef(new Map<string, FallBody>());
   const held = useRef<Held | null>(null);
   const bounds = useRef<Bounds | null>(null);
+  // Depth range of the room, from the table camera (see `depthRange`).
+  const zr = useRef(Z_DEFAULT);
   const room = useRef<{ body: RapierRigidBody } | null>(null);
   const clock = useRef({ acc: 0, idle: true, hold: testControl.hold });
   const raycaster = useMemo(() => new Raycaster(), []);
@@ -199,6 +217,23 @@ function FallWorld({
     // each moved in by a clearance plus the most any object's mesh reaches beyond its collider, so a
     // body at rest is wholly inside the border, not touching it.
     const pads = readRoomPads(vw);
+    // Bodies keep the depth they were handed over at, so the room must span every depth the table
+    // can send one from: the rim and the whole area a carried object can reach, rim to a height
+    // above the desk.
+    const tcam = table.camera;
+    if (tcam) {
+      const depths: number[] = [];
+      const c = new Vector3();
+      for (const x of [-DRAG_HALF.x, DRAG_HALF.x])
+        for (const z of [DRAG_HALF.zMin, DRAG_HALF.zMax])
+          for (const y of [-0.5, 0.6])
+            depths.push(
+              -c.set(x, y, z).applyMatrix4(tcam.matrixWorldInverse).z,
+            );
+      zr.current = depthRange(depths);
+    }
+    const Z_NEAR = zr.current.near;
+    const Z_FAR = zr.current.far;
     let overhang = 0;
     for (const e of registry.all())
       overhang = Math.max(overhang, overhangOf(e));
@@ -217,13 +252,20 @@ function FallWorld({
     bounds.current = b;
     if (prev) {
       // The viewport changed height (a phone's URL bar): keep resting bodies on the new floor.
+      const lower = floorWentDown(prev, b);
       for (const fb of bodies.current.values()) {
+        // The floor went down: a sleeping body on the old one must fall to the new one.
+        if (lower) fb.rb.wakeUp();
         const t = fb.rb.translation();
         const dy = liftForFloor(prev, b, t.y, -t.z);
         if (dy <= 0) continue;
         fb.rb.setTranslation({ x: t.x, y: t.y + dy, z: t.z }, true);
         fb.curP.y += dy;
         fb.prevP.y += dy;
+      }
+      if (lower) {
+        clock.current.idle = true;
+        invalidate();
       }
     }
     const body = world.createRigidBody(rapier.RigidBodyDesc.fixed());
@@ -283,6 +325,133 @@ function FallWorld({
   };
 
   const toScreen = (p: Vector3) => project(p, anchor);
+
+  // ---- the coffee, drawn on this layer's own canvas where the mug is --------------------------
+  // Line-art drops leave the mug's mouth as it tips, a splash on the first hard landing, and a
+  // puddle spreads along the floor and later fades. What is poured comes out of `coffee`.
+  const fx = useRef({
+    canvas: null as HTMLCanvasElement | null,
+    drops: [] as { x: number; y: number; vx: number; vy: number }[],
+    puddle: { x: 0, r: 0, still: 0, fade: 0 },
+    last: { x: 0, y: 0, ok: false },
+    color: '#fff',
+  });
+  useEffect(() => {
+    const host = gl.domElement.parentElement;
+    if (!host) return;
+    const c = document.createElement('canvas');
+    c.setAttribute('aria-hidden', 'true');
+    c.style.cssText =
+      'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+    host.appendChild(c);
+    const state = fx.current;
+    state.canvas = c;
+    return () => {
+      c.remove();
+      state.canvas = null;
+    };
+  }, [gl]);
+
+  /** One frame of coffee; true while something is still drawn (so the layer keeps rendering). */
+  const stepFx = (dt: number): boolean => {
+    const F = fx.current;
+    const c = F.canvas;
+    if (!c) return false;
+    const w = view.current.width;
+    const h = view.current.height;
+    const floorY = h - roomPadsAt(window.innerWidth).bottom;
+    const mug = bodies.current.get('mug');
+    const P = F.puddle;
+    if (mug) {
+      const obj = mug.entry.obj;
+      obj.updateWorldMatrix(true, false);
+      const up = _fxUp
+        .set(0, 1, 0)
+        .applyQuaternion(obj.getWorldQuaternion(_fxQ));
+      const tilt = Math.acos(clamp(up.y, -1, 1));
+      const mouth = toScreen(obj.localToWorld(_fxM.set(0, 0.085, 0)));
+      const vx = F.last.ok && dt > 0 ? (mouth.x - F.last.x) / dt : 0;
+      const vy = F.last.ok && dt > 0 ? (mouth.y - F.last.y) / dt : 0;
+      F.last = { x: mouth.x, y: mouth.y, ok: true };
+      if (!mug.frozen && coffee.amount > 0 && tilt > (60 * Math.PI) / 180) {
+        const used = Math.min(coffee.amount, 0.45 * dt);
+        coffee.amount -= used;
+        for (let i = 0; i < Math.ceil(used * 160); i++)
+          F.drops.push({
+            x: mouth.x,
+            y: mouth.y,
+            vx: vx * 0.6 + (Math.random() - 0.5) * 60 - up.x * 40,
+            vy: vy * 0.6 + 20 + Math.random() * 40,
+          });
+      }
+      // a hard landing with coffee in it: a splash
+      if (!mug.frozen && mug.hit > 1.2 && coffee.amount > 0 && tilt > 0.7) {
+        for (let i = 0; i < 14; i++)
+          F.drops.push({
+            x: mouth.x,
+            y: mouth.y,
+            vx: (Math.random() - 0.5) * 420,
+            vy: -150 - Math.random() * 330,
+          });
+        coffee.amount = Math.max(0, coffee.amount - 0.2);
+      }
+      mug.hit = 0;
+    }
+    if (F.drops.length === 0 && P.r === 0) {
+      if (c.width !== 0) c.width = 0;
+      return false;
+    }
+    if (c.width !== w || c.height !== h) {
+      c.width = w;
+      c.height = h;
+    }
+    const ctx = c.getContext('2d');
+    if (!ctx) return false;
+    if (!F.color || F.drops.length === 0) F.color = readToken('--stroke');
+    ctx.clearRect(0, 0, w, h);
+    let landed = false;
+    F.drops = F.drops.filter((d) => {
+      d.vy += 2600 * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      if (d.y >= floorY) {
+        landed = true;
+        if (P.r === 0) {
+          P.x = d.x;
+          P.r = 3;
+        } else P.x += (d.x - P.x) * 0.05;
+        P.r = Math.min(64, P.r + 0.9);
+        P.still = 0;
+        P.fade = 0;
+        return false;
+      }
+      return true;
+    });
+    if (!landed && F.drops.length === 0 && P.r > 0) {
+      P.still += dt;
+      if (P.still > 6) P.fade = Math.min(1, (P.still - 6) / 3);
+      if (P.fade >= 1) P.r = 0;
+    }
+    ctx.strokeStyle = F.color;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const d of F.drops) {
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - d.vx * 0.012, d.y - d.vy * 0.012);
+    }
+    ctx.stroke();
+    if (P.r > 0) {
+      ctx.globalAlpha = 1 - P.fade * P.fade;
+      for (const k of [1, 0.55]) {
+        ctx.beginPath();
+        ctx.ellipse(P.x, floorY - 2, P.r * k, P.r * k * 0.2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    return true;
+  };
 
   const scheduleEmpty = () => {
     window.clearTimeout(emptyTimer.current);
@@ -448,8 +617,12 @@ function FallWorld({
       const speed = Math.hypot(lv.x, lv.y, lv.z);
       if (!Number.isFinite(t.x + t.y + t.z + speed) || b.curP.length() > 40)
         lost.push(b);
-      if (b.speed - speed > 1.2 && held.current?.body !== b)
+      if (b.speed - speed > 1.2 && held.current?.body !== b) {
         playImpact(b.speed);
+        b.squash = Math.min(1, (b.speed - speed) / 3);
+        b.hit = Math.max(b.hit, b.speed - speed);
+      }
+      b.squash *= 0.9;
       b.speed = speed;
     }
     // Safety net: a body that escaped the room goes back to its home pose on the table.
@@ -466,6 +639,9 @@ function FallWorld({
         obj.position.lerpVectors(b.prevP, b.curP, alpha);
         obj.quaternion.slerpQuaternions(b.prevQ, b.curQ, alpha);
       }
+      // a landing squashes it a little, from the contact point, and it springs back
+      const q = b.squash;
+      b.entry.lift.scale.set(1 + 0.12 * q, 1 - 0.2 * q, 1 + 0.12 * q);
     }
   };
 
@@ -482,7 +658,8 @@ function FallWorld({
       }
       show(c.acc / STEP);
     } else show(1);
-    let active = !!held.current;
+    const fxBusy = stepFx(Math.min(dt, 0.05));
+    let active = !!held.current || fxBusy;
     for (const b of bodies.current.values())
       if (!b.rb.isSleeping() || b.age < RAMP_STEPS) active = true;
     if (active && !c.hold) invalidate();
@@ -549,14 +726,21 @@ function FallWorld({
             ? rapier.ColliderDesc.ball(a[0] ?? 0.05)
             : c.kind === 'capsule'
               ? rapier.ColliderDesc.capsule(a[0] ?? 0.05, a[1] ?? 0.03)
-              : rapier.ColliderDesc.cuboid(
-                  a[0] ?? 0.05,
-                  a[1] ?? 0.05,
-                  a[2] ?? 0.05,
-                );
+              : def.model === 'mug'
+                ? // a mug is a cylinder: tipped over, it rolls on its side
+                  rapier.ColliderDesc.cylinder(0.0425, 0.04)
+                : rapier.ColliderDesc.cuboid(
+                    a[0] ?? 0.05,
+                    a[1] ?? 0.05,
+                    a[2] ?? 0.05,
+                  );
         world.createCollider(
           cd
-            .setTranslation(c.offset[0], c.offset[1], c.offset[2])
+            .setTranslation(
+              def.model === 'mug' ? 0 : c.offset[0],
+              c.offset[1],
+              c.offset[2],
+            )
             .setMass(def.mass)
             .setFriction(feel.friction)
             .setRestitution(feel.restitution)
@@ -575,6 +759,9 @@ function FallWorld({
           gs0: g.scale,
           age: 0,
           speed: Math.hypot(vc.x, vc.y, vc.z),
+          squash: 0,
+          hit: 0,
+          frozen: false,
         };
         bodies.current.set(s.id, body);
         window.clearTimeout(emptyTimer.current);
@@ -644,8 +831,7 @@ function FallWorld({
         if (!h || !bd) return;
         const at = unproject(cx, cy, h.depth, anchor);
         // Stay inside the viewport and above the floor.
-        const xMin =
-          bd.left * h.depth + planeOffset(bd.left, bd.reach) + 0.06;
+        const xMin = bd.left * h.depth + planeOffset(bd.left, bd.reach) + 0.06;
         const xMax =
           bd.right * h.depth - planeOffset(bd.right, bd.reach) - 0.06;
         h.tx = clamp(at.x + h.ox, xMin, xMax);
@@ -682,19 +868,87 @@ function FallWorld({
         h.body.rb.setGravityScale(1, true);
         wake();
       },
-      reset() {
+      reset(keep) {
         for (const id of [...bodies.current.keys()]) {
+          if (keep?.includes(id)) continue;
           const b = remove(id);
           if (!b) continue;
           const e = b.entry;
           registry.setFree(e.id, false);
           e.obj.position.set(...e.def.p);
           e.obj.quaternion.set(...e.def.q);
+          // upright and unsquashed, wherever it had got to
+          e.lift.scale.set(1, 1, 1);
           table.group?.add(e.obj);
         }
+        // the coffee on this layer goes too: no drops in the air, no puddle
+        fx.current.drops = [];
+        fx.current.puddle = { x: 0, r: 0, still: 0, fade: 0 };
+        fx.current.last = { x: 0, y: 0, ok: false };
         held.current = null;
         scheduleEmpty();
         table.invalidate();
+      },
+      capture(id) {
+        const b = bodies.current.get(id);
+        const frame = tableFrame();
+        const cam = table.camera;
+        if (!b || !frame || !cam) return null;
+        // What is drawn (the interpolated pose), back through the table camera: the same picture.
+        const o = b.entry.obj;
+        const pc = o.position.clone();
+        reanchor(pc, new Vector3(), anchor, frame);
+        const w = cameraToWorld(cam, pc, o.quaternion);
+        return {
+          p: [w.p.x, w.p.y, w.p.z],
+          q: [w.q.x, w.q.y, w.q.z, w.q.w],
+        };
+      },
+      freeze(id) {
+        const b = bodies.current.get(id);
+        if (!b) return false;
+        if (held.current?.body === b) held.current = null;
+        b.rb.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
+        b.rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        b.rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        b.frozen = true;
+        b.age = RAMP_STEPS;
+        // exactly the pose that is drawn, with no step still to interpolate
+        b.prevP.copy(b.entry.obj.position);
+        b.curP.copy(b.entry.obj.position);
+        b.prevQ.copy(b.entry.obj.quaternion);
+        b.curQ.copy(b.entry.obj.quaternion);
+        b.rb.setTranslation(b.curP, true);
+        b.rb.setRotation(b.curQ, true);
+        b.fresh = false;
+        wake();
+        return true;
+      },
+      place(id, p, q) {
+        const b = bodies.current.get(id);
+        const frame = tableFrame();
+        const cam = table.camera;
+        if (!b || !frame || !cam) return;
+        const pose = worldToCamera(
+          cam,
+          new Vector3(...p),
+          new Quaternion(...q),
+        );
+        reanchor(pose.p, new Vector3(), frame, anchor);
+        b.rb.setTranslation(pose.p, true);
+        b.rb.setRotation(pose.q, true);
+        b.prevP.copy(pose.p);
+        b.curP.copy(pose.p);
+        b.prevQ.copy(pose.q);
+        b.curQ.copy(pose.q);
+        b.fresh = false;
+        wake();
+      },
+      home(id) {
+        const b = bodies.current.get(id);
+        if (!b) return;
+        b.entry.lift.scale.set(1, 1, 1);
+        sendHome(b);
       },
       jolt(dy) {
         const dv = clamp(dy * 0.006, -0.6, 0.6);

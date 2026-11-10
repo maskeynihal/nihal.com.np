@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import holidays from './holidays.json';
 import { validateAll } from './validate';
 import { copy } from './copy';
-import { work } from './work';
+import { work, workGroups } from './work';
 import { oss } from './oss';
 import { writing } from './writing';
 import { cv } from './cv';
 import { objects } from './objects';
 import { pending } from './pending';
-import { deskNote, soundLabel } from './client-copy';
+import { deskHint, deskNote, soundLabel } from './client-copy';
 import { buildPosterAlt } from './poster-alt';
 import { getObjects } from './index';
 
@@ -46,18 +46,39 @@ describe('content files', () => {
     expect(() => validateAll()).not.toThrow();
   });
 
-  it('has five work panels with the required ids', () => {
+  it('has seven work cards with the required ids', () => {
     expect(work.map((w) => w.id)).toEqual([
       'trayt',
       'tz-converter',
+      'sprintnudge',
+      'underhood',
       'space-hog',
       'car-sensors',
       'pac-man',
     ]);
   });
 
-  it('has seven oss rows and five posts', () => {
-    expect(oss).toHaveLength(7);
+  it('groups every card, with a landing page or repo as the primary link', () => {
+    const groups = new Set(workGroups.map((g) => g.id));
+    for (const w of work) {
+      expect(groups.has(w.group)).toBe(true);
+      expect(w.summary.length).toBeLessThanOrEqual(160);
+    }
+    // Landing pages come first: tz, sprintnudge, underhood, car sensors.
+    const cta = (id: string) => work.find((w) => w.id === id)?.cta?.href;
+    expect(cta('tz-converter')).toBe('https://tz.nihal.com.np/');
+    expect(cta('sprintnudge')).toBe('https://sprintnudge.com/');
+    expect(cta('underhood')).toBe('https://underhood.nihal.com.np/');
+    expect(cta('space-hog')).toBe('https://github.com/maskeynihal/space-hog');
+  });
+
+  it('has one oss row per repo, own projects and contributions, and five posts', () => {
+    expect(new Set(oss.map((r) => r.repo)).size).toBe(oss.length);
+    expect(oss.filter((r) => r.kind === 'own')).toHaveLength(9);
+    expect(oss.filter((r) => r.kind === 'contribution')).toHaveLength(6);
+    expect(
+      oss.find((r) => r.repo === 'digitalocean/nginxconfig.io')?.what,
+    ).toMatch(/#433.*#448/);
     expect(writing).toHaveLength(5);
   });
 
@@ -68,7 +89,7 @@ describe('content files', () => {
       );
     for (const r of oss)
       expect(r.href).toMatch(
-        /^https:\/\/github\.com\/[^/]+\/[^/]+\/(pull\/\d+|commits\?author=maskeynihal)$/,
+        /^https:\/\/github\.com\/[^/]+\/[^/]+(\/pull\/\d+|\/commits\?author=maskeynihal)?$/,
       );
   });
 
@@ -103,6 +124,8 @@ describe('content files', () => {
     expect(soundLabel.on).toBe(copy.prefs.on);
     expect(soundLabel.off).toBe(copy.prefs.off);
     expect(deskNote.lost).toBe(copy.status.lost);
+    expect(deskHint.hint).toBe(copy.desk.hint);
+    expect(deskHint.dismiss).toBe(copy.desk.dismiss);
   });
 
   it('cross-reference: every #work-<id> target names a work item', () => {
@@ -137,7 +160,7 @@ describe('content files', () => {
     it('plain build: confirmed objects only, no cruiser, one clock', () => {
       const alt = buildPosterAlt(getObjects());
       expect(alt).toBe(
-        'Line drawing of an Arduino board with a small OLED screen, a desk clock, a Nepali desk calendar, an open laptop, a Pac-Man ghost, two Pac-Man figures, three balls and the letters N, I, H, A and L laid out on blueprint paper.',
+        'Line drawing of a developer typing in an office chair, a wide monitor, a keyboard, a mouse, a desk lamp, a coffee mug, a potted plant, headphones, a phone, an open laptop, an Arduino board with a small OLED screen, a desk clock, a Nepali desk calendar, a Pac-Man ghost, a ball and the letters N, I, H, A and L laid out on blueprint paper.',
       );
       expect(alt).not.toMatch(/cruiser/i);
     });

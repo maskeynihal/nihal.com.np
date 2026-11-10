@@ -7,7 +7,7 @@ import {
   useState,
   type ComponentType,
 } from 'react';
-import { onIdle, canRun3D, getMotion, subscribeMotion } from '../../lib/prefs';
+import { onIdle, canRunScene } from '../../lib/prefs';
 import { PHONE_QUERY, isPhoneWidth } from '../../lib/desk/phone';
 import { testHooks } from '../../lib/env';
 import { IslandBoundary, useIslandFailure } from './IslandBoundary';
@@ -70,8 +70,9 @@ function DeskContent({
   }, [onStatus]);
 
   // Poster first. The Scene chunk is requested only when the device can run it, the hero is in
-  // view and the browser is idle. Switching motion off while live goes back to the poster (and
-  // frees the Scene); switching it on again starts the same path.
+  // view and the browser is idle. Reduced motion does not keep it away: the Scene is mounted and
+  // stands still (the developer holds the poster pose), and switching motion on or off while live
+  // only changes how it moves (the Scene listens), so nothing is remounted.
   const hostRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +83,7 @@ function DeskContent({
       if (!cancelled && !goneRef.current && visible && idle) setWantScene(true);
     };
     const start = () => {
-      if (!canRun3D()) return;
+      if (!canRunScene()) return;
       const figure = hostRef.current?.closest('[data-desk]');
       if (figure && typeof IntersectionObserver === 'function') {
         observer = new IntersectionObserver((entries) => {
@@ -105,22 +106,9 @@ function DeskContent({
       cancelled = true;
       observer?.disconnect();
     };
-    if (getMotion() === 'full') start();
-    const unsubscribe = subscribeMotion((m) => {
-      stop();
-      if (m === 'reduce') {
-        setWantScene(false);
-        if (!goneRef.current) onStatus('poster');
-      } else if (!goneRef.current) {
-        cancelled = false;
-        visible = false;
-        idle = false;
-        start();
-      }
-    });
+    start();
     return () => {
       stop();
-      unsubscribe();
     };
   }, [onStatus]);
 

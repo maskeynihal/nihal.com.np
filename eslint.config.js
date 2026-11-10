@@ -12,6 +12,7 @@ export default defineConfig(
       'dist',
       '.astro',
       'docs',
+      'ideations',
       '.claude',
       'node_modules',
       'playwright-report',

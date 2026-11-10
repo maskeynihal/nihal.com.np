@@ -91,8 +91,11 @@ export interface PhysicsApi {
   release(vx: number, vz: number): void;
   /** Lets go with no throw (pointer cancelled). */
   drop(): void;
-  /** Every object back on the table at its home pose (the fall layer's too). */
-  reset(): void;
+  /**
+   * Every object back on the table at its home pose (the fall layer's too), except the `keep`
+   * ids: those stay where they are in the fall layer (frozen) for the tether to reel home.
+   */
+  reset(keep?: readonly string[]): void;
   /** A body arrives from the fall layer (released over the table). */
   receive(state: HandoffState): void;
   grabbed(): string | null;
@@ -124,8 +127,23 @@ export interface FallApi {
   /** Lets go with this screen velocity (px/s). */
   release(vx: number, vy: number, cx: number, cy: number): void;
   drop(): void;
-  /** Every free object goes back to the table group at its home pose, and the world empties. */
-  reset(): void;
+  /** Every free object goes back to the table group at its home pose, and the world empties (except `keep`). */
+  reset(keep?: readonly string[]): void;
+  /** The pose (table world) of a free object as drawn now, mapped back through the table camera; null if unknown. */
+  capture(id: string): {
+    p: [number, number, number];
+    q: [number, number, number, number];
+  } | null;
+  /** Holds a free object still where it is (kinematic, no steps move it) until `home` or `reset`. */
+  freeze(id: string): boolean;
+  /** Puts a frozen free object at a table-world pose (the tether's reel). */
+  place(
+    id: string,
+    p: readonly [number, number, number],
+    q: readonly [number, number, number, number],
+  ): void;
+  /** A frozen free object arrives home: back on the table at its rest pose. */
+  home(id: string): void;
   /** A page scroll of `dy` px: free objects get a small hop. */
   jolt(dy: number): void;
   grabbed(): string | null;

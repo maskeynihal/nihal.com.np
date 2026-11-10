@@ -46,3 +46,39 @@ export function objectLinks(
     );
   });
 }
+
+export interface ObjectAction {
+  id: string;
+  /** "coffee mug" */
+  label: string;
+  /** "take a sip": what the tap does. */
+  act: string;
+}
+
+/**
+ * The objects a tap does something to without leaving the page (the developer, the chair, the lamp,
+ * the keyboard, the balls and letters): one button each in the object list, the keyboard path to the
+ * same reaction. Objects with a section are links (`objectLinks`) and are left out here.
+ */
+export function objectActions(objects: readonly BodyDef[]): ObjectAction[] {
+  return objects.flatMap((o) =>
+    !o.target && o.act ? [{ id: o.id, label: o.label, act: o.act }] : [],
+  );
+}
+
+/**
+ * The handset on the desk is part of the drawer's model, not an object of its own, so it has no row
+ * in the object list: this is its button (shown whenever the drawer is). It raises the desk for
+ * standing work, and lowers it again.
+ */
+export function handsetAction(objects: readonly BodyDef[]): ObjectAction[] {
+  return objects.some((o) => o.id === 'drawer')
+    ? [
+        {
+          id: 'handset',
+          label: 'desk height handset',
+          act: 'stand up or sit down',
+        },
+      ]
+    : [];
+}

@@ -36,3 +36,26 @@ export function calendarFace(
     holiday: todays[0]?.name,
   };
 }
+
+export interface LocalDate {
+  /** Big numeral, "8". */
+  day: string;
+  /** "sunday" */
+  weekday: string;
+  /** "november 2026" */
+  monthYear: string;
+}
+
+/**
+ * The visitor's own date (their clock and time zone), which is what a desk calendar shows. The
+ * Bikram Sambat day from `calendarFace` goes on the small line beneath it. Pure.
+ */
+export function localDate(now: Date): LocalDate {
+  const fmt = (o: Intl.DateTimeFormatOptions) =>
+    now.toLocaleDateString('en-GB', o).toLowerCase();
+  return {
+    day: String(now.getDate()),
+    weekday: fmt({ weekday: 'long' }),
+    monthYear: fmt({ month: 'long', year: 'numeric' }),
+  };
+}

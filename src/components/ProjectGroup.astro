@@ -1,0 +1,195 @@
+---
+import type { WorkGroup, WorkItem } from '../content/schema';
+import { getCopy } from '../content';
+import WorkPanel from './WorkPanel.astro';
+import '../styles/projects.css';
+
+/**
+ * One group of project cards (client work, products, hardware and games).
+ *
+ * Without script: a heading, a note and the cards in a plain scrolling row (stacked on a phone),
+ * every card fully readable. With script (and motion allowed): the row gets arrow buttons, a
+ * progress hairline, mouse drag-to-scroll and a staggered fan-in when it first scrolls into view.
+ * Animation is transform and opacity only, behind `[data-motion='full']`. Keyboard: the row is a
+ * focusable region while it overflows, so the arrow keys scroll it; the buttons are real buttons.
+ */
+interface Props {
+  group: WorkGroup;
+  items: WorkItem[];
+}
+const { group, items } = Astro.props;
+const { work: workCopy } = getCopy();
+const headingId = `proj-group-${group.id}`;
+---
+
+{items.length > 0 && (
+  <section class="proj-group" aria-labelledby={headingId} data-proj-group>
+    <header class="proj-group-head">
+      <div>
+        <h3 id={headingId}>{group.title}</h3>
+        <p class="proj-group-note">{group.note}</p>
+      </div>
+      <div class="proj-controls" data-rail-controls hidden>
+        <button
+          type="button"
+          class="label proj-arrow"
+          data-rail-prev
+          aria-label={workCopy.scrollLeft}
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          class="label proj-arrow"
+          data-rail-next
+          aria-label={workCopy.scrollRight}
+        >
+          →
+        </button>
+      </div>
+    </header>
+    <div class="proj-rail" data-rail data-label={group.title}>
+      <ul class="proj-rail-track">
+        {items.map((item, i) => (
+          <li class="proj-slot" style={`--i:${i}`}>
+            <WorkPanel item={item} />
+          </li>
+        ))}
+      </ul>
+    </div>
+    <div class="proj-progress" aria-hidden="true" data-rail-progress hidden>
+      <span></span>
+    </div>
+  </section>
+)}
+
+<script>
+  const reduced = () => document.documentElement.dataset['motion'] === 'reduce';
+
+  for (const group of document.querySelectorAll<HTMLElement>(
+    '[data-proj-group]',
+  )) {
+    const rail = group.querySelector<HTMLElement>('[data-rail]');
+    const controls = group.querySelector<HTMLElement>('[data-rail-controls]');
+    const prev = group.querySelector<HTMLButtonElement>('[data-rail-prev]');
+    const next = group.querySelector<HTMLButtonElement>('[data-rail-next]');
+    const progress = group.querySelector<HTMLElement>('[data-rail-progress]');
+    const bar = progress?.querySelector<HTMLElement>('span');
+    if (!rail || !controls || !prev || !next || !progress || !bar) continue;
+
+    // The row scrolls sideways only when it overflows (wide screens); a phone stacks it.
+    const overflows = () => rail.scrollWidth - rail.clientWidth > 4;
+    const step = () => {
+      const slot = rail.querySelector<HTMLElement>('.proj-slot');
+      const gap =
+        parseFloat(getComputedStyle(rail.firstElementChild!).columnGap) || 0;
+      return (slot?.offsetWidth ?? rail.clientWidth * 0.8) + gap;
+    };
+
+    function sync() {
+      const max = rail!.scrollWidth - rail!.clientWidth;
+      const on = overflows();
+      controls!.hidden = !on;
+      progress!.hidden = !on;
+      if (on) {
+        rail!.setAttribute('tabindex', '0');
+        rail!.setAttribute('role', 'region');
+        rail!.setAttribute('aria-label', rail!.dataset['label'] ?? '');
+      } else {
+        rail!.removeAttribute('tabindex');
+        rail!.removeAttribute('role');
+        rail!.removeAttribute('aria-label');
+      }
+      const at = max > 0 ? rail!.scrollLeft / max : 0;
+      prev!.setAttribute('aria-disabled', String(at <= 0.01));
+      next!.setAttribute('aria-disabled', String(at >= 0.99));
+      const visible = rail!.clientWidth / rail!.scrollWidth;
+      bar!.style.transform = `translateX(${at * (1 - visible) * 100}%) scaleX(${visible})`;
+    }
+
+    let raf = 0;
+    const queue = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(sync);
+    };
+    rail.addEventListener('scroll', queue, { passive: true });
+    new ResizeObserver(queue).observe(rail);
+    sync();
+
+    const go = (dir: 1 | -1) => (e: Event) => {
+      const btn = e.currentTarget as HTMLElement;
+      if (btn.getAttribute('aria-disabled') === 'true') return;
+      rail.scrollBy({
+        left: dir * step(),
+        behavior: reduced() ? 'auto' : 'smooth',
+      });
+    };
+    prev.addEventListener('click', go(-1));
+    next.addEventListener('click', go(1));
+
+    // Mouse drag to scroll. Touch and pen already scroll natively; links, buttons and the
+    // arcade frame keep their own clicks, and a drag never ends in an accidental click.
+    let startX = 0;
+    let startLeft = 0;
+    let dragging = false;
+    let moved = false;
+    rail.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || !overflows()) return;
+      if (
+        (e.target as HTMLElement).closest('a, button, summary, iframe, input')
+      )
+        return;
+      startX = e.clientX;
+      startLeft = rail.scrollLeft;
+      dragging = true;
+      moved = false;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) < 5) return;
+      if (!moved) {
+        moved = true;
+        rail.classList.add('is-dragging');
+      }
+      rail.scrollLeft = startLeft - dx;
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      rail.classList.remove('is-dragging');
+    };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    rail.addEventListener(
+      'click',
+      (e) => {
+        if (moved) {
+          e.preventDefault();
+          e.stopPropagation();
+          moved = false;
+        }
+      },
+      true,
+    );
+
+    // Entrance: the cards fan in, staggered, the first time the row is on screen. Only armed
+    // when motion is allowed; the safety timer means nothing stays hidden.
+    if (!reduced() && 'IntersectionObserver' in window) {
+      group.dataset['reveal'] = 'pending';
+      const show = () => {
+        group.dataset['reveal'] = 'in';
+        io.disconnect();
+        clearTimeout(timer);
+      };
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) show();
+        },
+        { threshold: 0.15 },
+      );
+      const timer = setTimeout(show, 4000);
+      io.observe(rail);
+    }
+  }
+</script>

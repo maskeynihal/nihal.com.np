@@ -137,3 +137,14 @@ Source of truth is `src/content/copy.ts` and `cv.ts`; deck in `docs/specs/04-v3-
 - Light mode switch: `role="switch"`, label "light mode", fixed top right inside the sheet border, hidden without JS.
 - #contact lead: "Email is fastest. I read everything and reply to most within a couple of days." Socials add instagram and hashnode.
 - #colophon adds: "Built with Astro and three.js. The desk is code, not a model file from a store."
+
+## 5. Current copy (2026-11, supersedes sections 3 and 4 where they differ)
+Source of truth is `src/content/copy.ts` (interface strings), `work.ts`, `oss.ts`, `cv.ts`. This section only maps them. Every string a template shows comes from those files, none is typed in a component. The easter-egg texts live in `src/lib/desk/eggs.ts`; the copy gate reads them too.
+- Title block: name "nihal maskey"; kicker "lead software engineer · kathmandu, nepal"; one line (lead engineer at Leapfrog Technology, a US behavioural-health platform on AWS under HIPAA and SOC 2, co-founder of Daboo Spaces); email; Kathmandu clock; "see the projects →"; "put everything back"; "skip the 3D desk".
+- #about: three paragraphs (who, what the work is, how I lead across the US, Australia and Nepal), a fourth linking Daboo Spaces, and a facts list (location, role, co-founder, stack, open to).
+- #projects: intro "Side projects. Each one solves a problem I hit at work or at home, and each one shipped." Seven cards in three groups, each group a heading and a one-line note (in `work.ts`): client work (trayt health), products and tools (tz converter, sprintnudge, underhood, space hog), hardware and games (car sensors, pac-man). A card has a title, a mono date line, a summary, stack chips, a collapsed "more" (long text), and its links. Card chrome strings (`more`, `stack`, `scroll left`, `scroll right`) are in `copy.work`.
+- #open-source: two paper panels, each a table of repo, what, and a date column. "my projects" (own repos, last column "since") and "contributions" (pull requests merged elsewhere, last column "merged"). Headings and the "since" label are in `copy.openSource`.
+- #writing: intro, the post list, "all posts on hashnode".
+- #cv: roles table with bullets under each role, then three cards (co-founder, education, skills).
+- #contact: lead, copy-email button, Kathmandu timezone line, five social links, the form and its error and success lines.
+- Index rows are seven: desk, about, projects, open source, writing, cv, contact (no colophon row). The footer carries the copyright and the source link.

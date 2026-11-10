@@ -58,3 +58,20 @@ export function parseObjects(raw: string | null | undefined): ObjectDef[] {
     return [];
   }
 }
+
+/**
+ * Models that are furniture: drawn like the other objects and picked, hovered and tapped, but
+ * never given a body, so they cannot be grabbed, thrown or dropped off the desk. The chair and the
+ * developer are part of the scene; the monitor, keyboard, mouse and lamp are what the sitter works with; the desk kit is the drawer and the height handset.
+ */
+export const FIXED_MODELS: ReadonlySet<string> = new Set([
+  'chair',
+  'dev',
+  'monitor',
+  'keyboard',
+  'mouse',
+  'lamp',
+  'desk',
+]);
+
+export const isFixedModel = (model: string): boolean => FIXED_MODELS.has(model);

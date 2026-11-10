@@ -14,6 +14,19 @@ import {
  */
 let phone = false;
 let ready = false;
+/**
+ * How far the camera sits below its drawn height (m). Raising the desk for standing work is drawn
+ * by dropping the floor, the chair and the legs by the rise and moving the camera down with them,
+ * so the floor stays put on screen and the desk top (where every loose object lives) rises with
+ * its things. The poster is the camera at 0.
+ */
+let drop = 0;
+
+export function setCameraDrop(d: number): void {
+  if (d === drop) return;
+  drop = d;
+  ready = false;
+}
 
 /** Chooses the view for the Scene about to draw. */
 export function setPhoneView(on: boolean): void {
@@ -24,20 +37,43 @@ export function setPhoneView(on: boolean): void {
 
 export const activeView = () => (phone ? phoneCamera : heroCamera);
 
-export function applyHeroCamera(cam: PerspectiveCamera): void {
+/** The vertical field of view in use (it follows the canvas shape, see `applyHeroCamera`). */
+let currentFov: number = heroCamera.fov;
+
+/**
+ * The view's camera at the canvas's real shape. The framing is made for the poster's aspect and
+ * fits the whole workstation (lamp to chair casters, with the standing-desk and walk extents) in
+ * that box. A canvas as wide as the poster or wider (a short screen caps the stage's height, see
+ * desk.css) keeps the *vertical* field of view, so the workstation keeps its full height and is
+ * centred with more room at the sides, the way the poster's SVG letterboxes; a narrower one keeps
+ * the horizontal field of view and shows more floor. Either way nothing is cropped.
+ */
+export function applyHeroCamera(cam: PerspectiveCamera, aspect?: number): void {
   const v = activeView();
-  cam.fov = v.fov;
+  const nominal = phone ? phoneAspect : posterAspect;
+  const a =
+    aspect && Number.isFinite(aspect) && aspect > 0.3 ? aspect : nominal;
+  const fov =
+    a >= nominal
+      ? v.fov
+      : (2 *
+          Math.atan((Math.tan((v.fov * Math.PI) / 360) * nominal) / a) *
+          180) /
+        Math.PI;
+  // only the live canvas sets the lens the maths below use; the shared `heroPose` stays nominal
+  if (aspect !== undefined) currentFov = fov;
+  cam.fov = fov;
   cam.near = v.near;
   cam.far = v.far;
-  cam.aspect = phone ? phoneAspect : posterAspect;
-  cam.position.set(...v.position);
-  cam.lookAt(...v.lookAt);
+  cam.aspect = a;
+  cam.position.set(v.position[0], v.position[1] - drop, v.position[2]);
+  cam.lookAt(v.lookAt[0], v.lookAt[1] - drop, v.lookAt[2]);
   cam.updateProjectionMatrix();
   cam.updateMatrixWorld(true);
 }
 
 /** Vertical focal length in pixels for a canvas `height` px tall. */
-export const focalPx = (height: number, fov: number = heroCamera.fov): number =>
+export const focalPx = (height: number, fov: number = currentFov): number =>
   height / 2 / Math.tan((fov * Math.PI) / 360);
 
 const _cam = new PerspectiveCamera();

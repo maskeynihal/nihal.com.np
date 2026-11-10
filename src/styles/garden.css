@@ -38,8 +38,34 @@
 .garden-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  /* Row-reverse from the start edge: the always-present buttons (drop, throw, pick) hold the
+     right edge, and the conditional ones (new, wrap, vase, out) appear to their left. Before,
+     justify-content: flex-end made every button slide sideways whenever a hidden one showed. */
+  flex-direction: row-reverse;
+  justify-content: flex-start;
   gap: 0.25rem;
+}
+
+.garden-btn[data-garden-act='drop'] {
+  order: 1;
+}
+.garden-btn[data-garden-act='throw'] {
+  order: 2;
+}
+.garden-btn[data-garden-act='pick'] {
+  order: 3;
+}
+.garden-btn[data-garden-act='out'] {
+  order: 4;
+}
+.garden-btn[data-garden-act='vase'] {
+  order: 5;
+}
+.garden-btn[data-garden-act='wrap'] {
+  order: 6;
+}
+.garden-btn[data-garden-act='new'] {
+  order: 7;
 }
 
 /* Icon buttons, low emphasis: line drawings, no words. 44 px targets. */
@@ -56,7 +82,7 @@
   border-radius: var(--radius);
   opacity: 0.55;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-2);
 }
 
 .garden-btn svg {

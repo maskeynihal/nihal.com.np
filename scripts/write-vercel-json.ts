@@ -100,9 +100,23 @@ interface Rule {
   headers: { key: string; value: string }[];
 }
 
-export function buildVercelConfig(hashes: string[]): { headers: Rule[] } {
+/**
+ * Build settings live here, not in the Vercel project: the project predates this rebuild and is
+ * still set to Next.js, and its old production deployment is kept on v1.nihal.com.np.
+ */
+const BUILD = {
+  framework: 'astro',
+  installCommand: 'pnpm install --frozen-lockfile',
+  buildCommand: 'pnpm build',
+  outputDirectory: 'dist',
+} as const;
+
+export function buildVercelConfig(
+  hashes: string[],
+): typeof BUILD & { headers: Rule[] } {
   const immutable = 'public, max-age=31536000, immutable';
   return {
+    ...BUILD,
     headers: [
       {
         source: '/(.*)',

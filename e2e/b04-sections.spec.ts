@@ -11,7 +11,7 @@ const panels = work.filter((w) => w.confirmed);
 const rows = cv.filter((r) => r.confirmed);
 
 test.describe('work, open source, writing, cv @B-04', () => {
-  test('one panel per confirmed work item with the anchor, heading, date line and text @B-04', async ({
+  test('one card per confirmed work item with the anchor, heading, date line, summary and links @B-04', async ({
     page,
   }) => {
     await page.goto('/');
@@ -22,9 +22,19 @@ test.describe('work, open source, writing, cv @B-04', () => {
       const p = page.locator(`#work-${w.id}`);
       await expect(p).toHaveCount(1);
       await expect(
-        p.getByRole('heading', { level: 3, name: w.title }),
+        p.getByRole('heading', { level: 4, name: w.title }),
       ).toBeVisible();
+      await expect(p).toContainText(w.summary);
+      // The long description is collapsed but still in the page.
       for (const para of w.body) await expect(p).toContainText(para);
+      await expect(p.locator('details.proj-more')).not.toHaveAttribute(
+        'open',
+        '',
+      );
+      if (w.cta)
+        await expect(
+          p.getByRole('link', { name: w.cta.label }),
+        ).toHaveAttribute('href', w.cta.href);
       const t = p.locator('.work-date time');
       await expect(t).toHaveAttribute('datetime', /^\d{4}-\d{2}$/);
       for (const l of w.links)
@@ -55,27 +65,47 @@ test.describe('work, open source, writing, cv @B-04', () => {
     }
   });
 
-  test('revision table: name, column headers, one row per PR, dates as time @B-04', async ({
+  test('revision tables: my projects and contributions, one row per repo, dates as time @B-04', async ({
     page,
   }) => {
     await page.goto('/');
-    const table = page.locator('#open-source table');
-    await expect(table).toHaveAccessibleName(copy.headings.openSource);
-    await expect(table.locator('thead th')).toHaveText([
-      ...copy.openSource.columns,
-    ]);
-    await expect(table.locator('tbody tr')).toHaveCount(oss.length);
-    for (const [i, r] of oss.entries()) {
-      const link = table.locator('tbody tr').nth(i).getByRole('link');
-      await expect(link).toHaveText(r.repo);
-      await expect(link).toHaveAttribute('href', r.href);
+    const tables = page.locator('#open-source table');
+    await expect(tables).toHaveCount(2);
+    const [repoCol, whatCol, mergedCol] = copy.openSource.columns;
+    const kinds = [
+      { kind: 'own', name: 'my projects', cols: [repoCol, whatCol, 'since'] },
+      {
+        kind: 'contribution',
+        name: 'contributions',
+        cols: [repoCol, whatCol, mergedCol],
+      },
+    ] as const;
+    for (const [t, k] of kinds.entries()) {
+      const table = tables.nth(t);
+      const rows = oss.filter((r) => r.kind === k.kind);
+      await expect(table).toHaveAccessibleName(k.name);
+      await expect(table.locator('thead th')).toHaveText([...k.cols]);
+      await expect(table.locator('tbody tr')).toHaveCount(rows.length);
+      for (const [i, r] of rows.entries()) {
+        const link = table.locator('tbody tr').nth(i).getByRole('link');
+        await expect(link).toHaveText(r.repo);
+        await expect(link).toHaveAttribute('href', r.href);
+      }
+      await expect(table.locator('tfoot')).toHaveCount(0);
     }
+    // No repo appears twice across the page.
+    const repos = await page
+      .locator('#open-source tbody th a')
+      .allTextContents();
+    expect(new Set(repos).size).toBe(repos.length);
     // Month values are <time datetime>; ranges and bare years are plain text.
-    await expect(table.locator('tbody time').first()).toHaveAttribute(
+    await expect(tables.first().locator('tbody time').first()).toHaveAttribute(
       'datetime',
-      '2023-06',
+      /^\d{4}-\d{2}$/,
     );
-    await expect(table.locator('tfoot')).toHaveCount(0);
+    await expect(
+      tables.nth(1).locator('tbody tr', { hasText: 'nginxconfig.io' }),
+    ).toContainText('2023-06 → 2023-10');
     await expectNoAxeViolations(page, { label: '/ revision table' });
   });
 

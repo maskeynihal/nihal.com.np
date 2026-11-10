@@ -1,45 +1,60 @@
 import { test, expect, expectNoAxeViolations } from './fixtures';
 
-const leaderWidth = (el: Element, sel: string) =>
-  getComputedStyle(el, sel).transform;
-
 test.describe('ledger leader lines @C-02', () => {
-  test('hover extends a 24 px leader in 160 ms @C-02', async ({
+  test('hover underlines the repo name along its text, tints it and slides in an arrow in 160 ms @C-02', async ({
     page,
     hasTouch,
   }, info) => {
     test.skip(hasTouch, 'hover needs a pointer');
     await page.goto('/');
     const row = page.locator('.revision-table tbody tr').first();
-    const th = row.locator('th');
+    const a = row.locator('th a');
     await row.scrollIntoViewIfNeeded();
-    expect(await th.evaluate(leaderWidth, '::before')).toBe(
-      'matrix(0, 0, 0, 1, 0, 0)',
-    );
-    const css = await th.evaluate((e) => {
-      const s = getComputedStyle(e, '::before');
-      return [s.width, s.transitionDuration, s.transitionProperty];
-    });
-    expect(css[0]).toBe('24px');
-    // Motion off keeps only opacity transitions: the leader then appears at once.
-    if (info.project.name !== 'reduced-motion')
-      expect(css).toEqual(['24px', '0.16s', 'transform']);
+    const style = () =>
+      a.evaluate((e) => {
+        const s = getComputedStyle(e);
+        const after = getComputedStyle(e, '::after');
+        return [
+          s.backgroundSize,
+          s.transitionDuration,
+          s.boxDecorationBreak,
+          s.display,
+          after.opacity,
+          s.color,
+        ];
+      });
+    const before = await style();
+    expect(before[0]).toBe('0% 1px');
+    expect(before[2]).toBe('clone');
+    // Inline, so a wrapped name gets the underline on every line; arrow hidden until hover.
+    expect(before[3]).toBe('inline');
+    expect(before[4]).toBe('0');
+    // No margin leader on the table any more.
+    expect(
+      await row
+        .locator('th')
+        .evaluate((e) => getComputedStyle(e, '::before').content),
+    ).toBe('none');
+    // Motion off keeps only opacity transitions: the line then appears at once.
+    if (info.project.name !== 'reduced-motion') expect(before[1]).toBe('0.16s');
     await row.hover();
-    await expect
-      .poll(() => th.evaluate(leaderWidth, '::before'))
-      .toBe('matrix(1, 0, 0, 1, 0, 0)');
-    await expect(row.locator('..').locator('..')).toBeVisible();
-    await page.locator('#open-source .panel').screenshot({
-      path: info.outputPath('hover.png'),
-      animations: 'disabled',
-    });
+    await expect.poll(async () => (await style())[0]).toBe('100% 1px');
+    await expect.poll(async () => (await style())[4]).toBe('1');
+    expect((await style())[5]).not.toBe(before[5]);
+    await page
+      .locator('#open-source .panel')
+      .first()
+      .screenshot({
+        path: info.outputPath('hover.png'),
+        animations: 'disabled',
+      });
     await info.attach('leader-hover', {
       path: info.outputPath('hover.png'),
       contentType: 'image/png',
     });
   });
 
-  test('keyboard focus shows the same leader, on the table and list ledgers @C-02', async ({
+  test('keyboard focus shows the same underline, on the table and list ledgers @C-02', async ({
     page,
   }, info) => {
     test.skip(
@@ -60,11 +75,11 @@ test.describe('ledger leader lines @C-02', () => {
         .poll(() =>
           a.evaluate((e, rowSel) => {
             const r = e.closest(rowSel)!;
-            const el = r.matches('tr') ? r.querySelector('th')! : r;
-            return getComputedStyle(el, '::before').transform;
+            const link = r.querySelector(r.matches('tr') ? 'th a' : 'a')!;
+            return getComputedStyle(link).backgroundSize;
           }, row),
         )
-        .toBe('matrix(1, 0, 0, 1, 0, 0)');
+        .toBe('100% 1px');
       await page.locator(`${panel} .panel`).screenshot({
         path: info.outputPath(`focus-${panel.slice(1)}.png`),
         animations: 'disabled',
